@@ -37,9 +37,10 @@ async function main(args) {
   const imports = new Map();
   for (const sourcePath of sourcePaths) {
     const source = await readFile(sourcePath, "utf8");
-    const scanned = scanSource(source, sourcePath);
+    const sourceImports = scanImports(source, sourcePath);
+    const scanned = scanSource(source, sourcePath, sourceImports);
     functions.push(...scanned.functions);
-    collectUsedTypeImports(scanImports(source, sourcePath), scanned.usedTypeNames, imports);
+    collectUsedTypeImports(sourceImports, scanned.usedTypeNames, imports);
   }
 
   const manifest = {
@@ -70,7 +71,7 @@ async function main(args) {
   }
 }
 
-function scanSource(source, sourcePath) {
+function scanSource(source, sourcePath, sourceImports = new Map()) {
   const sourceFile = ts.createSourceFile(sourcePath, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
   assertNoParseDiagnostics(sourceFile, sourcePath);
   const decoratorNames = scanDecoratorNames(sourceFile);
@@ -83,7 +84,16 @@ function scanSource(source, sourcePath) {
       if (className) {
         const implementedMethods = collectImplementedMethodNames(node);
         for (const member of node.members) {
-          const entry = scanMethod(member, className, sourceFile, sourcePath, decoratorNames, implementedMethods, usedTypeNames);
+          const entry = scanMethod(
+            member,
+            className,
+            sourceFile,
+            sourcePath,
+            decoratorNames,
+            implementedMethods,
+            usedTypeNames,
+            sourceImports,
+          );
           if (entry) functions.push(entry);
         }
       }
@@ -196,7 +206,7 @@ function collectImplementedMethodNames(classNode) {
   return names;
 }
 
-function scanMethod(member, className, sourceFile, sourcePath, decoratorNames, implementedMethods, usedTypeNames) {
+function scanMethod(member, className, sourceFile, sourcePath, decoratorNames, implementedMethods, usedTypeNames, sourceImports) {
   if (!ts.isMethodDeclaration(member)) return undefined;
   if (!ts.isIdentifier(member.name)) return undefined;
   if (!member.body && implementedMethods.has(member.name.text)) return undefined;
@@ -230,12 +240,23 @@ function scanMethod(member, className, sourceFile, sourcePath, decoratorNames, i
   }
   if (returnType) {
     entry.returnType = returnType;
-    const returnKind = inferGeneratedReturnKind(returnType);
+    const returnKind = inferGeneratedReturnKindForSource(returnType, returnTypeNode, sourceImports);
     if (returnKind !== "value") {
       entry.returnKind = returnKind;
     }
   }
   return entry;
+}
+
+function inferGeneratedReturnKindForSource(returnType, returnTypeNode, sourceImports) {
+  const inferred = inferGeneratedReturnKind(returnType);
+  if (inferred !== "value") return inferred;
+  const rootName = typeReferenceRootName(returnTypeNode);
+  const imported = rootName ? sourceImports.get(rootName) : undefined;
+  if (imported?.from !== "gemstone-js") return inferred;
+  if (imported.name === "Oop") return "oop";
+  if (imported.name === "TypedOop") return "object";
+  return inferred;
 }
 
 function decoratorStringArg(node, decoratorName, sourceFile, sourcePath, decoratorNames) {
@@ -406,6 +427,21 @@ function collectTypeNodeNames(typeNode, names) {
     }
     ts.forEachChild(node, visitTypeNode);
   }
+}
+
+function typeReferenceRootName(typeNode) {
+  if (!typeNode) return undefined;
+  let node = typeNode;
+  while (ts.isParenthesizedTypeNode(node)) {
+    node = node.type;
+  }
+  if (!ts.isTypeReferenceNode(node)) return undefined;
+  return entityNameRootName(node.typeName);
+}
+
+function entityNameRootName(name) {
+  if (ts.isIdentifier(name)) return name.text;
+  return entityNameRootName(name.left);
 }
 
 function addEntityNameRoot(name, names) {

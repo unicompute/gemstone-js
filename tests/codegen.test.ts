@@ -123,9 +123,11 @@ test("generated wrappers infer raw-OOP and object return calls from return types
   assertEqual(inferGeneratedReturnKind("string"), "value");
   assertEqual(inferGeneratedReturnKind("Oop"), "oop");
   assertEqual(inferGeneratedReturnKind("Gem.Oop"), "oop");
+  assertEqual(inferGeneratedReturnKind("GSOop"), "oop");
   assertEqual(inferGeneratedReturnKind("TypedOop<Booking>"), "object");
   assertEqual(inferGeneratedReturnKind("TypedOop < Booking >"), "object");
   assertEqual(inferGeneratedReturnKind("Gem.TypedOop<Booking>"), "object");
+  assertEqual(inferGeneratedReturnKind("GSTypedOop<Booking>"), "object");
 
   assertEqual(renderGeneratedFunction({
     exportedName: "rawBooking",

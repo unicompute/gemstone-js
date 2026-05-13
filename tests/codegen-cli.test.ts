@@ -454,6 +454,76 @@ test("codegen scanner resolves decorator/type aliases and skips overload signatu
   }
 });
 
+test("codegen scanner infers handle return kinds from aliased gemstone-js types", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "gemstone-js-codegen-scan-return-alias-"));
+  try {
+    const sourcePath = join(dir, "return-alias.ts");
+    await writeFile(sourcePath, [
+      "import { GemStoneClass, GemStoneSelector, type Oop as GSOop, type Session, type TypedOop as GSTypedOop } from \"gemstone-js\";",
+      "import type { Booking } from \"./booking-types.ts\";",
+      "@GemStoneClass(\"Booking\")",
+      "class AliasReturnBookingModel {",
+      "  @GemStoneSelector(\"find:\")",
+      "  static findBooking(session: Session, id: string): Promise<GSTypedOop<Booking>> {",
+      "    throw new Error(\"scanner fixture only\");",
+      "  }",
+      "  @GemStoneSelector(\"raw:\")",
+      "  static rawBooking(session: Session, id: string): Promise<GSOop> {",
+      "    throw new Error(\"scanner fixture only\");",
+      "  }",
+      "}",
+      "",
+    ].join("\n"));
+
+    const { stdout } = await execNode([scanScript, sourcePath]);
+    const scanned = JSON.parse(stdout);
+
+    assert.deepEqual(scanned.imports, [
+      {
+        from: "gemstone-js",
+        typeNames: ["Session"],
+        typeSpecifiers: [
+          { name: "TypedOop", alias: "GSTypedOop" },
+          { name: "Oop", alias: "GSOop" },
+        ],
+      },
+      {
+        from: "./booking-types.ts",
+        typeNames: ["Booking"],
+      },
+    ]);
+    assert.deepEqual(scanned.functions, [
+      {
+        exportedName: "findBooking",
+        className: "Booking",
+        selector: "find:",
+        argNames: ["id"],
+        argTypes: ["string"],
+        sessionType: "Session",
+        returnType: "GSTypedOop<Booking>",
+        returnKind: "object",
+      },
+      {
+        exportedName: "rawBooking",
+        className: "Booking",
+        selector: "raw:",
+        argNames: ["id"],
+        argTypes: ["string"],
+        sessionType: "Session",
+        returnType: "GSOop",
+        returnKind: "oop",
+      },
+    ]);
+
+    const moduleOutput = await execNode([scanScript, "--module", sourcePath]);
+    assert.match(moduleOutput.stdout, /import type \{ Session, TypedOop as GSTypedOop, Oop as GSOop \} from "gemstone-js";/);
+    assert.match(moduleOutput.stdout, /sendObject\("find:", id\)/);
+    assert.match(moduleOutput.stdout, /performWith\(receiver, "raw:", id\)/);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 test("codegen scanner recognizes gemstone-js namespace decorators only", async () => {
   const dir = await mkdtemp(join(tmpdir(), "gemstone-js-codegen-scan-namespace-"));
   try {

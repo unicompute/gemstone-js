@@ -69,6 +69,15 @@ export class GsDict implements AsyncDisposable {
     return this.setAll(values);
   }
 
+  async replaceAll(values: Record<string, GemStoneArgument>): Promise<this> {
+    await this.clear();
+    return this.setAll(values);
+  }
+
+  async replaceAllValue(values: Record<string, GemStoneArgument>): Promise<this> {
+    return this.replaceAll(values);
+  }
+
   async setDict(key: string, value: GemStoneDictionaryArgument): Promise<GsDict> {
     const dict = await this.session.dictionary(value);
     await this.setOop(key, dict.oop);
@@ -83,6 +92,11 @@ export class GsDict implements AsyncDisposable {
     return result;
   }
 
+  async replaceAllDict(values: Record<string, GemStoneDictionaryArgument>): Promise<Record<string, GsDict>> {
+    await this.clear();
+    return this.setAllDict(values);
+  }
+
   async setOop<T = unknown>(key: string, value: OopHandle<T>): Promise<this> {
     await this.session.runtime.strKeyValueDictAtPut(this.oop, key, rawOop(value));
     return this;
@@ -95,12 +109,21 @@ export class GsDict implements AsyncDisposable {
     return this;
   }
 
+  async replaceAllOop(values: Record<string, OopHandle<unknown>>): Promise<this> {
+    await this.clear();
+    return this.setAllOop(values);
+  }
+
   async setObject<T = unknown>(key: string, value: OopHandle<T>): Promise<this> {
     return this.setOop(key, value);
   }
 
   async setAllObject(values: Record<string, OopHandle<unknown>>): Promise<this> {
     return this.setAllOop(values);
+  }
+
+  async replaceAllObject(values: Record<string, OopHandle<unknown>>): Promise<this> {
+    return this.replaceAllOop(values);
   }
 
   async remove(key: string): Promise<boolean> {
@@ -125,6 +148,11 @@ export class GsDict implements AsyncDisposable {
 
   async deleteAll(keys: readonly string[]): Promise<Record<string, boolean>> {
     return this.removeAll(keys);
+  }
+
+  async clear(): Promise<this> {
+    await this.removeAll(await this.keys());
+    return this;
   }
 
   async has(key: string): Promise<boolean> {

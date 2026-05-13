@@ -43,8 +43,9 @@ The first implementation slice follows `../plan.js.txt`:
   while wrappers expose explicit value/raw/object accessors, value-named setter
   aliases, object-named setter aliases for stored OOP handles, nested
   dictionary helpers including batch dictionary setters, send helpers,
-  dictionary metadata, dictionary/root enumeration, global/root size helpers,
-  and required global/root accessors.
+  dictionary metadata, dictionary/root enumeration, replace/clear lifecycle
+  helpers for owned string-key dictionaries, global/root size helpers, and
+  required global/root accessors.
 - Source-rendered helper names and class-ref names share one validation policy.
   Collection names, class names, persistent-root names, persistent-root entries,
   and direct global names must be simple GemStone global-style identifiers;

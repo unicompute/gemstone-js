@@ -51,6 +51,11 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
   assert.equal((await dict.entries()).status, "ready");
   assert.deepEqual(new Set(await dict.values()), new Set(["ready", 2n]));
   assert.deepEqual(new Map(await dict.items()).get("status"), "ready");
+  await dict.replaceAll({ status: "replaced", count: 3 });
+  assert.equal(await dict.requireValue("status"), "replaced");
+  assert.equal(await dict.requireValue("count"), 3n);
+  await dict.replaceAllValue({ status: "ready", count: 2 });
+  assert.equal(await dict.requireValue("status"), "ready");
   const dictValueOops = await dict.valuesOop();
   assert.deepEqual(new Set(await Promise.all(dictValueOops.map((oop) => session.marshalOop(oop)))), new Set(["ready", 2n]));
   const dictItemsOop = new Map(await Promise.all((await dict.itemsOop()).map(async ([key, oop]) => (
@@ -73,6 +78,8 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
   assert.deepEqual(await dict.deleteAll(["nested", "missing"]), { nested: true, missing: false });
   assert.deepEqual(await dict.removeAll(["count", "missing-count"]), { count: true, "missing-count": false });
   assert.equal(await dict.has("count"), false);
+  await dict.clear();
+  assert.equal(await dict.isEmpty(), true);
 
   const object = await objectClass.sendObject("new");
   assert.equal(object.session, session);

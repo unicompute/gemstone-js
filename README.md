@@ -59,6 +59,8 @@ native package; the TypeScript package can be tested locally with a mock runtime
   `getObject()`, `set()`/`setValue()` and `setAll()`/`setAllValue()`, raw
   `setOop()`/`setAllOop()` plus object-named
   `setObject()`/`setAllObject()` aliases,
+  `replaceAll()`/`replaceAllValue()`, raw `replaceAllOop()`, object-named
+  `replaceAllObject()`, dictionary `replaceAllDict()`, `clear()`,
   `remove()`/`delete()`, `has()`, `size()`, `isEmpty()`, `keys()`,
   `values()`, raw `valuesOop()`, `items()`, raw `itemsOop()`, `entries()`,
   `toObject()`, raw `entriesOop()`, `pick()`, raw `pickOop()`,
@@ -168,8 +170,8 @@ GS_RUN_LIVE=1 npm run test:live
 The live smoke covers connect, execute, class-side sends, `performWith()`,
 string, float, nested array marshalling/value/raw readback, dictionary readback, global
 lookup/enumeration/nullable object/bulk required/raw set/removal helpers,
-`GsDict` metadata, value/raw enumeration, nullable object/dictionary pick, bulk
-required-read, and bulk removal helpers, and
+`GsDict` metadata, value/raw enumeration, replace/clear, nullable
+object/dictionary pick, bulk required-read, and bulk removal helpers, and
 `PersistentRoot` value, dictionary, key, size, pick, required-value, batch-value, bulk
 nullable object/dictionary pick, required-read, and bulk removal helpers. It
 also covers live query add/remove, `count()`, `exists()`, `first()`, `limit()`,

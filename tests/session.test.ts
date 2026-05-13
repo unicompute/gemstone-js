@@ -776,6 +776,55 @@ test("GsDict size helpers convert GemStone counts", async () => {
   await session.logout();
 });
 
+test("GsDict clear and replace helpers rebuild dictionary contents", async () => {
+  let runtime: MockGciRuntime;
+  let dictOop = OOP_NIL;
+  runtime = new MockGciRuntime({
+    execute(source) {
+      assert(source.includes(`Object _objectForOop: ${dictOop.toString()}.`), "clear should enumerate dictionary keys");
+      const prefix = `${dictOop}:`;
+      const keys = [...runtime.strKeyDict.keys()]
+        .filter((key) => key.startsWith(prefix))
+        .map((key) => key.slice(prefix.length));
+      return runtime.newString(keys.length === 0 ? "" : `${keys.join("\n")}\n`);
+    },
+  });
+  const session = await Session.connect({ username: "u", password: "p", runtime });
+  const dict = await GsDict.create(session, { old: "value", stale: "value" });
+  dictOop = dict.oop;
+  const object = runtime.allocate();
+  const objectHandle = session.typedOop(object);
+
+  await dict.clear();
+  assertEqual(await dict.isEmpty(), true);
+  assertEqual(await dict.get("old"), null);
+
+  await dict.replaceAll({ fresh: "value", enabled: true });
+  assertEqual(await dict.get("fresh"), "value");
+  assertEqual(await dict.get("old"), null);
+  assertEqual(await dict.get("enabled"), true);
+
+  await dict.replaceAllValue({ status: "ready" });
+  assertEqual(await dict.get("status"), "ready");
+  assertEqual(await dict.get("fresh"), null);
+
+  await dict.replaceAllOop({ object });
+  assertEqual(await dict.getOop("object"), object);
+  assertEqual(await dict.get("status"), null);
+
+  await dict.replaceAllObject({ objectAlias: objectHandle });
+  assertEqual(await dict.getOop("objectAlias"), object);
+  assertEqual(await dict.getOop("object"), null);
+
+  const nested = await dict.replaceAllDict({ nested: { status: "child" } });
+  assertEqual(await nested.nested.get("status"), "child");
+  assertEqual(await dict.getOop("objectAlias"), null);
+  assertEqual(await (await dict.requireDict("nested")).get("status"), "child");
+
+  await objectHandle.release();
+  await session.logout();
+});
+
 test("GsDict keys and entries list dictionary contents", async () => {
   let runtime: MockGciRuntime;
   let dictOop = OOP_NIL;

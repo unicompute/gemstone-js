@@ -15,6 +15,7 @@ import {
   validateFetchCount,
   validateFetchStart,
 } from "../src/runtime/ffi-buffers.ts";
+import { normalizeNativeErrorInfo } from "../src/runtime/node.ts";
 
 const registeredTests: Array<() => Promise<void>> = [];
 
@@ -73,6 +74,31 @@ test("ambient native module exposes the mapped error type guard", () => {
   assert(guard(value), "native mapped error guard should narrow the error shape");
   assertEqual(value.operation, "init");
   assertEqual(value.gciNumber, 404);
+});
+
+test("Node runtime normalizes rich native GciErr fields", () => {
+  const info = normalizeNativeErrorInfo({
+    number: "2406",
+    fatal: 1,
+    message: 42,
+    reason: "reason text",
+    category: "1000",
+    context: 1001,
+    exceptionObj: 1002n,
+    args: ["1003", 1004, 1005n],
+  });
+
+  assertEqual(info.number, 2406);
+  assertEqual(info.fatal, true);
+  assertEqual(info.message, "42");
+  assertEqual(info.reason, "reason text");
+  assertEqual(info.category, oop(1000));
+  assertEqual(info.context, oop(1001));
+  assertEqual(info.exceptionObj, oop(1002));
+  assertEqual(info.args?.length, 3);
+  assertEqual(info.args?.[0], oop(1003));
+  assertEqual(info.args?.[1], oop(1004));
+  assertEqual(info.args?.[2], oop(1005));
 });
 
 test("Deno runtime marshals pointer-buffer GCI calls", async () => {

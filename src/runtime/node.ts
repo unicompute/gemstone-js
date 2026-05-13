@@ -57,7 +57,7 @@ export function createNodeRuntime(): GciRuntime {
 
     async err(): Promise<GciErrorInfo | null> {
       const value = await call("err");
-      return value ? normalizeError(value) : null;
+      return value ? normalizeNativeErrorInfo(value) : null;
     },
 
     async executeStr(source: string, receiver: Oop = OOP_NIL): Promise<Oop> {
@@ -178,7 +178,7 @@ async function optionalCall(target: NativeGci | undefined, native: NativeModule,
   return await fn.apply(target ?? native, args);
 }
 
-function normalizeError(value: unknown): GciErrorInfo {
+export function normalizeNativeErrorInfo(value: unknown): GciErrorInfo {
   const raw = value as Partial<GciErrorInfo>;
   return {
     number: Number(raw.number ?? 0),

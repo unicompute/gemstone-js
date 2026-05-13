@@ -68,7 +68,10 @@ native package; the TypeScript package can be tested locally with a mock runtime
   handles.
 - `GSCollection.search()` unwraps result arrays into typed handles,
   `GSCollection.searchOop()` returns raw handles, `all()`/`allOop()` read the
-  collection as object handles, `page()`/`pageOop()` fetch bounded array pages,
+  collection as object handles, value helpers such as `allValues()`,
+  `pageValues()`, `searchValues()`, `limitValues()`, and item value helpers
+  marshal result objects directly,
+  `page()`/`pageOop()` fetch bounded array pages,
   `at()`/`itemAt()` and raw `atOop()`/`itemAtOop()` read nullable 1-based
   indexed items,
   `firstItem()`/`lastItem()` and raw `firstItemOop()`/`lastItemOop()` read

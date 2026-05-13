@@ -152,6 +152,51 @@ test("GSCollection all and page helpers unwrap collection arrays", async () => {
   await session.logout();
 });
 
+test("GSCollection value helpers marshal collection results without retaining handles", async () => {
+  const arrays = new Map<Oop, Oop[]>();
+  const allArray = 0x9200n as Oop;
+  const pageArray = 0x9208n as Oop;
+  const searchArray = 0x9210n as Oop;
+  const limitArray = 0x9218n as Oop;
+  const first = smallintToOop(1);
+  const second = smallintToOop(2);
+  const third = smallintToOop(3);
+  const runtime = new MockGciRuntime({
+    execute(source) {
+      if (source === "Numbers asArray") return allArray;
+      if (source.includes("collection copyFrom: 2 to: (3 min: collection size)")) return pageArray;
+      if (source.includes("collection at: 2")) return second;
+      if (source.includes("collection first")) return first;
+      if (source.includes("collection last")) return third;
+      if (source.includes("collection select:")) return searchArray;
+      if (source.includes("OrderedCollection new")) return limitArray;
+      return OOP_NIL;
+    },
+    perform(receiver, selector, args) {
+      return performArray(arrays, receiver, selector, args);
+    },
+  });
+  arrays.set(allArray, [first, second, third]);
+  arrays.set(pageArray, [second, third]);
+  arrays.set(searchArray, [second]);
+  arrays.set(limitArray, [second, third]);
+
+  const session = await Session.connect({ username: "u", password: "p", runtime });
+  const collection = new GSCollection(session, "Numbers");
+
+  assertEqual((await collection.allValues()).join(","), "1,2,3");
+  assertEqual((await collection.pageValues(2, 2)).join(","), "2,3");
+  assertEqual(await collection.atValue(2), 2n);
+  assertEqual(await collection.itemAtValue(9), null);
+  assertEqual(await collection.firstItemValue(), 1n);
+  assertEqual(await collection.lastItemValue(), 3n);
+  assertEqual((await collection.searchValues("value", "=", 2)).join(","), "2");
+  assertEqual((await collection.limitValues("value", ">", 1, 2)).join(","), "2,3");
+  assertEqual((await collection.takeValues("value", ">", 1, 2)).join(","), "2,3");
+  assert(!runtime.calls.some((call) => call.method === "addOopToExportSet"), "value helpers should not retain result handles");
+  await session.logout();
+});
+
 test("GSCollection limit helpers fetch bounded result arrays", async () => {
   const arrays = new Map<Oop, Oop[]>();
   let limitedResult = OOP_NIL;

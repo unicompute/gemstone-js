@@ -163,6 +163,10 @@ export class GSCollection<T = unknown> {
     return this.#arrayOops(await this.#allResultArray());
   }
 
+  async allValues(): Promise<MarshalledValue[]> {
+    return this.#valuesFromArray(await this.#allResultArray());
+  }
+
   async page(start: number, count: number): Promise<TypedOop<T>[]> {
     const result = await this.#pageResultArray(start, count);
     return result === OOP_NIL ? [] : this.#typedOopsFromArray(result);
@@ -171,6 +175,11 @@ export class GSCollection<T = unknown> {
   async pageOop(start: number, count: number): Promise<Oop[]> {
     const result = await this.#pageResultArray(start, count);
     return result === OOP_NIL ? [] : this.#arrayOops(result);
+  }
+
+  async pageValues(start: number, count: number): Promise<MarshalledValue[]> {
+    const result = await this.#pageResultArray(start, count);
+    return result === OOP_NIL ? [] : this.#valuesFromArray(result);
   }
 
   async at(index: number): Promise<TypedOop<T> | null> {
@@ -190,6 +199,15 @@ export class GSCollection<T = unknown> {
     return this.atOop(index);
   }
 
+  async atValue(index: number): Promise<MarshalledValue> {
+    const result = await this.atOop(index);
+    return result === null ? null : this.session.marshalOop(result);
+  }
+
+  async itemAtValue(index: number): Promise<MarshalledValue> {
+    return this.atValue(index);
+  }
+
   async firstItem(): Promise<TypedOop<T> | null> {
     const result = await this.firstItemOop();
     return result === null ? null : this.session.typedOop<T>(result);
@@ -199,6 +217,11 @@ export class GSCollection<T = unknown> {
     return this.#edgeItemOop("first");
   }
 
+  async firstItemValue(): Promise<MarshalledValue> {
+    const result = await this.firstItemOop();
+    return result === null ? null : this.session.marshalOop(result);
+  }
+
   async lastItem(): Promise<TypedOop<T> | null> {
     const result = await this.lastItemOop();
     return result === null ? null : this.session.typedOop<T>(result);
@@ -206,6 +229,11 @@ export class GSCollection<T = unknown> {
 
   async lastItemOop(): Promise<Oop | null> {
     return this.#edgeItemOop("last");
+  }
+
+  async lastItemValue(): Promise<MarshalledValue> {
+    const result = await this.lastItemOop();
+    return result === null ? null : this.session.marshalOop(result);
   }
 
   async search(path: string, op: ComparisonOp, value: string | number | bigint | boolean): Promise<TypedOop<T>[]> {
@@ -218,6 +246,11 @@ export class GSCollection<T = unknown> {
     return result === OOP_NIL ? [] : this.#arrayOops(result);
   }
 
+  async searchValues(path: string, op: ComparisonOp, value: string | number | bigint | boolean): Promise<MarshalledValue[]> {
+    const result = await this.#searchResultArray(path, op, value);
+    return result === OOP_NIL ? [] : this.#valuesFromArray(result);
+  }
+
   async limit(path: string, op: ComparisonOp, value: string | number | bigint | boolean, count: number): Promise<TypedOop<T>[]> {
     const result = await this.#limitedResultArray(path, op, value, count);
     return result === OOP_NIL ? [] : this.#typedOopsFromArray(result);
@@ -228,12 +261,21 @@ export class GSCollection<T = unknown> {
     return result === OOP_NIL ? [] : this.#arrayOops(result);
   }
 
+  async limitValues(path: string, op: ComparisonOp, value: string | number | bigint | boolean, count: number): Promise<MarshalledValue[]> {
+    const result = await this.#limitedResultArray(path, op, value, count);
+    return result === OOP_NIL ? [] : this.#valuesFromArray(result);
+  }
+
   async take(path: string, op: ComparisonOp, value: string | number | bigint | boolean, count: number): Promise<TypedOop<T>[]> {
     return this.limit(path, op, value, count);
   }
 
   async takeOop(path: string, op: ComparisonOp, value: string | number | bigint | boolean, count: number): Promise<Oop[]> {
     return this.limitOop(path, op, value, count);
+  }
+
+  async takeValues(path: string, op: ComparisonOp, value: string | number | bigint | boolean, count: number): Promise<MarshalledValue[]> {
+    return this.limitValues(path, op, value, count);
   }
 
   async first(path: string, op: ComparisonOp, value: string | number | bigint | boolean): Promise<TypedOop<T> | null> {
@@ -418,6 +460,14 @@ export class GSCollection<T = unknown> {
       result.push(await this.session.perform(array, "at:", smallintToOop(index)));
     }
     return result;
+  }
+
+  async #valuesFromArray(array: Oop): Promise<MarshalledValue[]> {
+    const values: MarshalledValue[] = [];
+    for (const oop of await this.#arrayOops(array)) {
+      values.push(await this.session.marshalOop(oop));
+    }
+    return values;
   }
 }
 

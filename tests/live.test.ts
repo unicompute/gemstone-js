@@ -20,6 +20,10 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
   const floatOop = await session.floatOop(1.25);
   assert.equal(await session.marshalOop(floatOop), 1.25);
 
+  const array = await session.array(["gemstone-js live", 2, true]);
+  assert.equal(await array.sendValue("size"), 3n);
+  await array.release();
+
   const dict = await session.dictionary({ status: "ready", count: 2 });
   assert.equal(await dict.get("status"), "ready");
   assert.equal(await dict.get("count"), 2n);

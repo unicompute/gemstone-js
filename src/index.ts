@@ -4,7 +4,9 @@ export {
   ManagedOop,
   TypedOop,
   resolveSessionConfig,
+  type GemStoneArrayArgument,
   type GemStoneArgument,
+  type GemStoneDictionaryArgument,
   type MarshalledValue,
 } from "./client.ts";
 export {

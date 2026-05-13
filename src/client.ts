@@ -30,8 +30,17 @@ import {
 } from "./types.ts";
 
 export type MarshalledValue = bigint | number | boolean | string | null | Oop;
+export type GemStoneArrayArgument = readonly GemStoneArgument[];
 export type GemStoneDictionaryArgument = { readonly [key: string]: GemStoneArgument };
-export type GemStoneArgument = ManagedOop<unknown> | string | number | bigint | boolean | null | GemStoneDictionaryArgument;
+export type GemStoneArgument =
+  | ManagedOop<unknown>
+  | string
+  | number
+  | bigint
+  | boolean
+  | null
+  | GemStoneArrayArgument
+  | GemStoneDictionaryArgument;
 type MaybePromise<T> = T | Promise<T>;
 
 export class Session implements AsyncDisposable {
@@ -152,6 +161,7 @@ export class Session implements AsyncDisposable {
     }
     if (typeof value === "string") return this.newString(value);
     if (typeof value === "bigint") return smallintToOop(value);
+    if (Array.isArray(value)) return this.arrayToOop(value);
     if (isPlainRecord(value)) return this.dictionaryToOop(value);
     throw new TypeError(`Cannot convert ${typeof value} to GemStone OOP.`);
   }
@@ -220,6 +230,21 @@ export class Session implements AsyncDisposable {
     return this.#observe("fetch_bytes", { start: validatedStart, count: validatedCount }, () => (
       this.runtime.fetchBytes(value, validatedStart, validatedCount)
     ));
+  }
+
+  async arrayToOop(values: GemStoneArrayArgument): Promise<Oop> {
+    return this.#observe("array_to_oop", { entries: values.length }, async () => {
+      const arrayClass = await this.resolveSymbol("Array");
+      const array = await this.perform(arrayClass, "new:", smallintToOop(values.length));
+      for (let index = 0; index < values.length; index += 1) {
+        await this.perform(array, "at:put:", smallintToOop(index + 1), await this.argumentToOop(values[index]));
+      }
+      return array;
+    });
+  }
+
+  async array<T = unknown>(values: GemStoneArrayArgument = []): Promise<TypedOop<T[]>> {
+    return this.typedOop<T[]>(await this.arrayToOop(values));
   }
 
   async dictionaryToOop(value: GemStoneDictionaryArgument): Promise<Oop> {

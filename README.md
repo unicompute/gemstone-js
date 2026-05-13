@@ -16,8 +16,8 @@ native package; the TypeScript package can be tested locally with a mock runtime
 - High-level argument marshalling through `performWith()` and
   `ManagedOop.send()`: strings become GemStone strings, numbers become
   SmallIntegers or Floats, bigints become SmallIntegers, booleans/null become
-  immediate OOPs, plain objects become `StringKeyValueDictionary`, and managed
-  handles pass their retained OOP.
+  immediate OOPs, arrays become GemStone `Array` objects, plain objects become
+  `StringKeyValueDictionary`, and managed handles pass their retained OOP.
 - `Session.classRef()` gives an explicit typed class handle for class-side
   sends, object-returning sends, allocation, and wrapping returned OOPs without
   hiding async remote calls behind JavaScript property access.
@@ -30,7 +30,8 @@ native package; the TypeScript package can be tested locally with a mock runtime
   shared typed array helpers.
 - OOP helpers ported from `gemstone-rs/crates/gemstone-gci`.
 - Low-level allocation/fetch helpers: `newOop()`, `fetchClass()`,
-  `fetchSize()`, and `fetchBytes()`.
+  `fetchSize()`, `fetchBytes()`, `arrayToOop()`, and retained `array()`
+  wrappers.
 - Dictionary/global helpers: `dictionaryToOop()`, `strDictGet()`,
   `strDictSet()`, `globalGet()`, and `globalSet()`.
 - `GsDict` wraps GemStone `StringKeyValueDictionary` objects with `get()`,
@@ -116,9 +117,9 @@ GS_RUN_LIVE=1 npm run test:live
 ```
 
 The live smoke covers connect, execute, class-side sends, `performWith()`,
-string and float marshalling, `GsDict` metadata/enumeration/required/removal
-helpers, and `PersistentRoot` value, dictionary, key, pick, required-value, and
-removal helpers.
+string, float, and array marshalling, `GsDict` metadata, enumeration,
+required-read, and removal helpers, and `PersistentRoot` value, dictionary, key,
+pick, required-value, and removal helpers.
 
 ## Example
 

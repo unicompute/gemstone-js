@@ -8,6 +8,7 @@ import {
   setGciRuntimeFactoryForTesting,
   setGciRuntimeForTesting,
   smallintToOop,
+  type Oop,
 } from "../src/index.ts";
 import { MockGciRuntime } from "../src/testing/mock-runtime.ts";
 
@@ -355,6 +356,53 @@ test("performWith marshals bigint as SmallInteger value and non-integer numbers 
   assertEqual(args[0], smallintToOop(123n));
   assert(runtime.calls.some((call) => call.method === "fltToOop" && call.args[0] === 3.25), "non-integer numbers should allocate Float OOPs");
 
+  await session.logout();
+});
+
+test("performWith marshals JavaScript arrays as GemStone Arrays", async () => {
+  let runtime: MockGciRuntime;
+  const allocatedArrays: Oop[] = [];
+  runtime = new MockGciRuntime({
+    perform(_receiver, selector, args) {
+      if (selector === "new:") {
+        const array = runtime.allocate();
+        allocatedArrays.push(array);
+        return array;
+      }
+      if (selector === "at:put:") return args[1];
+      if (selector === "withArray:") return args[0];
+      return OOP_NIL;
+    },
+  });
+  const session = await Session.connect({ username: "u", password: "p", runtime });
+
+  const arrayOop = await session.performWith(smallintToOop(99), "withArray:", ["Ada", 2, false]);
+  const wrapped = await session.array(["wrapped"]);
+
+  assertEqual(arrayOop, allocatedArrays[0]);
+  assertEqual(wrapped.oop, allocatedArrays[1]);
+  assert(runtime.calls.some((call) => call.method === "resolveSymbol" && call.args[0] === "Array"), "array marshalling should resolve Array");
+
+  const newArrayCalls = runtime.calls.filter((call) => call.method === "perform" && call.args[1] === "new:");
+  assertEqual(newArrayCalls.length, 2);
+  const firstNewArgs = newArrayCalls[0].args[2] as unknown[];
+  assertEqual(firstNewArgs[0], smallintToOop(3));
+
+  const puts = runtime.calls.filter((call) => call.method === "perform" && call.args[1] === "at:put:");
+  assertEqual(puts.length, 4);
+  const firstPutArgs = puts[0].args[2] as unknown[];
+  const secondPutArgs = puts[1].args[2] as unknown[];
+  const thirdPutArgs = puts[2].args[2] as unknown[];
+  assertEqual(puts[0].args[0], arrayOop);
+  assertEqual(firstPutArgs[0], smallintToOop(1));
+  assert(runtime.calls.some((call) => call.method === "newString" && call.args[0] === "Ada"), "array string entries should be marshalled");
+  assertEqual(secondPutArgs[0], smallintToOop(2));
+  assertEqual(secondPutArgs[1], smallintToOop(2));
+  assertEqual(thirdPutArgs[0], smallintToOop(3));
+  assertEqual(thirdPutArgs[1], OOP_FALSE);
+
+  await wrapped.release();
+  assert(runtime.calls.some((call) => call.method === "addOopToExportSet" && call.args[0] === wrapped.oop), "Session.array should retain the returned array handle");
   await session.logout();
 });
 

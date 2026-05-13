@@ -87,7 +87,8 @@
         { "required": ["defaultName"] },
         { "required": ["namespaceName"] },
         { "required": ["names"] },
-        { "required": ["typeNames"] }
+        { "required": ["typeNames"] },
+        { "required": ["typeSpecifiers"] }
       ],
       "not": {
         "required": ["namespaceName", "names"]
@@ -110,7 +111,21 @@
           "items": { "$ref": "#/$defs/identifier" },
           "minItems": 1,
           "uniqueItems": true
+        },
+        "typeSpecifiers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/namedImportSpecifier" },
+          "minItems": 1
         }
+      }
+    },
+    "namedImportSpecifier": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": { "$ref": "#/$defs/identifier" },
+        "alias": { "$ref": "#/$defs/identifier" }
       }
     },
     "functionSpec": {

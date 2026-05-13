@@ -3,12 +3,18 @@ import type { Oop } from "./oop.ts";
 
 export type GeneratedReturnKind = "value" | "oop" | "object";
 
+export interface GeneratedNamedImportSpec {
+  name: string;
+  alias?: string;
+}
+
 export interface GeneratedImportSpec {
   from: string;
   defaultName?: string;
   namespaceName?: string;
   names?: readonly string[];
   typeNames?: readonly string[];
+  typeSpecifiers?: readonly GeneratedNamedImportSpec[];
 }
 
 export interface GemStoneClassMetadata {
@@ -344,16 +350,31 @@ function assertImportSpecs(value: unknown): readonly GeneratedImportSpec[] {
       throw new TypeError("Generated module import entries must be objects.");
     }
     const spec = item as GeneratedImportSpec & Record<string, unknown>;
-    assertKnownKeys(spec, "Generated module import entry", ["from", "defaultName", "namespaceName", "names", "typeNames"]);
+    assertKnownKeys(spec, "Generated module import entry", [
+      "from",
+      "defaultName",
+      "namespaceName",
+      "names",
+      "typeNames",
+      "typeSpecifiers",
+    ]);
     assertNonEmptyString(spec.from, "import from");
     if (spec.defaultName !== undefined) assertIdentifier(spec.defaultName, "import defaultName");
     if (spec.namespaceName !== undefined) assertIdentifier(spec.namespaceName, "import namespaceName");
     assertOptionalIdentifierArray(spec.names, "import names");
     assertOptionalIdentifierArray(spec.typeNames, "import typeNames");
+    assertOptionalNamedImportSpecArray(spec.typeSpecifiers, "import typeSpecifiers");
+    assertUniqueImportLocals(spec);
     if (spec.namespaceName && spec.names?.length) {
       throw new RangeError("Generated module import entries cannot combine namespaceName and names.");
     }
-    if (!spec.defaultName && !spec.namespaceName && !spec.names?.length && !spec.typeNames?.length) {
+    if (
+      !spec.defaultName
+      && !spec.namespaceName
+      && !spec.names?.length
+      && !spec.typeNames?.length
+      && !spec.typeSpecifiers?.length
+    ) {
       throw new RangeError("Generated module import entries must name at least one import.");
     }
   }
@@ -372,6 +393,39 @@ function assertOptionalIdentifierArray(value: unknown, field: string): void {
       throw new RangeError(`Generated ${field} must contain unique identifiers: ${name}`);
     }
     seen.add(name);
+  }
+}
+
+function assertOptionalNamedImportSpecArray(value: unknown, field: string): void {
+  if (value === undefined) return;
+  if (!Array.isArray(value)) {
+    throw new TypeError(`Generated ${field} must be an array.`);
+  }
+  for (const item of value) {
+    if (typeof item !== "object" || item === null || Array.isArray(item)) {
+      throw new TypeError(`Generated ${field} entries must be objects.`);
+    }
+    const spec = item as GeneratedNamedImportSpec & Record<string, unknown>;
+    assertKnownKeys(spec, field, ["name", "alias"]);
+    assertIdentifier(spec.name, `${field} name`);
+    if (spec.alias !== undefined) assertIdentifier(spec.alias, `${field} alias`);
+  }
+}
+
+function assertUniqueImportLocals(spec: GeneratedImportSpec): void {
+  const seen = new Set<string>();
+  for (const name of spec.names ?? []) {
+    if (seen.has(name)) throw new RangeError(`Generated import entries must contain unique local names: ${name}`);
+    seen.add(name);
+  }
+  for (const name of spec.typeNames ?? []) {
+    if (seen.has(name)) throw new RangeError(`Generated import entries must contain unique local names: ${name}`);
+    seen.add(name);
+  }
+  for (const named of spec.typeSpecifiers ?? []) {
+    const localName = named.alias ?? named.name;
+    if (seen.has(localName)) throw new RangeError(`Generated import entries must contain unique local names: ${localName}`);
+    seen.add(localName);
   }
 }
 
@@ -400,10 +454,17 @@ function renderGeneratedImport(spec: GeneratedImportSpec): string {
   if (valueParts.length) {
     lines.push(`import ${valueParts.join(", ")} from ${from};`);
   }
-  if (spec.typeNames?.length) {
-    lines.push(`import type { ${spec.typeNames.join(", ")} } from ${from};`);
+  if (spec.typeNames?.length || spec.typeSpecifiers?.length) {
+    lines.push(`import type { ${renderTypeImportParts(spec).join(", ")} } from ${from};`);
   }
   return lines.join("\n");
+}
+
+function renderTypeImportParts(spec: GeneratedImportSpec): string[] {
+  return [
+    ...(spec.typeNames ?? []),
+    ...(spec.typeSpecifiers?.map((item) => item.alias ? `${item.name} as ${item.alias}` : item.name) ?? []),
+  ];
 }
 
 function assertUniqueExportedNames(functions: readonly RenderGeneratedFunctionOptions[]): void {

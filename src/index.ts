@@ -44,6 +44,7 @@ export {
   validateGeneratedModuleOptions,
   type GeneratedReturnKind,
   type GeneratedImportSpec,
+  type GeneratedNamedImportSpec,
   type GemStoneClassMetadata,
   type RenderGeneratedFunctionOptions,
   type RenderGeneratedModuleOptions,

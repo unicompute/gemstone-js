@@ -159,6 +159,60 @@ test("codegen scanner handles same-line decorators and nested parameter types", 
   }
 });
 
+test("codegen scanner resolves decorator/type aliases and skips overload signatures", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "gemstone-js-codegen-scan-alias-"));
+  try {
+    const sourcePath = join(dir, "alias-booking.ts");
+    await writeFile(sourcePath, [
+      "import { GemStoneClass as GSClass, GemStoneSelector as GSSelector, type Session as GSSession, type TypedOop } from \"gemstone-js\";",
+      "import type { Booking as BookingRecord } from \"./booking-types.ts\";",
+      "@GSClass(\"Booking\")",
+      "class AliasBookingModel {",
+      "  findBooking(session: GSSession, id: string): Promise<TypedOop<BookingRecord>>;",
+      "  @GSSelector(\"find:\")",
+      "  findBooking(session: GSSession, id: string): Promise<TypedOop<BookingRecord>> {",
+      "    throw new Error(\"scanner fixture only\");",
+      "  }",
+      "}",
+      "",
+    ].join("\n"));
+
+    const { stdout } = await execNode([scanScript, sourcePath]);
+    const scanned = JSON.parse(stdout);
+
+    assert.deepEqual(scanned.imports, [
+      {
+        from: "gemstone-js",
+        typeNames: ["TypedOop"],
+        typeSpecifiers: [{ name: "Session", alias: "GSSession" }],
+      },
+      {
+        from: "./booking-types.ts",
+        typeSpecifiers: [{ name: "Booking", alias: "BookingRecord" }],
+      },
+    ]);
+    assert.deepEqual(scanned.functions, [
+      {
+        exportedName: "findBooking",
+        className: "Booking",
+        selector: "find:",
+        argNames: ["id"],
+        argTypes: ["string"],
+        sessionType: "GSSession",
+        returnType: "TypedOop<BookingRecord>",
+        returnKind: "object",
+      },
+    ]);
+
+    const moduleOutput = await execNode([scanScript, "--module", sourcePath]);
+    assert.match(moduleOutput.stdout, /import type \{ TypedOop, Session as GSSession \} from "gemstone-js";/);
+    assert.match(moduleOutput.stdout, /import type \{ Booking as BookingRecord \} from "\.\/booking-types\.ts";/);
+    assert.match(moduleOutput.stdout, /export async function findBooking\(session: GSSession, id: string\): Promise<TypedOop<BookingRecord>>/);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 test("codegen scanner checks committed decorated-source wrapper output", async () => {
   const check = await execNode([
     scanScript,

@@ -62,14 +62,16 @@ if (check) {
 
 function scanSource(source, sourcePath) {
   const sourceFile = ts.createSourceFile(sourcePath, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+  const decoratorNames = scanDecoratorNames(sourceFile);
   const functions = [];
 
   function visit(node) {
     if (ts.isClassDeclaration(node)) {
-      const className = decoratorStringArg(node, "GemStoneClass", sourceFile, sourcePath);
+      const className = decoratorStringArg(node, "GemStoneClass", sourceFile, sourcePath, decoratorNames);
       if (className) {
+        const implementedMethods = collectImplementedMethodNames(node);
         for (const member of node.members) {
-          const entry = scanMethod(member, className, sourceFile, sourcePath);
+          const entry = scanMethod(member, className, sourceFile, sourcePath, decoratorNames, implementedMethods);
           if (entry) functions.push(entry);
         }
       }
@@ -93,24 +95,61 @@ function scanImports(source, sourcePath = "source.ts") {
     const from = statement.moduleSpecifier.text;
 
     for (const specifier of namedBindings.elements) {
-      if (specifier.propertyName) continue;
-      const name = specifier.name.text;
-      imports.set(name, { from, name });
+      const localName = specifier.name.text;
+      const importedName = specifier.propertyName?.text ?? localName;
+      imports.set(localName, {
+        from,
+        name: importedName,
+        ...(importedName !== localName ? { alias: localName } : {}),
+      });
     }
   }
 
   return imports;
 }
 
-function scanMethod(member, className, sourceFile, sourcePath) {
+function scanDecoratorNames(sourceFile) {
+  const names = {
+    GemStoneClass: new Set(["GemStoneClass"]),
+    GemStoneSelector: new Set(["GemStoneSelector"]),
+  };
+
+  for (const statement of sourceFile.statements) {
+    if (!ts.isImportDeclaration(statement)) continue;
+    if (!ts.isStringLiteral(statement.moduleSpecifier)) continue;
+    if (statement.moduleSpecifier.text !== "gemstone-js") continue;
+    const namedBindings = statement.importClause?.namedBindings;
+    if (!namedBindings || !ts.isNamedImports(namedBindings)) continue;
+    for (const specifier of namedBindings.elements) {
+      const importedName = specifier.propertyName?.text ?? specifier.name.text;
+      if (importedName === "GemStoneClass" || importedName === "GemStoneSelector") {
+        names[importedName].add(specifier.name.text);
+      }
+    }
+  }
+
+  return names;
+}
+
+function collectImplementedMethodNames(classNode) {
+  const names = new Set();
+  for (const member of classNode.members) {
+    if (!ts.isMethodDeclaration(member) || !member.body || !ts.isIdentifier(member.name)) continue;
+    names.add(member.name.text);
+  }
+  return names;
+}
+
+function scanMethod(member, className, sourceFile, sourcePath, decoratorNames, implementedMethods) {
   if (!ts.isMethodDeclaration(member)) return undefined;
   if (!ts.isIdentifier(member.name)) return undefined;
+  if (!member.body && implementedMethods.has(member.name.text)) return undefined;
 
   const methodName = member.name.text;
   const parameters = parseParameters(member.parameters, sourceFile, sourcePath);
   const session = parameters[0]?.name === "session" ? parameters.shift() : undefined;
   const line = lineNumber(sourceFile, member.name);
-  const selector = decoratorStringArg(member, "GemStoneSelector", sourceFile, sourcePath)
+  const selector = decoratorStringArg(member, "GemStoneSelector", sourceFile, sourcePath, decoratorNames)
     ?? inferSelectorForSource(methodName, parameters.length, sourcePath, line);
   const returnType = unwrapPromise(member.type?.getText(sourceFile).trim());
 
@@ -136,8 +175,9 @@ function scanMethod(member, className, sourceFile, sourcePath) {
   return entry;
 }
 
-function decoratorStringArg(node, decoratorName, sourceFile, sourcePath) {
+function decoratorStringArg(node, decoratorName, sourceFile, sourcePath, decoratorNames) {
   const decorators = ts.canHaveDecorators(node) ? ts.getDecorators(node) ?? [] : [];
+  const acceptedNames = decoratorNames[decoratorName] ?? new Set([decoratorName]);
   for (const decorator of decorators) {
     const expression = decorator.expression;
     if (!ts.isCallExpression(expression)) continue;
@@ -147,7 +187,7 @@ function decoratorStringArg(node, decoratorName, sourceFile, sourcePath) {
       : ts.isPropertyAccessExpression(callee)
         ? callee.name.text
         : undefined;
-    if (name !== decoratorName) continue;
+    if (!name || !acceptedNames.has(name)) continue;
     const [firstArg] = expression.arguments;
     if (firstArg && (ts.isStringLiteral(firstArg) || ts.isNoSubstitutionTemplateLiteral(firstArg))) {
       return firstArg.text;
@@ -175,7 +215,7 @@ function collectUsedTypeImports(sourceImports, functions, target) {
   for (const name of collectUsedTypeNames(functions)) {
     const imported = sourceImports.get(name);
     if (imported) {
-      addTypeImport(target, imported.from, imported.name);
+      addTypeImport(target, imported.from, imported.alias ? { name: imported.name, alias: imported.alias } : imported.name);
     }
   }
 }
@@ -202,15 +242,20 @@ function collectTypeNames(type, names) {
 }
 
 function addTypeImport(target, from, name) {
-  const names = target.get(from) ?? new Set();
-  names.add(name);
-  target.set(from, names);
+  const bucket = target.get(from) ?? { typeNames: new Set(), typeSpecifiers: new Map() };
+  if (typeof name === "string") {
+    bucket.typeNames.add(name);
+  } else {
+    bucket.typeSpecifiers.set(name.alias ?? name.name, name);
+  }
+  target.set(from, bucket);
 }
 
 function renderTypeImports(imports) {
-  return Array.from(imports, ([from, names]) => ({
+  return Array.from(imports, ([from, bucket]) => ({
     from,
-    typeNames: Array.from(names),
+    ...(bucket.typeNames.size > 0 ? { typeNames: Array.from(bucket.typeNames) } : {}),
+    ...(bucket.typeSpecifiers.size > 0 ? { typeSpecifiers: Array.from(bucket.typeSpecifiers.values()) } : {}),
   }));
 }
 

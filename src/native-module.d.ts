@@ -11,6 +11,10 @@ declare module "@gemstone-js/native" {
     fatal: boolean;
     message: string;
     reason?: string;
+    category: string;
+    context: string;
+    exceptionObj: string;
+    args: string[];
   }
 
   export interface GemStoneNativeError extends Error {
@@ -21,6 +25,10 @@ declare module "@gemstone-js/native" {
     fatal?: boolean;
     gciMessage?: string;
     reason?: string;
+    category?: string;
+    context?: string;
+    exceptionObj?: string;
+    args?: string[];
     info?: GciErrorInfo;
   }
 

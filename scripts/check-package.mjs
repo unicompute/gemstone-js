@@ -90,6 +90,11 @@ for (const snippet of ["interface GemStoneNativeError", "isGemStoneNativeError(e
     throw new Error(`src/native-module.d.ts is missing native error guard declaration: ${snippet}`);
   }
 }
+for (const snippet of ["category: string", "context: string", "exceptionObj: string", "args: string[]"]) {
+  if (!nativeDeclaration.includes(snippet)) {
+    throw new Error(`src/native-module.d.ts is missing native GciErrorInfo field: ${snippet}`);
+  }
+}
 
 for (const path of forbidden) {
   const included = files.find((file) => file === path || file.startsWith(`${path}/`) || file.endsWith(`/${path}`));

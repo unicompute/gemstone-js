@@ -335,6 +335,11 @@ export class Session implements AsyncDisposable {
     return value === null ? null : this.typedOop<T>(value);
   }
 
+  async globalGetDict(name: string): Promise<GsDict | null> {
+    const value = await this.globalGetOop(name);
+    return value === null ? null : new GsDict(this, value);
+  }
+
   async globalPick(names: readonly string[]): Promise<Record<string, MarshalledValue>> {
     const result: Record<string, MarshalledValue> = {};
     for (const name of names) {
@@ -416,6 +421,10 @@ export class Session implements AsyncDisposable {
     return this.globalRequireObject<T>(name);
   }
 
+  async globalRequireDict(name: string): Promise<GsDict> {
+    return new GsDict(this, await this.globalRequireOop(name));
+  }
+
   async globalSet(name: string, value: GemStoneArgument): Promise<void> {
     const keyName = validateGemStoneGlobalName(name, "global name");
     await this.#observe("global_set", { name: keyName }, async () => {
@@ -429,6 +438,12 @@ export class Session implements AsyncDisposable {
     for (const [name, value] of Object.entries(values)) {
       await this.globalSet(name, value);
     }
+  }
+
+  async globalSetDict(name: string, value: GemStoneDictionaryArgument): Promise<GsDict> {
+    const dict = await this.dictionary(value);
+    await this.globalSetOop(name, dict.oop);
+    return dict;
   }
 
   async globalSetOop<T = unknown>(name: string, value: TypedOop<T> | ManagedOop<T> | Oop): Promise<void> {

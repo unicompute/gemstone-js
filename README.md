@@ -42,7 +42,8 @@ native package; the TypeScript package can be tested locally with a mock runtime
   `globalEntries()`, raw `globalEntriesOop()`, `globalValues()`, `globalItems()`, raw
   `globalValuesOop()`/`globalItemsOop()`, `globalSet()`/`globalSetAll()`, raw
   `globalSetOop()`/`globalSetAllOop()`, required global accessors including
-  object alias `globalRequire()`, and `globalRemove()`/`globalDelete()`.
+  object alias `globalRequire()`, dictionary helpers `globalGetDict()`,
+  `globalSetDict()`, `globalRequireDict()`, and `globalRemove()`/`globalDelete()`.
 - `GsDict` wraps GemStone `StringKeyValueDictionary` objects with
   `get()`/`getValue()`,
   `getObject()`, `set()`/`setAll()`, raw `setOop()`/`setAllOop()`,

@@ -70,8 +70,11 @@ native package; the TypeScript package can be tested locally with a mock runtime
   `GSCollection.searchOop()` returns raw handles, `all()`/`allOop()` read the
   collection as object handles, `page()`/`pageOop()` fetch bounded array pages,
   `add()`/`addAll()` and raw `addOop()`/`addAllOop()` append values,
+  `includes()`/`contains()` and raw `includesOop()`/`containsOop()` check
+  collection membership,
   `remove()`/`delete()` and raw `removeOop()`/`deleteOop()` remove members,
-  `clear()` sends `removeAll`,
+  `removeAll()`/`removeAllOop()` remove batches, and
+  `replaceAll()`/`replaceAllOop()` plus `clear()` manage whole collections,
   `first()`/`firstOop()` return nullable first matches without materializing
   result arrays, `limit()`/`take()` fetch bounded predicate matches,
   `size()`/`isEmpty()` expose collection metadata, `count()` increments a

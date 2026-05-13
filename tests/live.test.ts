@@ -120,9 +120,12 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
   const queuedAssoc = await session.execute("'queued' -> 4");
   await query.addOop(queuedAssoc);
   assert.equal(await query.size(), 4);
+  assert.equal(await query.includesOop(queuedAssoc), true);
   assert.equal(await query.removeOop(queuedAssoc), true);
-  await query.add("plain value");
+  await query.addAll(["plain value", "plain extra"]);
+  assert.equal(await query.contains("plain value"), true);
   assert.equal(await query.remove("plain value"), true);
+  assert.equal(await query.removeAll(["plain extra", "missing plain"]), 1);
   assert.equal(await query.delete("plain value"), false);
   assert.equal(await query.count("key", "=", "ready"), 2);
   assert.equal(await query.exists("key", "=", "done"), true);
@@ -137,6 +140,11 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
     await query.createIndex("key");
     await query.removeIndex("key");
   }
+  await query.replaceAll(["replacement"]);
+  assert.equal(await query.size(), 1);
+  assert.equal(await query.includes("replacement"), true);
+  await query.clear();
+  assert.equal(await query.isEmpty(), true);
   assert.equal(await session.globalDelete(queryKey), true);
 
   await session.abort();

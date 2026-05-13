@@ -40,10 +40,10 @@ The first implementation slice follows `../plan.js.txt`:
   `docs/naming.md`.
 - Query helpers render simple selector paths, expose collection metadata,
   can count/check predicate matches without materializing selected results, can
-  read whole collections or bounded pages as handles, can add/remove/clear
-  collection members through explicit value and raw-OOP helpers, and unwrap
-  GemStone arrays through `size`/`at:` so iterators yield object handles instead
-  of chunk containers.
+  read whole collections or bounded pages as handles, can check, add, remove,
+  replace, or clear collection members through explicit value and raw-OOP
+  helpers, and unwrap GemStone arrays through `size`/`at:` so iterators yield
+  object handles instead of chunk containers.
 - Codegen helpers validate generated JavaScript identifiers and emit wrappers
   that choose between `performValueWith()`, `performWith()`, or
   `classRef().sendObject()` based on the requested return kind. Selector shape,

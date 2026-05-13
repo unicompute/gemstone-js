@@ -80,6 +80,23 @@ export class GSCollection<T = unknown> {
     return this;
   }
 
+  async includes(value: GemStoneArgument): Promise<boolean> {
+    const collection = await this.#collectionOop();
+    return this.#includesOop(collection, await this.session.argumentToOop(value));
+  }
+
+  async includesOop(value: OopHandle<T>): Promise<boolean> {
+    return this.#includesOop(await this.#collectionOop(), rawOop(value));
+  }
+
+  async contains(value: GemStoneArgument): Promise<boolean> {
+    return this.includes(value);
+  }
+
+  async containsOop(value: OopHandle<T>): Promise<boolean> {
+    return this.includesOop(value);
+  }
+
   async remove(value: GemStoneArgument): Promise<boolean> {
     const collection = await this.#collectionOop();
     return this.#removeOop(collection, await this.session.argumentToOop(value));
@@ -97,8 +114,44 @@ export class GSCollection<T = unknown> {
     return this.removeOop(value);
   }
 
+  async removeAll(values: readonly GemStoneArgument[]): Promise<number> {
+    const collection = await this.#collectionOop();
+    let removed = 0;
+    for (const value of values) {
+      if (await this.#removeOop(collection, await this.session.argumentToOop(value))) removed += 1;
+    }
+    return removed;
+  }
+
+  async removeAllOop(values: readonly OopHandle<T>[]): Promise<number> {
+    const collection = await this.#collectionOop();
+    let removed = 0;
+    for (const value of values) {
+      if (await this.#removeOop(collection, rawOop(value))) removed += 1;
+    }
+    return removed;
+  }
+
   async clear(): Promise<this> {
     await this.session.perform(await this.#collectionOop(), "removeAll");
+    return this;
+  }
+
+  async replaceAll(values: readonly GemStoneArgument[]): Promise<this> {
+    const collection = await this.#collectionOop();
+    await this.session.perform(collection, "removeAll");
+    for (const value of values) {
+      await this.session.performWith(collection, "add:", value);
+    }
+    return this;
+  }
+
+  async replaceAllOop(values: readonly OopHandle<T>[]): Promise<this> {
+    const collection = await this.#collectionOop();
+    await this.session.perform(collection, "removeAll");
+    for (const value of values) {
+      await this.session.perform(collection, "add:", rawOop(value));
+    }
     return this;
   }
 
@@ -191,9 +244,12 @@ export class GSCollection<T = unknown> {
     return this.session.execute(this.name);
   }
 
+  async #includesOop(collection: Oop, value: Oop): Promise<boolean> {
+    return toBoolean(await this.session.performValue(collection, "includes:", value), "GSCollection includes:");
+  }
+
   async #removeOop(collection: Oop, value: Oop): Promise<boolean> {
-    const exists = await this.session.performValue(collection, "includes:", value);
-    if (!toBoolean(exists, "GSCollection includes:")) return false;
+    if (!await this.#includesOop(collection, value)) return false;
     await this.session.perform(collection, "remove:", value);
     return true;
   }

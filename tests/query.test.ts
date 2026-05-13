@@ -280,17 +280,26 @@ test("GSCollection mutation helpers add, remove, and clear collection members", 
   await collection.addAllOop([secondRawItem]);
   assert(members.has(rawItem.toString()), "addOop should add a raw OOP without marshalling it as a SmallInteger");
   assert(members.has(secondRawItem.toString()), "addAllOop should add raw OOPs without value marshalling");
+  assertEqual(await collection.includes("queued"), true);
+  assertEqual(await collection.containsOop(rawItem), true);
 
   assertEqual(await collection.remove("ready"), true);
   assertEqual(await collection.delete("missing"), false);
   assertEqual(await collection.deleteOop(rawItem), true);
+  assertEqual(await collection.removeAll(["queued", "missing"]), 1);
   assertEqual(await collection.removeOop(secondRawItem), true);
+  await collection.replaceAll(["replaced", false]);
+  assertEqual(await collection.contains("ready"), false);
+  assertEqual(await collection.includes(false), true);
+  await collection.replaceAllOop([rawItem]);
+  assertEqual(await collection.includesOop(rawItem), true);
   await collection.clear();
 
   assertEqual(members.size, 0);
   assert(executeSources.every((source) => source === "Bookings"), "mutations should resolve the collection global before sending");
-  assertEqual(performSelectors.filter((selector) => selector === "add:").length, 5);
-  assertEqual(performSelectors.filter((selector) => selector === "remove:").length, 3);
+  assertEqual(performSelectors.filter((selector) => selector === "add:").length, 8);
+  assertEqual(performSelectors.filter((selector) => selector === "remove:").length, 4);
+  assertEqual(performSelectors.filter((selector) => selector === "removeAll").length, 3);
   assert(performSelectors.includes("removeAll"), "clear should send removeAll");
   await session.logout();
 });

@@ -473,6 +473,38 @@ test("arrayOopToValues rejects cyclic GemStone Arrays", async () => {
   await session.logout();
 });
 
+test("arrayOopToValues enforces readback depth and item bounds", async () => {
+  const arrays = new Map<Oop, Oop[]>();
+  const runtime = new MockGciRuntime({
+    perform(receiver, selector, args) {
+      const values = arrays.get(receiver);
+      if (!values) return OOP_NIL;
+      if (selector === "size") return smallintToOop(values.length);
+      if (selector === "at:") {
+        const index = Number(oopToSmallint(args[0]));
+        return values[index - 1] ?? OOP_NIL;
+      }
+      return OOP_NIL;
+    },
+  });
+  const arrayClass = runtime.classSymbol("Array");
+  const array = runtime.allocate();
+  const nested = runtime.allocate();
+  runtime.classByOop.set(array, arrayClass);
+  runtime.classByOop.set(nested, arrayClass);
+  arrays.set(nested, [smallintToOop(3)]);
+  arrays.set(array, [smallintToOop(1), smallintToOop(2), nested]);
+  const session = await Session.connect({ username: "u", password: "p", runtime });
+
+  await assertRejects(() => session.arrayOopToValues(array, { maxItems: 2 }), RangeError);
+  await assertRejects(() => session.arrayOopToValues(array, { maxDepth: 1 }), RangeError);
+  await assertRejects(() => session.arrayValues(array, { maxDepth: 0 }), RangeError);
+  const values = await session.arrayOopToValues(array, { maxDepth: 2, maxItems: 3 });
+  assertEqual(values.length, 3);
+
+  await session.logout();
+});
+
 test("ManagedOop.send marshals JavaScript arguments", async () => {
   const runtime = new MockGciRuntime();
   const session = await Session.connect({ username: "u", password: "p", runtime });
@@ -840,7 +872,23 @@ test("globalSet and globalGet round-trip through UserGlobals", async () => {
   const entries = await session.globalEntries();
   assertEqual(entries.JsBridgeValue, "ready");
   assertEqual(entries.JsBridgeObject, object);
-  assertEqual(listCalls, 2);
+  const globalValues = await session.globalValues();
+  assertEqual(globalValues[0], "ready");
+  assertEqual(globalValues[1], object);
+  const globalItems = await session.globalItems();
+  assertEqual(globalItems[0][0], "JsBridgeValue");
+  assertEqual(globalItems[0][1], "ready");
+  assertEqual(globalItems[1][0], "JsBridgeObject");
+  assertEqual(globalItems[1][1], object);
+  const globalValuesOop = await session.globalValuesOop();
+  assertEqual(await session.marshalOop(globalValuesOop[0]), "ready");
+  assertEqual(globalValuesOop[1], object);
+  const globalItemsOop = await session.globalItemsOop();
+  assertEqual(globalItemsOop[0][0], "JsBridgeValue");
+  assertEqual(await session.marshalOop(globalItemsOop[0][1]), "ready");
+  assertEqual(globalItemsOop[1][0], "JsBridgeObject");
+  assertEqual(globalItemsOop[1][1], object);
+  assertEqual(listCalls, 6);
   const nullableObject = await session.globalGetObject<{ status: string }>("JsBridgeObject");
   if (!nullableObject) throw new Error("globalGetObject should return a typed handle for existing globals");
   assertEqual(nullableObject.oop, object);
@@ -943,7 +991,15 @@ test("PersistentRoot pick and entries read root values by listed names", async (
   assertEqual(items[0][1], "ready");
   assertEqual(items[1][0], "RootEnabled");
   assertEqual(items[1][1], true);
-  assertEqual(listCalls, 3);
+  const rawValues = await root.valuesOop();
+  assertEqual(await session.marshalOop(rawValues[0]), "ready");
+  assertEqual(await session.marshalOop(rawValues[1]), true);
+  const rawItems = await root.itemsOop();
+  assertEqual(rawItems[0][0], "RootStatus");
+  assertEqual(await session.marshalOop(rawItems[0][1]), "ready");
+  assertEqual(rawItems[1][0], "RootEnabled");
+  assertEqual(await session.marshalOop(rawItems[1][1]), true);
+  assertEqual(listCalls, 5);
 
   await session.logout();
 });

@@ -32,6 +32,10 @@ import {
 
 export type MarshalledArray = MarshalledValue[];
 export type MarshalledValue = bigint | number | boolean | string | null | Oop | MarshalledArray;
+export interface ArrayReadbackOptions {
+  maxDepth?: number;
+  maxItems?: number;
+}
 export type GemStoneArrayArgument = readonly GemStoneArgument[];
 export type GemStoneDictionaryArgument = { readonly [key: string]: GemStoneArgument };
 export type GemStoneArgument =
@@ -249,12 +253,15 @@ export class Session implements AsyncDisposable {
     return this.typedOop<T[]>(await this.arrayToOop(values));
   }
 
-  async arrayOopToValues(array: Oop): Promise<MarshalledValue[]> {
-    return this.#arrayOopToValues(array, new Set());
+  async arrayOopToValues(array: Oop, options: ArrayReadbackOptions = {}): Promise<MarshalledValue[]> {
+    return this.#arrayOopToValues(array, new Set(), normalizeArrayReadbackOptions(options), 1);
   }
 
-  async arrayValues(value: TypedOop<unknown[]> | ManagedOop<unknown[]> | Oop): Promise<MarshalledValue[]> {
-    return this.arrayOopToValues(typeof value === "bigint" ? value : value.oop);
+  async arrayValues(
+    value: TypedOop<unknown[]> | ManagedOop<unknown[]> | Oop,
+    options: ArrayReadbackOptions = {},
+  ): Promise<MarshalledValue[]> {
+    return this.arrayOopToValues(typeof value === "bigint" ? value : value.oop, options);
   }
 
   async dictionaryToOop(value: GemStoneDictionaryArgument): Promise<Oop> {
@@ -328,6 +335,31 @@ export class Session implements AsyncDisposable {
 
   async globalEntries(): Promise<Record<string, MarshalledValue>> {
     return this.globalPick(await this.globalKeys());
+  }
+
+  async globalValues(): Promise<MarshalledValue[]> {
+    return (await this.globalItems()).map(([, value]) => value);
+  }
+
+  async globalValuesOop(): Promise<Oop[]> {
+    return (await this.globalItemsOop()).map(([, value]) => value);
+  }
+
+  async globalItems(): Promise<Array<[string, MarshalledValue]>> {
+    const result: Array<[string, MarshalledValue]> = [];
+    for (const key of await this.globalKeys()) {
+      result.push([key, await this.globalGet(key)]);
+    }
+    return result;
+  }
+
+  async globalItemsOop(): Promise<Array<[string, Oop]>> {
+    const result: Array<[string, Oop]> = [];
+    for (const key of await this.globalKeys()) {
+      const value = await this.globalGetOop(key);
+      if (value !== null) result.push([key, value]);
+    }
+    return result;
   }
 
   async globalKeys(): Promise<string[]> {
@@ -602,7 +634,15 @@ export class Session implements AsyncDisposable {
     return new Error(`UserGlobals has no entry named ${name}.`);
   }
 
-  async #arrayOopToValues(array: Oop, seen: Set<string>): Promise<MarshalledValue[]> {
+  async #arrayOopToValues(
+    array: Oop,
+    seen: Set<string>,
+    options: NormalizedArrayReadbackOptions,
+    depth: number,
+  ): Promise<MarshalledValue[]> {
+    if (depth > options.maxDepth) {
+      throw new RangeError(`GemStone Array readback exceeded maxDepth ${options.maxDepth}.`);
+    }
     const key = array.toString();
     if (seen.has(key)) {
       throw new GemStoneError("Cannot marshal cyclic GemStone Array.");
@@ -610,10 +650,13 @@ export class Session implements AsyncDisposable {
     seen.add(key);
     try {
       const size = toSafeCollectionSize(await this.performValue(array, "size"), "GemStone Array");
+      if (size > options.maxItems) {
+        throw new RangeError(`GemStone Array readback exceeded maxItems ${options.maxItems}.`);
+      }
       const values: MarshalledValue[] = [];
       for (let index = 1; index <= size; index += 1) {
         const item = await this.perform(array, "at:", smallintToOop(index));
-        values.push(await this.#marshalArrayItem(item, seen));
+        values.push(await this.#marshalArrayItem(item, seen, options, depth));
       }
       return values;
     } finally {
@@ -621,9 +664,14 @@ export class Session implements AsyncDisposable {
     }
   }
 
-  async #marshalArrayItem(value: Oop, seen: Set<string>): Promise<MarshalledValue> {
+  async #marshalArrayItem(
+    value: Oop,
+    seen: Set<string>,
+    options: NormalizedArrayReadbackOptions,
+    depth: number,
+  ): Promise<MarshalledValue> {
     if (await this.#isArrayOop(value)) {
-      return this.#arrayOopToValues(value, seen);
+      return this.#arrayOopToValues(value, seen, options, depth + 1);
     }
     return this.marshalOop(value);
   }
@@ -818,6 +866,26 @@ function isPlainRecord(value: unknown): value is GemStoneDictionaryArgument {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
   const prototype = Object.getPrototypeOf(value);
   return prototype === Object.prototype || prototype === null;
+}
+
+interface NormalizedArrayReadbackOptions {
+  maxDepth: number;
+  maxItems: number;
+}
+
+function normalizeArrayReadbackOptions(options: ArrayReadbackOptions): NormalizedArrayReadbackOptions {
+  return {
+    maxDepth: normalizeOptionalLimit(options.maxDepth, "arrayOopToValues maxDepth", 1),
+    maxItems: normalizeOptionalLimit(options.maxItems, "arrayOopToValues maxItems", 0),
+  };
+}
+
+function normalizeOptionalLimit(value: number | undefined, field: string, minimum: number): number {
+  if (value === undefined) return Number.POSITIVE_INFINITY;
+  if (!Number.isSafeInteger(value) || value < minimum) {
+    throw new RangeError(`${field} must be a safe integer >= ${minimum}.`);
+  }
+  return value;
 }
 
 function toBoolean(value: MarshalledValue, operation: string): boolean {

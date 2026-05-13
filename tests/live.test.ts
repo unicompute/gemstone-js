@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { PersistentRoot, Session, smallintToOop } from "../src/index.ts";
+import { GSCollection, PersistentRoot, Session, smallintToOop } from "../src/index.ts";
 
 const runLive = process.env.GS_RUN_LIVE === "1";
 
@@ -69,6 +69,13 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
   assert.equal((await session.globalKeys()).includes(globalKey), true);
   assert.deepEqual(await session.globalPick([globalKey, `${globalKey}_Missing`]), { [globalKey]: "global", [`${globalKey}_Missing`]: null });
   assert.equal((await session.globalEntries())[globalKey], "global");
+  assert.equal((await session.globalValues()).includes("global"), true);
+  assert.equal(new Map(await session.globalItems()).get(globalKey), "global");
+  const globalItemsOop = new Map(await session.globalItemsOop());
+  const globalValueOop = globalItemsOop.get(globalKey);
+  if (globalValueOop === undefined) throw new Error("globalItemsOop should include the live global value.");
+  assert.equal(await session.marshalOop(globalValueOop), "global");
+  assert.equal((await session.globalValuesOop()).some((oop) => oop === object.oop), true);
   assert.equal(await session.globalRemove(globalKey), true);
   assert.equal(await session.globalDelete(globalExtraKey), true);
   assert.equal(await session.globalDelete(globalObjectKey), true);
@@ -88,6 +95,32 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
   assert.equal(await root.delete(extraKey), true);
   assert.equal(await root.delete(dictKey), true);
   assert.equal(await root.delete(`${key}_Missing`), false);
+
+  const queryKey = `${key}_Query`;
+  const queryCollection = await session.execute(`
+    | collection |
+    collection := OrderedCollection new.
+    collection add: ('ready' -> 1).
+    collection add: ('ready' -> 2).
+    collection add: ('done' -> 3).
+    collection
+  `);
+  await session.globalSetOop(queryKey, queryCollection);
+  const query = new GSCollection(session, queryKey);
+  assert.equal(await query.count("key", "=", "ready"), 2);
+  assert.equal(await query.exists("key", "=", "done"), true);
+  assert.equal(await query.exists("key", "=", "missing"), false);
+  const firstDone = await query.first("key", "=", "done");
+  assert.notEqual(firstDone, null);
+  await firstDone?.release();
+  const limited = await query.limit("key", "=", "ready", 1);
+  assert.equal(limited.length, 1);
+  await Promise.all(limited.map((item) => item.release()));
+  if (await session.eval(`${queryKey} respondsTo: #createEqualityIndexOn:`) === true) {
+    await query.createIndex("key");
+    await query.removeIndex("key");
+  }
+  assert.equal(await session.globalDelete(queryKey), true);
 
   await session.abort();
 });

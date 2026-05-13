@@ -21,7 +21,10 @@ jobs:
       - run: npm install --omit=optional
       - run: npm run verify
       - run: npm pack --json
+      - run: node scripts/write-checksums.mjs .tgz
       - uses: actions/upload-artifact@v4
         with:
           name: gemstone-js-package-node-${{ matrix.node }}
-          path: "*.tgz"
+          path: |
+            *.tgz
+            SHA256SUMS.txt

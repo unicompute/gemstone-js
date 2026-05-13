@@ -99,15 +99,24 @@ export class GSCollection<T = unknown> {
   async count(path: string, op: ComparisonOp, value: string | number | bigint | boolean): Promise<number> {
     const predicate = await this.#predicate(path, op, value);
     const source = `
-      | collection |
+      | collection count |
       collection := ${this.name}.
-      (collection select: [:each | ${predicate}]) size
+      count := 0.
+      collection do: [:each |
+        ${predicate} ifTrue: [count := count + 1]].
+      count
     `;
     return toSafeArraySize(await this.session.eval(source));
   }
 
   async exists(path: string, op: ComparisonOp, value: string | number | bigint | boolean): Promise<boolean> {
-    return await this.count(path, op, value) > 0;
+    const predicate = await this.#predicate(path, op, value);
+    const source = `
+      | collection |
+      collection := ${this.name}.
+      ((collection detect: [:each | ${predicate}] ifNone: [nil]) isNil) not
+    `;
+    return toBoolean(await this.session.eval(source), "GSCollection exists");
   }
 
   async #searchResultArray(path: string, op: ComparisonOp, value: string | number | bigint | boolean): Promise<Oop> {
@@ -248,4 +257,9 @@ function toSafeArraySize(value: MarshalledValue): number {
   }
   if (typeof value === "number" && Number.isSafeInteger(value) && value >= 0) return value;
   throw new TypeError(`GemStone collection size must be a non-negative integer, got ${String(value)}.`);
+}
+
+function toBoolean(value: MarshalledValue, operation: string): boolean {
+  if (typeof value === "boolean") return value;
+  throw new TypeError(`${operation} must answer a boolean, got ${String(value)}.`);
 }

@@ -31,10 +31,12 @@ native package; the TypeScript package can be tested locally with a mock runtime
 - OOP helpers ported from `gemstone-rs/crates/gemstone-gci`.
 - Low-level allocation/fetch helpers: `newOop()`, `fetchClass()`,
   `fetchSize()`, `fetchBytes()`, `arrayToOop()`, `arrayOopToValues()`, and
-  retained `array()` wrappers.
+  retained `array()` wrappers. Array readback accepts optional `maxDepth` and
+  `maxItems` bounds to guard recursive or unexpectedly large arrays.
 - Dictionary/global helpers: `dictionaryToOop()`, `strDictGet()`,
   `strDictSet()`, `globalGet()`, `globalGetObject()`, `globalHas()`,
-  `globalKeys()`, `globalPick()`, `globalEntries()`, `globalSet()`/
+  `globalKeys()`, `globalPick()`, `globalEntries()`, `globalValues()`,
+  `globalItems()`, raw `globalValuesOop()`/`globalItemsOop()`, `globalSet()`/
   `globalSetAll()`, raw `globalSetOop()`/`globalSetAllOop()`, required global
   accessors, and `globalRemove()`/`globalDelete()`.
 - `GsDict` wraps GemStone `StringKeyValueDictionary` objects with `get()`,
@@ -46,8 +48,9 @@ native package; the TypeScript package can be tested locally with a mock runtime
 - `PersistentRoot` now has value helpers (`getValue()`, `setValue()`,
   `setAllValue()`, `getDict()`, `setDict()`), raw `setAll()`,
   `getObject()`, `remove()`/`delete()`, `has()`, `keys()`, `pick()`,
-  `entries()`, `values()`, `items()`, and required raw/value/object/dictionary
-  access built on the session marshalling layer.
+  `entries()`, `values()`, raw `valuesOop()`, `items()`, raw `itemsOop()`,
+  and required raw/value/object/dictionary access built on the session
+  marshalling layer.
 - Session pool release is reset-aware: dirty sessions are aborted before reuse,
   failed resets are discarded, waiters are served with replacement sessions, and
   close rejects pending acquires. Explicit validation queries run without
@@ -65,9 +68,10 @@ native package; the TypeScript package can be tested locally with a mock runtime
   `GSCollection.searchOop()` returns raw handles, `first()`/`firstOop()` return
   nullable first matches without materializing result arrays, `limit()`/`take()`
   fetch bounded result arrays, `size()`/`isEmpty()` expose collection metadata,
-  `count()`/`exists()` answer predicate matches without fetching handles, and
-  `GSCollection.iter()` fetches collection chunks while yielding individual
-  objects. Equality-index helpers are available through both explicit
+  `count()` increments a counter without materializing selected matches,
+  `exists()` early-exits with `detect:ifNone:`, and `GSCollection.iter()`
+  fetches collection chunks while yielding individual objects. Equality-index
+  helpers are available through both explicit
   `createEqualityIndexOn()`/`removeEqualityIndexOn()` and higher-level
   `createIndex()`/`removeIndex()` calls. Source-rendering helpers validate
   collection names, persistent-root names, and SymbolDictionary entry names
@@ -123,6 +127,9 @@ string, float, nested array marshalling/readback, global
 lookup/enumeration/required/raw set/removal helpers, `GsDict` metadata,
 value/raw enumeration, required-read, and removal helpers, and `PersistentRoot`
 value, dictionary, key, pick, required-value, batch-value, and removal helpers.
+It also covers live query `count()`, `exists()`, `first()`, `limit()`, and
+index create/remove when the backing collection supports GemStone index
+selectors.
 
 ## Example
 

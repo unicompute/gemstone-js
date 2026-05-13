@@ -1,5 +1,6 @@
 import {
   GSCollection,
+  OOP_FALSE,
   OOP_NIL,
   oopToSmallint,
   smallintToOop,
@@ -141,11 +142,11 @@ test("GSCollection first helpers return nullable first matches without array fet
 
 test("GSCollection count and exists render validated predicates without fetching handles", async () => {
   const executeSources: string[] = [];
-  const counts = [3, 0];
+  const results = [smallintToOop(3), OOP_FALSE];
   const runtime = new MockGciRuntime({
     execute(source) {
       executeSources.push(source);
-      return smallintToOop(counts.shift() ?? 0);
+      return results.shift() ?? OOP_NIL;
     },
   });
   const session = await Session.connect({ username: "u", password: "p", runtime });
@@ -154,8 +155,12 @@ test("GSCollection count and exists render validated predicates without fetching
   assertEqual(await collection.count("customer.name", "=", "Ada's booking"), 3);
   assertEqual(await collection.exists("status", "=", "missing"), false);
 
-  assert(executeSources[0].includes("(collection select: [:each | (each customer name = 'Ada''s booking')]) size"), "count should render escaped Smalltalk predicate");
-  assert(executeSources[1].includes("(collection select: [:each | (each status = 'missing')]) size"), "exists should reuse the count predicate");
+  assert(executeSources[0].includes("count := 0."), "count should initialize a counter");
+  assert(executeSources[0].includes("collection do: [:each |"), "count should scan without materializing selected results");
+  assert(executeSources[0].includes("(each customer name = 'Ada''s booking') ifTrue: [count := count + 1]"), "count should render escaped Smalltalk predicate");
+  assert(!executeSources[0].includes("select:"), "count should avoid materializing selected matches");
+  assert(executeSources[1].includes("collection detect: [:each | (each status = 'missing')] ifNone: [nil]"), "exists should early-exit with detect:");
+  assert(!executeSources[1].includes("count :="), "exists should not count all matches");
   assert(!runtime.calls.some((call) => call.method === "addOopToExportSet"), "count helpers should not retain object handles");
   await session.logout();
 });

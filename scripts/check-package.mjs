@@ -20,6 +20,8 @@ const files = pack.files.map((file) => file.path);
 const fileSet = new Set(files);
 const packageJson = JSON.parse(readFileSync("package.json", "utf8"));
 const nativeDeclaration = readFileSync("src/native-module.d.ts", "utf8");
+const ciWorkflow = readFileSync(".github/workflows/ci.yml", "utf8");
+const releasingDocs = readFileSync("docs/releasing.md", "utf8");
 
 if (packageJson.publishConfig?.provenance !== true) {
   throw new Error("package.json publishConfig.provenance must be true.");
@@ -49,6 +51,7 @@ const required = [
   "LICENSE",
   "README.md",
   "docs/architecture.md",
+  "docs/naming.md",
   "docs/releasing.md",
   "examples/booking.decorators.generated.ts",
   "examples/booking.decorators.ts",
@@ -96,6 +99,26 @@ for (const snippet of ["category: string", "context: string", "exceptionObj: str
     throw new Error(`src/native-module.d.ts is missing native GciErrorInfo field: ${snippet}`);
   }
 }
+assertSnippets(
+  ".github/workflows/ci.yml",
+  ciWorkflow,
+  [
+    "npm run verify",
+    "npm pack --json",
+    "node scripts/write-checksums.mjs .tgz",
+    "SHA256SUMS.txt",
+    "actions/upload-artifact@v4",
+  ],
+);
+assertSnippets(
+  "docs/releasing.md",
+  releasingDocs,
+  [
+    "npm run verify",
+    "SHA256SUMS.txt",
+    "shasum -a 256 -c SHA256SUMS.txt",
+  ],
+);
 
 for (const path of forbidden) {
   const included = files.find((file) => file === path || file.startsWith(`${path}/`) || file.endsWith(`/${path}`));
@@ -114,5 +137,13 @@ function runRequiredCheck(label, args) {
     const stderr = error && typeof error === "object" && "stderr" in error ? String(error.stderr ?? "") : "";
     const details = [stdout, stderr].map((text) => text.trim()).filter(Boolean).join("\n");
     throw new Error(`${label} check failed.${details ? `\n${details}` : ""}`);
+  }
+}
+
+function assertSnippets(path, contents, snippets) {
+  for (const snippet of snippets) {
+    if (!contents.includes(snippet)) {
+      throw new Error(`${path} is missing required release verification snippet: ${JSON.stringify(snippet)}.`);
+    }
   }
 }

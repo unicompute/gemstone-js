@@ -4,6 +4,7 @@ export {
   ManagedOop,
   TypedOop,
   resolveSessionConfig,
+  type ArrayReadbackOptions,
   type GemStoneArrayArgument,
   type GemStoneArgument,
   type GemStoneDictionaryArgument,

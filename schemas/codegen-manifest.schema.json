@@ -182,7 +182,14 @@
             "properties": {
               "returnType": {
                 "not": {
-                  "pattern": "^\\s*(?:Oop|TypedOop\\s*(?:<.+>)?)\\s*$"
+                  "anyOf": [
+                    {
+                      "pattern": "^\\s*(?:[A-Za-z_$][A-Za-z0-9_$]*\\s*\\.\\s*)?(?!(?:[A-Za-z_$][A-Za-z0-9_$]*)?TypedOop\\s*$)(?:[A-Za-z_$][A-Za-z0-9_$]*)?Oop\\s*$"
+                    },
+                    {
+                      "pattern": "^\\s*(?:[A-Za-z_$][A-Za-z0-9_$]*\\s*\\.\\s*)?(?:[A-Za-z_$][A-Za-z0-9_$]*)?TypedOop\\s*(?:<.+>)?\\s*$"
+                    }
+                  ]
                 }
               }
             }
@@ -198,7 +205,7 @@
           "then": {
             "properties": {
               "returnType": {
-                "pattern": "^\\s*Oop\\s*$"
+                "pattern": "^\\s*(?:[A-Za-z_$][A-Za-z0-9_$]*\\s*\\.\\s*)?(?!(?:[A-Za-z_$][A-Za-z0-9_$]*)?TypedOop\\s*$)(?:[A-Za-z_$][A-Za-z0-9_$]*)?Oop\\s*$"
               }
             }
           }
@@ -213,7 +220,7 @@
           "then": {
             "properties": {
               "returnType": {
-                "pattern": "^\\s*TypedOop\\s*(?:<.+>)?\\s*$"
+                "pattern": "^\\s*(?:[A-Za-z_$][A-Za-z0-9_$]*\\s*\\.\\s*)?(?:[A-Za-z_$][A-Za-z0-9_$]*)?TypedOop\\s*(?:<.+>)?\\s*$"
               }
             }
           }

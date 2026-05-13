@@ -44,6 +44,13 @@ export interface RenderGeneratedModuleOptions {
 }
 
 const classMetadata = new WeakMap<Function, GemStoneClassMetadata>();
+const GENERATED_TYPE_IDENTIFIER = "[A-Za-z_$][A-Za-z0-9_$]*";
+const GENERATED_TYPED_OOP_RETURN_RE = new RegExp(
+  `^(?:${GENERATED_TYPE_IDENTIFIER}\\.)?(?:${GENERATED_TYPE_IDENTIFIER})?TypedOop(?:<.+>)?$`,
+);
+const GENERATED_OOP_RETURN_RE = new RegExp(
+  `^(?:${GENERATED_TYPE_IDENTIFIER}\\.)?(?!(?:${GENERATED_TYPE_IDENTIFIER})?TypedOop$)(?:${GENERATED_TYPE_IDENTIFIER})?Oop$`,
+);
 
 export function GemStoneClass(className: string): ClassDecorator {
   return (target) => {
@@ -85,8 +92,8 @@ export function inferSelector(methodName: string, arity: number): string {
 export function inferGeneratedReturnKind(returnType: string | undefined): GeneratedReturnKind {
   if (!returnType) return "value";
   const normalized = returnType.replace(/\s+/g, "");
-  if (/^(?:[A-Za-z_$][A-Za-z0-9_$]*\.)?(?:[A-Za-z_$][A-Za-z0-9_$]*)?TypedOop(?:<.+>)?$/.test(normalized)) return "object";
-  if (/^(?:[A-Za-z_$][A-Za-z0-9_$]*\.)?(?:[A-Za-z_$][A-Za-z0-9_$]*)?Oop$/.test(normalized)) return "oop";
+  if (GENERATED_TYPED_OOP_RETURN_RE.test(normalized)) return "object";
+  if (GENERATED_OOP_RETURN_RE.test(normalized)) return "oop";
   return "value";
 }
 

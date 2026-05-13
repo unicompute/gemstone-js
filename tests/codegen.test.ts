@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import {
   GemStoneClass,
   GemStoneSelector,
@@ -124,6 +125,10 @@ test("generated wrappers infer raw-OOP and object return calls from return types
   assertEqual(inferGeneratedReturnKind("Oop"), "oop");
   assertEqual(inferGeneratedReturnKind("Gem.Oop"), "oop");
   assertEqual(inferGeneratedReturnKind("GSOop"), "oop");
+  assertEqual(inferGeneratedReturnKind("Gem.GSOop"), "oop");
+  assertEqual(inferGeneratedReturnKind("TypedOop"), "object");
+  assertEqual(inferGeneratedReturnKind("Gem.TypedOop"), "object");
+  assertEqual(inferGeneratedReturnKind("GSTypedOop"), "object");
   assertEqual(inferGeneratedReturnKind("TypedOop<Booking>"), "object");
   assertEqual(inferGeneratedReturnKind("TypedOop < Booking >"), "object");
   assertEqual(inferGeneratedReturnKind("Gem.TypedOop<Booking>"), "object");
@@ -174,6 +179,33 @@ test("generated wrappers infer raw-OOP and object return calls from return types
     "}",
     "",
   ].join("\n"));
+});
+
+test("codegen manifest schema accepts inferred handle return type forms", () => {
+  const schema = JSON.parse(readFileSync(
+    new URL("../schemas/codegen-manifest.schema.json", import.meta.url),
+    "utf8",
+  )) as CodegenManifestSchema;
+  const objectPattern = new RegExp(schemaReturnRule(schema, "object").then.properties.returnType.pattern ?? "");
+  const oopPattern = new RegExp(schemaReturnRule(schema, "oop").then.properties.returnType.pattern ?? "");
+  const valueNot = schemaReturnRule(schema, "value").then.properties.returnType.not;
+
+  for (const value of ["TypedOop", "TypedOop<Booking>", "Gem.TypedOop<Booking>", "GSTypedOop<Booking>"]) {
+    assert(objectPattern.test(value), `schema object returnKind should accept ${value}`);
+    assert(schemaNotMatches(valueNot, value), `schema value returnKind should reject ${value}`);
+  }
+  for (const value of ["Oop", "Gem.Oop", "GSOop", "Gem.GSOop"]) {
+    assert(oopPattern.test(value), `schema oop returnKind should accept ${value}`);
+    assert(schemaNotMatches(valueNot, value), `schema value returnKind should reject ${value}`);
+  }
+  for (const value of ["string", "Booking", "Promise<TypedOop<Booking>>"]) {
+    assert(!objectPattern.test(value), `schema object returnKind should reject ${value}`);
+    assert(!oopPattern.test(value), `schema oop returnKind should reject ${value}`);
+    assert(!schemaNotMatches(valueNot, value), `schema value returnKind should accept ${value}`);
+  }
+  for (const value of ["TypedOop", "Gem.TypedOop", "GSTypedOop<Booking>"]) {
+    assert(!oopPattern.test(value), `schema oop returnKind should not accept object handle ${value}`);
+  }
 });
 
 test("renderGeneratedFunction allows binary selectors with one argument", () => {
@@ -530,4 +562,48 @@ function assertThrows(fn: () => unknown): void {
     return;
   }
   throw new Error("expected function to throw");
+}
+
+interface CodegenManifestSchema {
+  $defs: {
+    functionSpec: {
+      allOf: SchemaReturnRule[];
+    };
+  };
+}
+
+interface SchemaReturnRule {
+  if: {
+    properties: {
+      returnKind: {
+        const: string;
+      };
+    };
+  };
+  then: {
+    properties: {
+      returnType: {
+        pattern?: string;
+        not?: SchemaPattern | { anyOf: SchemaPattern[] };
+      };
+    };
+  };
+}
+
+interface SchemaPattern {
+  pattern: string;
+}
+
+function schemaReturnRule(schema: CodegenManifestSchema, returnKind: string): SchemaReturnRule {
+  const rule = schema.$defs.functionSpec.allOf.find((item) => item.if.properties.returnKind.const === returnKind);
+  if (!rule) throw new Error(`Missing schema returnKind rule: ${returnKind}`);
+  return rule;
+}
+
+function schemaNotMatches(not: SchemaReturnRule["then"]["properties"]["returnType"]["not"], value: string): boolean {
+  if (!not) return false;
+  if ("anyOf" in not) {
+    return not.anyOf.some((item) => new RegExp(item.pattern).test(value));
+  }
+  return new RegExp(not.pattern).test(value);
 }

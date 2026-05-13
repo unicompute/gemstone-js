@@ -53,6 +53,7 @@ export type GemStoneArgument =
   | GemStoneArrayArgument
   | GemStoneDictionaryArgument;
 type MaybePromise<T> = T | Promise<T>;
+type OopHandle<T = unknown> = TypedOop<T> | ManagedOop<T> | Oop;
 
 export class Session implements AsyncDisposable {
   readonly config: ResolvedSessionConfig;
@@ -324,40 +325,117 @@ export class Session implements AsyncDisposable {
     return this.dict(dict).entries();
   }
 
-  async dictionaryValues(value: TypedOop<unknown> | ManagedOop<unknown> | Oop): Promise<MarshalledDictionary> {
+  async dictionaryValues(value: OopHandle): Promise<MarshalledDictionary> {
     return this.dictionaryOopToObject(typeof value === "bigint" ? value : value.oop);
   }
 
-  async dictionaryKeys(value: TypedOop<unknown> | ManagedOop<unknown> | Oop): Promise<string[]> {
+  async dictionaryKeys(value: OopHandle): Promise<string[]> {
     return this.dict(rawHandleOop(value)).keys();
   }
 
-  async dictionarySize(value: TypedOop<unknown> | ManagedOop<unknown> | Oop): Promise<number> {
+  async dictionarySize(value: OopHandle): Promise<number> {
     return this.dict(rawHandleOop(value)).size();
   }
 
-  async dictionaryIsEmpty(value: TypedOop<unknown> | ManagedOop<unknown> | Oop): Promise<boolean> {
+  async dictionaryIsEmpty(value: OopHandle): Promise<boolean> {
     return this.dict(rawHandleOop(value)).isEmpty();
   }
 
-  async dictionaryEntriesOop(value: TypedOop<unknown> | ManagedOop<unknown> | Oop): Promise<Record<string, Oop | null>> {
+  async dictionaryEntries(value: OopHandle): Promise<MarshalledDictionary> {
+    return this.dict(rawHandleOop(value)).entries();
+  }
+
+  async dictionaryEntriesOop(value: OopHandle): Promise<Record<string, Oop | null>> {
     return this.dict(rawHandleOop(value)).entriesOop();
   }
 
-  async dictionaryItems(value: TypedOop<unknown> | ManagedOop<unknown> | Oop): Promise<Array<[string, MarshalledValue]>> {
+  async dictionaryItems(value: OopHandle): Promise<Array<[string, MarshalledValue]>> {
     return this.dict(rawHandleOop(value)).items();
   }
 
-  async dictionaryItemsOop(value: TypedOop<unknown> | ManagedOop<unknown> | Oop): Promise<Array<[string, Oop]>> {
+  async dictionaryItemsOop(value: OopHandle): Promise<Array<[string, Oop]>> {
     return this.dict(rawHandleOop(value)).itemsOop();
   }
 
-  async dictionaryValueList(value: TypedOop<unknown> | ManagedOop<unknown> | Oop): Promise<MarshalledValue[]> {
+  async dictionaryValueList(value: OopHandle): Promise<MarshalledValue[]> {
     return this.dict(rawHandleOop(value)).values();
   }
 
-  async dictionaryValueOops(value: TypedOop<unknown> | ManagedOop<unknown> | Oop): Promise<Oop[]> {
+  async dictionaryValueOops(value: OopHandle): Promise<Oop[]> {
     return this.dict(rawHandleOop(value)).valuesOop();
+  }
+
+  async dictionaryHas(value: OopHandle, key: string): Promise<boolean> {
+    return this.dict(rawHandleOop(value)).has(key);
+  }
+
+  async dictionaryHasAll(value: OopHandle, keys: readonly string[]): Promise<Record<string, boolean>> {
+    return this.dict(rawHandleOop(value)).hasAll(keys);
+  }
+
+  async dictionaryPick(value: OopHandle, keys: readonly string[]): Promise<Record<string, MarshalledValue>> {
+    return this.dict(rawHandleOop(value)).pick(keys);
+  }
+
+  async dictionaryPickOop(value: OopHandle, keys: readonly string[]): Promise<Record<string, Oop | null>> {
+    return this.dict(rawHandleOop(value)).pickOop(keys);
+  }
+
+  async dictionaryPickObject<T = unknown>(
+    value: OopHandle,
+    keys: readonly string[],
+  ): Promise<Record<string, TypedOop<T> | null>> {
+    return this.dict(rawHandleOop(value)).pickObject<T>(keys);
+  }
+
+  async dictionaryPickDict(value: OopHandle, keys: readonly string[]): Promise<Record<string, GsDict | null>> {
+    return this.dict(rawHandleOop(value)).pickDict(keys);
+  }
+
+  async dictionaryRequireOop(value: OopHandle, key: string): Promise<Oop> {
+    return this.dict(rawHandleOop(value)).requireOop(key);
+  }
+
+  async dictionaryRequireAllOop(value: OopHandle, keys: readonly string[]): Promise<Record<string, Oop>> {
+    return this.dict(rawHandleOop(value)).requireAllOop(keys);
+  }
+
+  async dictionaryRequireValue(value: OopHandle, key: string): Promise<MarshalledValue> {
+    return this.dict(rawHandleOop(value)).requireValue(key);
+  }
+
+  async dictionaryRequireAllValue(value: OopHandle, keys: readonly string[]): Promise<Record<string, MarshalledValue>> {
+    return this.dict(rawHandleOop(value)).requireAllValue(keys);
+  }
+
+  async dictionaryRequireObject<T = unknown>(value: OopHandle, key: string): Promise<TypedOop<T>> {
+    return this.dict(rawHandleOop(value)).requireObject<T>(key);
+  }
+
+  async dictionaryRequireAllObject<T = unknown>(
+    value: OopHandle,
+    keys: readonly string[],
+  ): Promise<Record<string, TypedOop<T>>> {
+    return this.dict(rawHandleOop(value)).requireAllObject<T>(keys);
+  }
+
+  async dictionaryRequire<T = unknown>(value: OopHandle, key: string): Promise<TypedOop<T>> {
+    return this.dictionaryRequireObject<T>(value, key);
+  }
+
+  async dictionaryRequireAll<T = unknown>(
+    value: OopHandle,
+    keys: readonly string[],
+  ): Promise<Record<string, TypedOop<T>>> {
+    return this.dictionaryRequireAllObject<T>(value, keys);
+  }
+
+  async dictionaryRequireDict(value: OopHandle, key: string): Promise<GsDict> {
+    return this.dict(rawHandleOop(value)).requireDict(key);
+  }
+
+  async dictionaryRequireAllDict(value: OopHandle, keys: readonly string[]): Promise<Record<string, GsDict>> {
+    return this.dict(rawHandleOop(value)).requireAllDict(keys);
   }
 
   async dictionary(value: GemStoneDictionaryArgument = {}): Promise<GsDict> {
@@ -1110,7 +1188,7 @@ function isPlainRecord(value: unknown): value is GemStoneDictionaryArgument {
   return prototype === Object.prototype || prototype === null;
 }
 
-function rawHandleOop(value: TypedOop<unknown> | ManagedOop<unknown> | Oop): Oop {
+function rawHandleOop(value: OopHandle): Oop {
   return typeof value === "bigint" ? value : value.oop;
 }
 

@@ -43,9 +43,17 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
   assert.equal(await dict.get("count"), 2n);
   assert.deepEqual(await session.dictionaryOopToObject(dict.oop), { status: "ready", count: 2n });
   assert.deepEqual(await session.dictionaryValues(dict.oop), { status: "ready", count: 2n });
+  assert.equal((await session.dictionaryEntries(dict.oop)).status, "ready");
   assert.deepEqual(new Set(await session.dictionaryKeys(dict.oop)), new Set(["status", "count"]));
   assert.equal(await session.dictionarySize(dict.oop), 2);
   assert.equal(await session.dictionaryIsEmpty(dict.oop), false);
+  assert.equal(await session.dictionaryHas(dict.oop, "status"), true);
+  assert.deepEqual(await session.dictionaryHasAll(dict.oop, ["status", "missing"]), { status: true, missing: false });
+  assert.equal((await session.dictionaryPick(dict.oop, ["status", "missing"])).status, "ready");
+  assert.equal(await session.dictionaryRequireValue(dict.oop, "status"), "ready");
+  assert.deepEqual(await session.dictionaryRequireAllValue(dict.oop, ["status"]), { status: "ready" });
+  const requiredSessionDictStatus = await session.dictionaryRequireObject(dict.oop, "status");
+  await requiredSessionDictStatus.release();
   assert.equal((await session.dictionaryEntriesOop(dict.oop)).status !== null, true);
   assert.equal(new Map(await session.dictionaryItems(dict.oop)).get("status"), "ready");
   const sessionDictItemsOop = new Map(await session.dictionaryItemsOop(dict.oop));
@@ -76,6 +84,9 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
   assert.equal(dictItemsOop.get("status"), "ready");
   assert.equal(await dict.requireValue("status"), "ready");
   await dict.setAllDict({ nested: { status: "child" } });
+  assert.equal(await (await session.dictionaryPickDict(dict.oop, ["nested", "missing"])).nested?.requireValue("status"), "child");
+  assert.equal(await (await session.dictionaryRequireDict(dict.oop, "nested")).requireValue("status"), "child");
+  assert.equal(await (await session.dictionaryRequireAllDict(dict.oop, ["nested"])).nested.requireValue("status"), "child");
   const nestedDict = await dict.getDict("nested");
   if (!nestedDict) throw new Error("GsDict.getDict should return the live nested dictionary.");
   assert.equal(await nestedDict.requireValue("status"), "child");

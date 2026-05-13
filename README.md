@@ -40,10 +40,11 @@ native package; the TypeScript package can be tested locally with a mock runtime
   large arrays; raw OOP readback accepts a `maxItems` bound.
 - Dictionary/global helpers: `dictionaryToOop()`, `dictionaryOopToObject()`,
   `dictionaryValues()`, `dictionaryKeys()`, `dictionarySize()`,
-  `dictionaryIsEmpty()`, `dictionaryItems()`,
+  `dictionaryIsEmpty()`, `dictionaryEntries()`, `dictionaryItems()`,
   raw `dictionaryEntriesOop()`/`dictionaryItemsOop()`,
   value-list `dictionaryValueList()`, raw `dictionaryValueOops()`,
-  `strDictGet()`, `strDictSet()`,
+  direct dictionary `has`/`pick`/`require` helpers for raw, value, object, and
+  nested-dictionary entries, `strDictGet()`, `strDictSet()`,
   `globalGet()`/`globalGetValue()`, `globalGetObject()`,
   `globalHas()`/`globalHasAll()`, `globalKeys()`, `globalPick()`, raw `globalPickOop()`,
   nullable object/dictionary `globalPickObject()`/`globalPickDict()`,

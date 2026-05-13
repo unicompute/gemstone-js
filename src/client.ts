@@ -301,6 +301,13 @@ export class Session implements AsyncDisposable {
     return (await this.arrayOops(value, options)).map((item) => this.typedOop<T>(item));
   }
 
+  async arrayOopToObjects<T = unknown>(
+    array: Oop,
+    options: ArrayOopReadbackOptions = {},
+  ): Promise<TypedOop<T>[]> {
+    return this.arrayObjects<T>(array, options);
+  }
+
   async dictionaryToOop(value: GemStoneDictionaryArgument): Promise<Oop> {
     const entries = Object.entries(value);
     return this.#observe("dictionary_to_oop", { entries: entries.length }, async () => {
@@ -457,6 +464,14 @@ export class Session implements AsyncDisposable {
     `;
     const result = await this.eval(source);
     return typeof result === "string" ? result.split(/\r?\n/).filter(Boolean) : [];
+  }
+
+  async globalSize(): Promise<number> {
+    return toSafeCollectionSize(await this.eval("UserGlobals size"), "UserGlobals");
+  }
+
+  async globalIsEmpty(): Promise<boolean> {
+    return await this.globalSize() === 0;
   }
 
   async globalHas(name: string): Promise<boolean> {

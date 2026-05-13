@@ -30,6 +30,9 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
   const liveArrayObjects = await session.arrayObjects(objectArray);
   assert.equal(liveArrayObjects.length, 1);
   await Promise.all(liveArrayObjects.map((item) => item.release()));
+  const liveArrayObjectsFromOop = await session.arrayOopToObjects(objectArray.oop);
+  assert.equal(liveArrayObjectsFromOop.length, 1);
+  await Promise.all(liveArrayObjectsFromOop.map((item) => item.release()));
   await objectArray.release();
   await objectForArray.release();
   await nestedArray.release();
@@ -113,6 +116,8 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
   assert.equal(await (await session.globalRequireDict(globalDictKey)).requireValue("status"), "global-dict");
   assert.equal(await (await session.globalRequireAllDict([globalDictKey]))[globalDictKey].requireValue("status"), "global-dict");
   assert.equal((await session.globalKeys()).includes(globalKey), true);
+  assert.ok(await session.globalSize() > 0);
+  assert.equal(await session.globalIsEmpty(), false);
   assert.deepEqual(await session.globalPick([globalKey, `${globalKey}_Missing`]), { [globalKey]: "global", [`${globalKey}_Missing`]: null });
   const liveGlobalPickOop = await session.globalPickOop([globalKey, `${globalKey}_Missing`]);
   const pickedGlobalOop = liveGlobalPickOop[globalKey];
@@ -150,6 +155,8 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
   assert.equal(await root.requireValue(key), "ok");
   assert.deepEqual(await root.requireAllValue([key]), { [key]: "ok" });
   assert.equal((await root.keys()).includes(key), true);
+  assert.ok(await root.size() > 0);
+  assert.equal(await root.isEmpty(), false);
   assert.deepEqual(await root.pick([key, `${key}_Missing`]), { [key]: "ok", [`${key}_Missing`]: null });
   const requiredRootOops = await root.requireAllOop([rootObjectKey, dictKey]);
   assert.equal(requiredRootOops[rootObjectKey], object.oop);

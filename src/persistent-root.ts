@@ -269,6 +269,15 @@ export class PersistentRoot {
     return this.list();
   }
 
+  async size(): Promise<number> {
+    if (this.rootName === "UserGlobals") return this.session.globalSize();
+    return toSafeSize(await this.session.eval(`${this.rootName} size`), this.rootName);
+  }
+
+  async isEmpty(): Promise<boolean> {
+    return await this.size() === 0;
+  }
+
   async list(): Promise<string[]> {
     const source = `
       | dict |
@@ -307,6 +316,17 @@ async function releaseNullableHandles(handles: Iterable<TypedOop<unknown> | null
 function toBoolean(value: MarshalledValue, operation: string): boolean {
   if (typeof value === "boolean") return value;
   throw new TypeError(`${operation} must answer a boolean, got ${String(value)}.`);
+}
+
+function toSafeSize(value: MarshalledValue, collection: string): number {
+  if (typeof value === "bigint") {
+    if (value < 0n || value > BigInt(Number.MAX_SAFE_INTEGER)) {
+      throw new RangeError(`${collection} size is outside JavaScript's safe integer range: ${value}`);
+    }
+    return Number(value);
+  }
+  if (typeof value === "number" && Number.isSafeInteger(value) && value >= 0) return value;
+  throw new TypeError(`${collection} size must be a non-negative integer, got ${String(value)}.`);
 }
 
 function validatePersistentRootEntryName(name: string): string {

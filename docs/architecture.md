@@ -26,6 +26,8 @@ The first implementation slice follows `../plan.js.txt`:
 - `Session.arrayOopToOops()` and `arrayObjects()` read raw and retained object
   handles from GemStone `Array` instances through the same `size`/`at:` path,
   with a `maxItems` bound for callers that need handles instead of values.
+  `arrayOopToObjects()` is the direct retained-handle counterpart for callers
+  that already have a raw Array OOP.
 - `Session.dictionaryOopToObject()` and `dictionaryValues()` read GemStone
   `StringKeyValueDictionary` instances through the `GsDict` key-enumeration
   path, preserving the existing string-key and value-marshalling behavior.
@@ -40,8 +42,8 @@ The first implementation slice follows `../plan.js.txt`:
   primitives. They should stay thin: the session owns marshalling and GCI calls,
   while wrappers expose explicit value/raw/object accessors, value-named setter
   aliases, nested dictionary helpers including batch dictionary setters, send
-  helpers, dictionary metadata, dictionary/root enumeration, and required
-  global/root accessors.
+  helpers, dictionary metadata, dictionary/root enumeration, global/root size
+  helpers, and required global/root accessors.
 - Source-rendered helper names and class-ref names share one validation policy.
   Collection names, class names, persistent-root names, persistent-root entries,
   and direct global names must be simple GemStone global-style identifiers;

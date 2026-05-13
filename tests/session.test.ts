@@ -451,6 +451,10 @@ test("arrayOopToValues converts GemStone Arrays back to JavaScript values", asyn
   assertEqual(objectItems[0].oop, name);
   assertEqual(objectItems[3].oop, nested);
   await Promise.all(objectItems.map((item) => item.release()));
+  const objectItemsFromOop = await session.arrayOopToObjects(array);
+  assertEqual(objectItemsFromOop[0].oop, name);
+  assertEqual(objectItemsFromOop[3].oop, nested);
+  await Promise.all(objectItemsFromOop.map((item) => item.release()));
   const wrappedValues = await session.arrayValues(wrapped);
   assertEqual(wrappedValues[0], "Ada");
   await wrapped.release();
@@ -926,6 +930,9 @@ test("globalSet and globalGet round-trip through UserGlobals", async () => {
   let listCalls = 0;
   runtime = new MockGciRuntime({
     execute(source) {
+      if (source.trim() === "UserGlobals size") {
+        return smallintToOop(3);
+      }
       if (source.includes("UserGlobals keysAndValuesDo:")) {
         listCalls += 1;
         return runtime.newString("JsBridgeValue\nJsBridgeObject\nJsBridgeDict\n");
@@ -972,6 +979,8 @@ test("globalSet and globalGet round-trip through UserGlobals", async () => {
   assertEqual(await session.marshalOop(entriesOop.JsBridgeValue ?? OOP_NIL), "ready");
   assertEqual(entriesOop.JsBridgeObject, object);
   assertEqual(entriesOop.JsBridgeDict, storedDict.oop);
+  assertEqual(await session.globalSize(), 3);
+  assertEqual(await session.globalIsEmpty(), false);
   const globalValues = await session.globalValues();
   assertEqual(globalValues[0], "ready");
   assertEqual(globalValues[1], object);
@@ -1116,6 +1125,9 @@ test("PersistentRoot pick and entries read root values by listed names", async (
   let listCalls = 0;
   runtime = new MockGciRuntime({
     execute(source) {
+      if (source.trim() === "UserGlobals size") {
+        return smallintToOop(2);
+      }
       listCalls += 1;
       assert(source.includes("dict := UserGlobals."), "entries should list the validated root global");
       assert(source.includes("keysAndValuesDo:"), "entries should ask GemStone for root keys");
@@ -1141,6 +1153,8 @@ test("PersistentRoot pick and entries read root values by listed names", async (
   const entriesOop = await root.entriesOop();
   assertEqual(await session.marshalOop(entriesOop.RootStatus ?? OOP_NIL), "ready");
   assertEqual(await session.marshalOop(entriesOop.RootEnabled ?? OOP_NIL), true);
+  assertEqual(await root.size(), 2);
+  assertEqual(await root.isEmpty(), false);
   const values = await root.values();
   assertEqual(values.join(","), "ready,true");
   const items = await root.items();
@@ -1165,6 +1179,9 @@ test("PersistentRoot.list returns root keys from GemStone helper output", async 
   let runtime: MockGciRuntime;
   runtime = new MockGciRuntime({
     execute(source) {
+      if (source.trim() === "CustomRoot size") {
+        return smallintToOop(0);
+      }
       assert(source.includes("dict := UserGlobals."), "list should render the validated root global");
       assert(source.includes("keysAndValuesDo:"), "list should ask GemStone for root keys");
       return runtime.newString("Alpha\nBeta\n");
@@ -1175,6 +1192,9 @@ test("PersistentRoot.list returns root keys from GemStone helper output", async 
 
   assertEqual((await root.list()).join(","), "Alpha,Beta");
   assertEqual((await root.keys()).join(","), "Alpha,Beta");
+  const customRoot = new PersistentRoot(session, "CustomRoot");
+  assertEqual(await customRoot.size(), 0);
+  assertEqual(await customRoot.isEmpty(), true);
 
   await session.logout();
 });

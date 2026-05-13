@@ -33,8 +33,9 @@ native package; the TypeScript package can be tested locally with a mock runtime
 - OOP helpers ported from `gemstone-rs/crates/gemstone-gci`.
 - Low-level allocation/fetch helpers: `newOop()`, `fetchClass()`,
   `fetchSize()`, `fetchBytes()`, `arrayToOop()`, `arrayOopToValues()`, raw
-  `arrayOopToOops()`/`arrayOops()`, retained object `arrayObjects()`, and
-  retained `array()` wrappers. Array value readback accepts optional `maxDepth`
+  `arrayOopToOops()`/`arrayOops()`, retained object
+  `arrayOopToObjects()`/`arrayObjects()`, and retained `array()` wrappers.
+  Array value readback accepts optional `maxDepth`
   and `maxItems`/`maxTotalItems` bounds to guard recursive or unexpectedly
   large arrays; raw OOP readback accepts a `maxItems` bound.
 - Dictionary/global helpers: `dictionaryToOop()`, `dictionaryOopToObject()`,
@@ -44,6 +45,7 @@ native package; the TypeScript package can be tested locally with a mock runtime
   nullable object/dictionary `globalPickObject()`/`globalPickDict()`,
   `globalEntries()`, raw `globalEntriesOop()`, `globalValues()`, `globalItems()`, raw
   `globalValuesOop()`/`globalItemsOop()`,
+  `globalSize()`/`globalIsEmpty()`,
   `globalSet()`/`globalSetValue()` and `globalSetAll()`/`globalSetAllValue()`, raw
   `globalSetOop()`/`globalSetAllOop()`, required global accessors including
   object alias `globalRequire()` and `globalRequireAll*()` bulk variants,
@@ -69,8 +71,8 @@ native package; the TypeScript package can be tested locally with a mock runtime
   `hasAll()`, `keys()`, `pick()`, raw `pickOop()`, nullable
   object/dictionary `pickObject()`/`pickDict()`, `entries()`, raw
   `entriesOop()`, `values()`, raw `valuesOop()`, `items()`, raw `itemsOop()`,
-  and required raw/value/object/dictionary access plus `requireAll*()` bulk
-  variants built on the session marshalling layer.
+  `size()`/`isEmpty()`, and required raw/value/object/dictionary access plus
+  `requireAll*()` bulk variants built on the session marshalling layer.
 - Session pool release is reset-aware: dirty sessions are aborted before reuse,
   failed resets are discarded, waiters are served with replacement sessions, and
   close rejects pending acquires. Explicit validation queries run without
@@ -164,7 +166,7 @@ string, float, nested array marshalling/value/raw readback, dictionary readback,
 lookup/enumeration/nullable object/bulk required/raw set/removal helpers,
 `GsDict` metadata, value/raw enumeration, nullable object/dictionary pick, bulk
 required-read, and bulk removal helpers, and
-`PersistentRoot` value, dictionary, key, pick, required-value, batch-value, bulk
+`PersistentRoot` value, dictionary, key, size, pick, required-value, batch-value, bulk
 nullable object/dictionary pick, required-read, and bulk removal helpers. It
 also covers live query add/remove, `count()`, `exists()`, `first()`, `limit()`,
 and index create/remove when the backing collection supports GemStone index

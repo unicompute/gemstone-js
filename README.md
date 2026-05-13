@@ -47,7 +47,8 @@ native package; the TypeScript package can be tested locally with a mock runtime
   `globalValuesOop()`/`globalItemsOop()`,
   `globalSize()`/`globalIsEmpty()`,
   `globalSet()`/`globalSetValue()` and `globalSetAll()`/`globalSetAllValue()`, raw
-  `globalSetOop()`/`globalSetAllOop()`, required global accessors including
+  `globalSetOop()`/`globalSetAllOop()` plus object-named
+  `globalSetObject()`/`globalSetAllObject()` aliases, required global accessors including
   object alias `globalRequire()` and `globalRequireAll*()` bulk variants,
   dictionary helpers `globalGetDict()`, `globalSetDict()`/`globalSetAllDict()`,
   `globalRequireDict()`/`globalRequireAllDict()`, and
@@ -56,7 +57,8 @@ native package; the TypeScript package can be tested locally with a mock runtime
 - `GsDict` wraps GemStone `StringKeyValueDictionary` objects with
   `get()`/`getValue()`,
   `getObject()`, `set()`/`setValue()` and `setAll()`/`setAllValue()`, raw
-  `setOop()`/`setAllOop()`,
+  `setOop()`/`setAllOop()` plus object-named
+  `setObject()`/`setAllObject()` aliases,
   `remove()`/`delete()`, `has()`, `size()`, `isEmpty()`, `keys()`,
   `values()`, raw `valuesOop()`, `items()`, raw `itemsOop()`, `entries()`,
   `toObject()`, raw `entriesOop()`, `pick()`, raw `pickOop()`,
@@ -67,7 +69,9 @@ native package; the TypeScript package can be tested locally with a mock runtime
   explicit send helpers, and inspection helpers.
 - `PersistentRoot` now has value helpers (`getValue()`, `setValue()`,
   `setAllValue()`, `getDict()`, `setDict()`/`setAllDict()`), raw `setAll()`,
-  `getObject()`, `remove()`/`delete()`, `removeAll()`/`deleteAll()`, `has()`,
+  explicit `setOop()`/`setAllOop()` and object-named
+  `setObject()`/`setAllObject()` aliases, `getObject()`,
+  `remove()`/`delete()`, `removeAll()`/`deleteAll()`, `has()`,
   `hasAll()`, `keys()`, `pick()`, raw `pickOop()`, nullable
   object/dictionary `pickObject()`/`pickDict()`, `entries()`, raw
   `entriesOop()`, `values()`, raw `valuesOop()`, `items()`, raw `itemsOop()`,

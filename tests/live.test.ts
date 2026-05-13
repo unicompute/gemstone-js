@@ -85,11 +85,15 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
   const globalExtraKey = `${key}_GlobalExtra`;
   const globalValueKey = `${key}_GlobalValue`;
   const globalObjectKey = `${key}_GlobalObject`;
+  const globalObjectAliasKey = `${key}_GlobalObjectAlias`;
+  const globalObjectBatchAliasKey = `${key}_GlobalObjectBatchAlias`;
   const globalDictKey = `${key}_GlobalDict`;
   const dictKey = `${key}_Dict`;
   await session.globalSetAllValue({ [globalKey]: "global", [globalExtraKey]: "global-extra" });
   await session.globalSetValue(globalValueKey, "global-value");
   await session.globalSetAllOop({ [globalObjectKey]: object });
+  await session.globalSetObject(globalObjectAliasKey, object);
+  await session.globalSetAllObject({ [globalObjectBatchAliasKey]: object });
   await session.globalSetAllDict({ [globalDictKey]: { status: "global-dict" } });
   assert.equal(await session.globalHas(globalKey), true);
   assert.deepEqual(await session.globalHasAll([globalKey, `${globalKey}_Missing`]), { [globalKey]: true, [`${globalKey}_Missing`]: false });
@@ -99,6 +103,8 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
   assert.deepEqual(await session.globalRequireAllValue([globalKey]), { [globalKey]: "global" });
   const requiredGlobalOops = await session.globalRequireAllOop([globalObjectKey, globalDictKey]);
   assert.equal(requiredGlobalOops[globalObjectKey], object.oop);
+  assert.equal(await session.globalRequireOop(globalObjectAliasKey), object.oop);
+  assert.equal(await session.globalRequireOop(globalObjectBatchAliasKey), object.oop);
   const globalObject = await session.globalRequireObject(globalObjectKey);
   assert.equal(globalObject.oop, object.oop);
   await globalObject.release();
@@ -136,9 +142,11 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
   assert.equal(await session.marshalOop(globalValueOop), "global");
   assert.equal((await session.globalValuesOop()).some((oop) => oop === object.oop), true);
   assert.deepEqual(await session.globalRemoveAll([globalKey, globalExtraKey]), { [globalKey]: true, [globalExtraKey]: true });
-  assert.deepEqual(await session.globalDeleteAll([globalValueKey, globalObjectKey, globalDictKey, `${globalKey}_Missing`]), {
+  assert.deepEqual(await session.globalDeleteAll([globalValueKey, globalObjectKey, globalObjectAliasKey, globalObjectBatchAliasKey, globalDictKey, `${globalKey}_Missing`]), {
     [globalValueKey]: true,
     [globalObjectKey]: true,
+    [globalObjectAliasKey]: true,
+    [globalObjectBatchAliasKey]: true,
     [globalDictKey]: true,
     [`${globalKey}_Missing`]: false,
   });
@@ -146,7 +154,15 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
   assert.equal(await session.globalDelete(globalKey), false);
   await root.setAllValue({ [key]: "ok", [extraKey]: "extra" });
   const rootObjectKey = `${key}_Object`;
+  const rootObjectOopKey = `${rootObjectKey}_Oop`;
+  const rootObjectAliasKey = `${rootObjectKey}_Alias`;
+  const rootObjectBatchOopKey = `${rootObjectKey}_BatchOop`;
+  const rootObjectBatchAliasKey = `${rootObjectKey}_BatchAlias`;
   await root.setAll({ [rootObjectKey]: object.oop });
+  await root.setOop(rootObjectOopKey, object.oop);
+  await root.setObject(rootObjectAliasKey, object);
+  await root.setAllOop({ [rootObjectBatchOopKey]: object.oop });
+  await root.setAllObject({ [rootObjectBatchAliasKey]: object });
   await root.setAllDict({ [dictKey]: { status: "stored" } });
   assert.equal(await root.getValue(key), "ok");
   assert.equal(await root.getValue(extraKey), "extra");
@@ -160,6 +176,10 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
   assert.deepEqual(await root.pick([key, `${key}_Missing`]), { [key]: "ok", [`${key}_Missing`]: null });
   const requiredRootOops = await root.requireAllOop([rootObjectKey, dictKey]);
   assert.equal(requiredRootOops[rootObjectKey], object.oop);
+  assert.equal(await root.requireOop(rootObjectOopKey), object.oop);
+  assert.equal(await root.requireOop(rootObjectAliasKey), object.oop);
+  assert.equal(await root.requireOop(rootObjectBatchOopKey), object.oop);
+  assert.equal(await root.requireOop(rootObjectBatchAliasKey), object.oop);
   const requiredRootObjects = await root.requireAllObject([rootObjectKey]);
   assert.equal(requiredRootObjects[rootObjectKey].oop, object.oop);
   await requiredRootObjects[rootObjectKey].release();
@@ -172,8 +192,12 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
   assert.equal(await (await root.requireAllDict([dictKey]))[dictKey].requireValue("status"), "stored");
   assert.deepEqual(await root.removeAll([key, extraKey]), { [key]: true, [extraKey]: true });
   assert.equal(await root.has(key), false);
-  assert.deepEqual(await root.deleteAll([rootObjectKey, dictKey, `${key}_Missing`]), {
+  assert.deepEqual(await root.deleteAll([rootObjectKey, rootObjectOopKey, rootObjectAliasKey, rootObjectBatchOopKey, rootObjectBatchAliasKey, dictKey, `${key}_Missing`]), {
     [rootObjectKey]: true,
+    [rootObjectOopKey]: true,
+    [rootObjectAliasKey]: true,
+    [rootObjectBatchOopKey]: true,
+    [rootObjectBatchAliasKey]: true,
     [dictKey]: true,
     [`${key}_Missing`]: false,
   });

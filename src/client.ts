@@ -601,6 +601,14 @@ export class Session implements AsyncDisposable {
     }
   }
 
+  async globalSetObject<T = unknown>(name: string, value: TypedOop<T> | ManagedOop<T> | Oop): Promise<void> {
+    await this.globalSetOop(name, value);
+  }
+
+  async globalSetAllObject(values: Record<string, TypedOop<unknown> | ManagedOop<unknown> | Oop>): Promise<void> {
+    await this.globalSetAllOop(values);
+  }
+
   async globalRemove(name: string): Promise<boolean> {
     const keyName = validateGemStoneGlobalName(name, "global name");
     return this.#observe("global_remove", { name: keyName }, async () => {

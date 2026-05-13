@@ -1,12 +1,15 @@
 import type {
   GemStoneArgument,
   GemStoneDictionaryArgument,
+  ManagedOop,
   MarshalledValue,
   Session,
   TypedOop,
 } from "./client.ts";
 import type { Oop } from "./oop.ts";
 import type { GemStoneInspection } from "./types.ts";
+
+type OopHandle<T = unknown> = TypedOop<T> | ManagedOop<T> | Oop;
 
 export class GsDict implements AsyncDisposable {
   readonly session: Session;
@@ -80,16 +83,24 @@ export class GsDict implements AsyncDisposable {
     return result;
   }
 
-  async setOop(key: string, value: Oop): Promise<this> {
-    await this.session.runtime.strKeyValueDictAtPut(this.oop, key, value);
+  async setOop<T = unknown>(key: string, value: OopHandle<T>): Promise<this> {
+    await this.session.runtime.strKeyValueDictAtPut(this.oop, key, rawOop(value));
     return this;
   }
 
-  async setAllOop(values: Record<string, Oop>): Promise<this> {
+  async setAllOop(values: Record<string, OopHandle<unknown>>): Promise<this> {
     for (const [key, value] of Object.entries(values)) {
-      await this.session.runtime.strKeyValueDictAtPut(this.oop, key, value);
+      await this.session.runtime.strKeyValueDictAtPut(this.oop, key, rawOop(value));
     }
     return this;
+  }
+
+  async setObject<T = unknown>(key: string, value: OopHandle<T>): Promise<this> {
+    return this.setOop(key, value);
+  }
+
+  async setAllObject(values: Record<string, OopHandle<unknown>>): Promise<this> {
+    return this.setAllOop(values);
   }
 
   async remove(key: string): Promise<boolean> {
@@ -338,4 +349,8 @@ function toSafeSize(value: MarshalledValue): number {
 function toBoolean(value: MarshalledValue, operation: string): boolean {
   if (typeof value === "boolean") return value;
   throw new TypeError(`${operation} must answer a boolean, got ${String(value)}.`);
+}
+
+function rawOop<T>(value: OopHandle<T>): Oop {
+  return typeof value === "bigint" ? value : value.oop;
 }

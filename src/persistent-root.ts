@@ -107,6 +107,22 @@ export class PersistentRoot {
     }
   }
 
+  async setOop<T = unknown>(name: string, value: TypedOop<T> | ManagedOop<T> | Oop): Promise<void> {
+    await this.set(name, value);
+  }
+
+  async setAllOop(values: Record<string, TypedOop<unknown> | ManagedOop<unknown> | Oop>): Promise<void> {
+    await this.setAll(values);
+  }
+
+  async setObject<T = unknown>(name: string, value: TypedOop<T> | ManagedOop<T> | Oop): Promise<void> {
+    await this.set(name, value);
+  }
+
+  async setAllObject(values: Record<string, TypedOop<unknown> | ManagedOop<unknown> | Oop>): Promise<void> {
+    await this.setAll(values);
+  }
+
   async remove(name: string): Promise<boolean> {
     const keyName = validatePersistentRootEntryName(name);
     if (this.rootName === "UserGlobals") {

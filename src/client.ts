@@ -286,6 +286,47 @@ export class Session implements AsyncDisposable {
     return this.typedOop<T>(await this.arrayAtOop(value, index));
   }
 
+  async arrayFirstOop(value: TypedOop<unknown[]> | ManagedOop<unknown[]> | Oop): Promise<Oop | null> {
+    return await this.arraySize(value) === 0 ? null : this.arrayAtOop(value, 1);
+  }
+
+  async arrayFirst(value: TypedOop<unknown[]> | ManagedOop<unknown[]> | Oop): Promise<MarshalledValue> {
+    const item = await this.arrayFirstOop(value);
+    return item === null ? null : this.marshalOop(item);
+  }
+
+  async arrayFirstValue(value: TypedOop<unknown[]> | ManagedOop<unknown[]> | Oop): Promise<MarshalledValue> {
+    return this.arrayFirst(value);
+  }
+
+  async arrayFirstObject<T = unknown>(
+    value: TypedOop<unknown[]> | ManagedOop<unknown[]> | Oop,
+  ): Promise<TypedOop<T> | null> {
+    const item = await this.arrayFirstOop(value);
+    return item === null ? null : this.typedOop<T>(item);
+  }
+
+  async arrayLastOop(value: TypedOop<unknown[]> | ManagedOop<unknown[]> | Oop): Promise<Oop | null> {
+    const size = await this.arraySize(value);
+    return size === 0 ? null : this.arrayAtOop(value, size);
+  }
+
+  async arrayLast(value: TypedOop<unknown[]> | ManagedOop<unknown[]> | Oop): Promise<MarshalledValue> {
+    const item = await this.arrayLastOop(value);
+    return item === null ? null : this.marshalOop(item);
+  }
+
+  async arrayLastValue(value: TypedOop<unknown[]> | ManagedOop<unknown[]> | Oop): Promise<MarshalledValue> {
+    return this.arrayLast(value);
+  }
+
+  async arrayLastObject<T = unknown>(
+    value: TypedOop<unknown[]> | ManagedOop<unknown[]> | Oop,
+  ): Promise<TypedOop<T> | null> {
+    const item = await this.arrayLastOop(value);
+    return item === null ? null : this.typedOop<T>(item);
+  }
+
   async arrayAtPut(
     value: TypedOop<unknown[]> | ManagedOop<unknown[]> | Oop,
     index: number,

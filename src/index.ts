@@ -34,6 +34,7 @@ export {
 export {
   GemStoneClass,
   GemStoneSelector,
+  inferGeneratedReturnKind,
   inferSelector,
   metadataFor,
   renderGeneratedFunction,

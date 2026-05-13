@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { readFile, writeFile } from "node:fs/promises";
-import { inferSelector, validateGeneratedModuleOptions } from "../src/codegen.ts";
+import { inferGeneratedReturnKind, inferSelector, validateGeneratedModuleOptions } from "../src/codegen.ts";
 
 const { help, outputPath, sourcePaths, extra } = parseArgs(process.argv.slice(2));
 
@@ -195,6 +195,10 @@ function scanClassBody(lines, className, sourcePath, startLine) {
     }
     if (returnType) {
       entry.returnType = returnType;
+      const returnKind = inferGeneratedReturnKind(returnType);
+      if (returnKind !== "value") {
+        entry.returnKind = returnKind;
+      }
     }
     functions.push(entry);
   }

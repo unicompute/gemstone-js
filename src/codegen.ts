@@ -74,6 +74,14 @@ export function inferSelector(methodName: string, arity: number): string {
   );
 }
 
+export function inferGeneratedReturnKind(returnType: string | undefined): GeneratedReturnKind {
+  if (!returnType) return "value";
+  const normalized = returnType.replace(/\s+/g, "");
+  if (normalized === "Oop") return "oop";
+  if (/^TypedOop(?:<.+>)?$/.test(normalized)) return "object";
+  return "value";
+}
+
 export function sendGenerated(
   session: Session,
   className: string,
@@ -130,7 +138,7 @@ export function renderGeneratedFunction(options: RenderGeneratedFunctionOptions)
   const argTypes = normalizeArgTypes(argNames, options.argTypes);
   const sessionType = options.sessionType === undefined ? undefined : assertTypeExpression(options.sessionType, "sessionType");
   const returnType = options.returnType === undefined ? undefined : assertTypeExpression(options.returnType, "returnType");
-  const returnKind = assertReturnKind(options.returnKind ?? "value");
+  const returnKind = assertReturnKind(options.returnKind ?? inferGeneratedReturnKind(returnType));
   assertUniqueArgNames(argNames);
   assertSelectorArity(selector, argNames);
   const params = [
@@ -204,7 +212,7 @@ export function validateGeneratedFunctionOptions(value: unknown): asserts value 
   normalizeArgTypes(argNames, options.argTypes);
   if (options.sessionType !== undefined) assertTypeExpression(options.sessionType, "sessionType");
   if (options.returnType !== undefined) assertTypeExpression(options.returnType, "returnType");
-  assertReturnKind(options.returnKind ?? "value");
+  assertReturnKind(options.returnKind ?? inferGeneratedReturnKind(options.returnType as string | undefined));
 }
 
 function assertReturnKind(value: unknown): GeneratedReturnKind {

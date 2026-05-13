@@ -42,13 +42,14 @@ test("codegen scanner emits manifests from decorated classes", async () => {
   try {
     const sourcePath = join(dir, "booking.ts");
     await writeFile(sourcePath, [
-      "import { GemStoneClass, GemStoneSelector, type Session, type TypedOop } from \"gemstone-js\";",
+      "import { GemStoneClass, GemStoneSelector, type Oop, type Session, type TypedOop } from \"gemstone-js\";",
       "import type { Booking } from \"./booking-types.ts\";",
       "@GemStoneClass(\"Booking\")",
       "class BookingModel {",
       "  currentStatus(session: Session): Promise<string> {}",
       "  @GemStoneSelector(\"find:active:\")",
       "  static findBooking(session: Session, id: string, active: boolean): Promise<TypedOop<Booking>> {}",
+      "  static rawBooking(session: Session, id: string): Promise<Oop> {}",
       "}",
       "",
     ].join("\n"));
@@ -59,14 +60,14 @@ test("codegen scanner emits manifests from decorated classes", async () => {
     assert.deepEqual(scanned.imports, [
       {
         from: "gemstone-js",
-        typeNames: ["Session", "TypedOop"],
+        typeNames: ["Session", "TypedOop", "Oop"],
       },
       {
         from: "./booking-types.ts",
         typeNames: ["Booking"],
       },
     ]);
-    assert.equal(scanned.functions.length, 2);
+    assert.equal(scanned.functions.length, 3);
     assert.deepEqual(scanned.functions[0], {
       exportedName: "currentStatus",
       className: "Booking",
@@ -83,6 +84,17 @@ test("codegen scanner emits manifests from decorated classes", async () => {
       argTypes: ["string", "boolean"],
       sessionType: "Session",
       returnType: "TypedOop<Booking>",
+      returnKind: "object",
+    });
+    assert.deepEqual(scanned.functions[2], {
+      exportedName: "rawBooking",
+      className: "Booking",
+      selector: "rawBooking:",
+      argNames: ["id"],
+      argTypes: ["string"],
+      sessionType: "Session",
+      returnType: "Oop",
+      returnKind: "oop",
     });
   } finally {
     await rm(dir, { recursive: true, force: true });

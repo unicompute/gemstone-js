@@ -102,13 +102,13 @@ export function sendGenerated(
   args: readonly GemStoneArgument[] | undefined,
   returnKind: "oop",
 ): Promise<Oop>;
-export function sendGenerated(
+export function sendGenerated<T = unknown>(
   session: Session,
   className: string,
   selector: string,
   args: readonly GemStoneArgument[] | undefined,
   returnKind: "object",
-): Promise<TypedOop<unknown>>;
+): Promise<TypedOop<T>>;
 export async function sendGenerated(
   session: Session,
   className: string,

@@ -10,6 +10,7 @@ import {
   Session,
   smallintToOop,
   type Oop,
+  type TypedOop,
 } from "../src/index.ts";
 import { MockGciRuntime } from "../src/testing/mock-runtime.ts";
 
@@ -49,7 +50,7 @@ test("sendGenerated can return retained typed object handles", async () => {
   const runtime = new MockGciRuntime();
   const session = await Session.connect({ username: "u", password: "p", runtime });
 
-  const found = await sendGenerated(session, "Booking", "find:", ["B-2"], "object");
+  const found: TypedOop<{ id: string }> = await sendGenerated<{ id: string }>(session, "Booking", "find:", ["B-2"], "object");
 
   assertEqual(found.session, session);
   assertEqual(found.oop, 0x3000n as Oop);

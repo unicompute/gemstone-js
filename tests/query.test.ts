@@ -42,6 +42,35 @@ test("GSCollection.search unwraps result arrays into typed OOP handles", async (
   await session.logout();
 });
 
+test("GSCollection.searchOop unwraps result arrays without retaining handles", async () => {
+  const arrays = new Map<Oop, Oop[]>();
+  let searchResult = OOP_NIL;
+  const executeSources: string[] = [];
+  const runtime = new MockGciRuntime({
+    execute(source) {
+      executeSources.push(source);
+      return searchResult;
+    },
+    perform(receiver, selector, args) {
+      return performArray(arrays, receiver, selector, args);
+    },
+  });
+  searchResult = runtime.allocate();
+  const first = runtime.allocate();
+  const second = runtime.allocate();
+  arrays.set(searchResult, [first, second]);
+
+  const session = await Session.connect({ username: "u", password: "p", runtime });
+  const collection = new GSCollection<{ name: string }>(session, "Bookings");
+
+  const results = await collection.searchOop("customer.name", "=", "Ada's booking");
+
+  assertEqual(results.join(","), [first, second].join(","));
+  assert(executeSources[0].includes("each customer name = 'Ada''s booking'"), "searchOop should render escaped Smalltalk literal");
+  assert(!runtime.calls.some((call) => call.method === "addOopToExportSet"), "searchOop should not retain raw handles");
+  await session.logout();
+});
+
 test("GSCollection.iter yields individual objects from each fetched chunk", async () => {
   const arrays = new Map<Oop, Oop[]>();
   const chunkByOffset = new Map<number, Oop>();

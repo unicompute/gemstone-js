@@ -47,9 +47,10 @@ native package; the TypeScript package can be tested locally with a mock runtime
 - `Session.inspect()` returns typed `oop`, `class`, `classOop`, `printString`,
   size/byte-size, class hierarchy, slot, and indexed-field metadata for quick
   debugging of raw object handles.
-- `GSCollection.search()` unwraps result arrays into typed handles, and
-  `GSCollection.iter()` fetches collection chunks while yielding individual
-  objects. Equality-index helpers are available through both explicit
+- `GSCollection.search()` unwraps result arrays into typed handles,
+  `GSCollection.searchOop()` returns raw handles, and `GSCollection.iter()`
+  fetches collection chunks while yielding individual objects. Equality-index
+  helpers are available through both explicit
   `createEqualityIndexOn()`/`removeEqualityIndexOn()` and higher-level
   `createIndex()`/`removeIndex()` calls. Source-rendering helpers validate
   collection and persistent-root global names before emitting Smalltalk.

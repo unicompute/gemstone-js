@@ -45,6 +45,16 @@ export class GSCollection<T = unknown> {
   }
 
   async search(path: string, op: ComparisonOp, value: string | number | bigint | boolean): Promise<TypedOop<T>[]> {
+    const result = await this.#searchResultArray(path, op, value);
+    return result === OOP_NIL ? [] : this.#typedOopsFromArray(result);
+  }
+
+  async searchOop(path: string, op: ComparisonOp, value: string | number | bigint | boolean): Promise<Oop[]> {
+    const result = await this.#searchResultArray(path, op, value);
+    return result === OOP_NIL ? [] : this.#arrayOops(result);
+  }
+
+  async #searchResultArray(path: string, op: ComparisonOp, value: string | number | bigint | boolean): Promise<Oop> {
     const literal = await this.#literal(value);
     const selector = selectorForPath(path);
     const source = `
@@ -53,8 +63,7 @@ export class GSCollection<T = unknown> {
       results := collection select: [:each | (each ${selector} ${smalltalkOp(op)} ${literal})].
       results asArray
     `;
-    const result = await this.session.execute(source);
-    return result === OOP_NIL ? [] : this.#typedOopsFromArray(result);
+    return this.session.execute(source);
   }
 
   async *iter(chunkSize = 256): AsyncIterable<TypedOop<T>> {

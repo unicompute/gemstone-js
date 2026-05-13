@@ -40,11 +40,19 @@ export class GsDict implements AsyncDisposable {
     return this;
   }
 
+  async setValue(key: string, value: GemStoneArgument): Promise<this> {
+    return this.set(key, value);
+  }
+
   async setAll(values: Record<string, GemStoneArgument>): Promise<this> {
     for (const [key, value] of Object.entries(values)) {
       await this.session.strDictSet(this.oop, key, value);
     }
     return this;
+  }
+
+  async setAllValue(values: Record<string, GemStoneArgument>): Promise<this> {
+    return this.setAll(values);
   }
 
   async setOop(key: string, value: Oop): Promise<this> {

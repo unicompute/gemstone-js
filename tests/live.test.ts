@@ -56,14 +56,17 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
   const extraKey = `${key}_Extra`;
   const globalKey = `${key}_Global`;
   const globalExtraKey = `${key}_GlobalExtra`;
+  const globalValueKey = `${key}_GlobalValue`;
   const globalObjectKey = `${key}_GlobalObject`;
   const globalDictKey = `${key}_GlobalDict`;
   const dictKey = `${key}_Dict`;
-  await session.globalSetAll({ [globalKey]: "global", [globalExtraKey]: "global-extra" });
+  await session.globalSetAllValue({ [globalKey]: "global", [globalExtraKey]: "global-extra" });
+  await session.globalSetValue(globalValueKey, "global-value");
   await session.globalSetAllOop({ [globalObjectKey]: object });
   await session.globalSetDict(globalDictKey, { status: "global-dict" });
   assert.equal(await session.globalHas(globalKey), true);
   assert.equal(await session.globalGet(globalKey), "global");
+  assert.equal(await session.globalGetValue(globalValueKey), "global-value");
   assert.equal(await session.globalRequireValue(globalKey), "global");
   const globalObject = await session.globalRequireObject(globalObjectKey);
   assert.equal(globalObject.oop, object.oop);
@@ -92,6 +95,7 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
   assert.equal((await session.globalValuesOop()).some((oop) => oop === object.oop), true);
   assert.equal(await session.globalRemove(globalKey), true);
   assert.equal(await session.globalDelete(globalExtraKey), true);
+  assert.equal(await session.globalDelete(globalValueKey), true);
   assert.equal(await session.globalDelete(globalObjectKey), true);
   assert.equal(await session.globalDelete(globalDictKey), true);
   assert.equal(await session.globalHas(globalKey), false);

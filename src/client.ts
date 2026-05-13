@@ -434,10 +434,18 @@ export class Session implements AsyncDisposable {
     });
   }
 
+  async globalSetValue(name: string, value: GemStoneArgument): Promise<void> {
+    await this.globalSet(name, value);
+  }
+
   async globalSetAll(values: Record<string, GemStoneArgument>): Promise<void> {
     for (const [name, value] of Object.entries(values)) {
       await this.globalSet(name, value);
     }
+  }
+
+  async globalSetAllValue(values: Record<string, GemStoneArgument>): Promise<void> {
+    await this.globalSetAll(values);
   }
 
   async globalSetDict(name: string, value: GemStoneDictionaryArgument): Promise<GsDict> {

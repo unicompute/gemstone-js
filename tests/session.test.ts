@@ -690,11 +690,15 @@ test("GsDict wraps StringKeyValueDictionary access", async () => {
   const dict = await GsDict.create(session, { name: "Ada" });
   const object = runtime.allocate();
   await dict.setAll({ city: "London", enabled: true });
+  await dict.setValue("role", "Engineer");
+  await dict.setAllValue({ zone: "A1" });
   await dict.setAllOop({ object });
 
   assertEqual(await dict.get("name"), "Ada");
   assertEqual(await dict.getValue("name"), "Ada");
   assertEqual(await dict.get("city"), "London");
+  assertEqual(await dict.getValue("role"), "Engineer");
+  assertEqual(await dict.getValue("zone"), "A1");
   assertEqual(await dict.get("enabled"), true);
   assertEqual(await dict.getOop("object"), object);
   assertEqual(await dict.requireValue("name"), "Ada");
@@ -873,12 +877,14 @@ test("globalSet and globalGet round-trip through UserGlobals", async () => {
   const session = await Session.connect({ username: "u", password: "p", runtime });
   const object = runtime.allocate();
 
-  await session.globalSetAll({ JsBridgeValue: "ready" });
+  await session.globalSetAllValue({ JsBridgeValue: "ready" });
+  await session.globalSetValue("JsBridgeExtraValue", "extra-ready");
   await session.globalSetAllOop({ JsBridgeObject: object });
   const storedDict = await session.globalSetDict("JsBridgeDict", { status: "nested" });
 
   assertEqual(await session.globalHas("JsBridgeValue"), true);
   assertEqual(await session.globalGet("JsBridgeValue"), "ready");
+  assertEqual(await session.globalGetValue("JsBridgeExtraValue"), "extra-ready");
   assertEqual(await session.globalGetValue("JsBridgeValue"), "ready");
   assertEqual(await session.globalRequireValue("JsBridgeValue"), "ready");
   assertEqual(await session.globalRequireOop("JsBridgeObject"), object);

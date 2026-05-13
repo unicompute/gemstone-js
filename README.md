@@ -40,13 +40,15 @@ native package; the TypeScript package can be tested locally with a mock runtime
   `strDictSet()`, `globalGet()`/`globalGetValue()`, `globalGetObject()`,
   `globalHas()`, `globalKeys()`, `globalPick()`, raw `globalPickOop()`,
   `globalEntries()`, raw `globalEntriesOop()`, `globalValues()`, `globalItems()`, raw
-  `globalValuesOop()`/`globalItemsOop()`, `globalSet()`/`globalSetAll()`, raw
+  `globalValuesOop()`/`globalItemsOop()`,
+  `globalSet()`/`globalSetValue()` and `globalSetAll()`/`globalSetAllValue()`, raw
   `globalSetOop()`/`globalSetAllOop()`, required global accessors including
   object alias `globalRequire()`, dictionary helpers `globalGetDict()`,
   `globalSetDict()`, `globalRequireDict()`, and `globalRemove()`/`globalDelete()`.
 - `GsDict` wraps GemStone `StringKeyValueDictionary` objects with
   `get()`/`getValue()`,
-  `getObject()`, `set()`/`setAll()`, raw `setOop()`/`setAllOop()`,
+  `getObject()`, `set()`/`setValue()` and `setAll()`/`setAllValue()`, raw
+  `setOop()`/`setAllOop()`,
   `remove()`/`delete()`, `has()`, `size()`, `isEmpty()`, `keys()`,
   `values()`, raw `valuesOop()`, `items()`, raw `itemsOop()`, `entries()`,
   raw `entriesOop()`, `pick()`, raw `pickOop()`, required raw/value/object

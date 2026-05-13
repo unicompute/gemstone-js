@@ -108,6 +108,10 @@ Live GemStone checks are opt-in:
 GS_RUN_LIVE=1 npm run test:live
 ```
 
+The live smoke covers connect, execute, class-side sends, `performWith()`,
+string and float marshalling, `GsDict` metadata/enumeration/required reads, and
+`PersistentRoot` value, dictionary, key, pick, and required-value helpers.
+
 ## Example
 
 ```ts

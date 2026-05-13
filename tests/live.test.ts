@@ -23,6 +23,11 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
   const dict = await session.dictionary({ status: "ready", count: 2 });
   assert.equal(await dict.get("status"), "ready");
   assert.equal(await dict.get("count"), 2n);
+  assert.equal(await dict.size(), 2);
+  assert.equal(await dict.isEmpty(), false);
+  assert.deepEqual(new Set(await dict.keys()), new Set(["status", "count"]));
+  assert.equal((await dict.entries()).status, "ready");
+  assert.equal(await dict.requireValue("status"), "ready");
 
   const object = await objectClass.sendObject("new");
   assert.equal(object.session, session);
@@ -30,8 +35,15 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
 
   const root = new PersistentRoot(session);
   const key = `GemstoneJsLive_${Date.now()}`;
+  const dictKey = `${key}_Dict`;
   await root.setValue(key, "ok");
+  await root.setDict(dictKey, { status: "stored" });
   assert.equal(await root.getValue(key), "ok");
+  assert.equal(await root.has(key), true);
+  assert.equal(await root.requireValue(key), "ok");
+  assert.equal((await root.keys()).includes(key), true);
+  assert.deepEqual(await root.pick([key, `${key}_Missing`]), { [key]: "ok", [`${key}_Missing`]: null });
+  assert.equal(await (await root.requireDict(dictKey)).requireValue("status"), "stored");
 
   await session.abort();
 });

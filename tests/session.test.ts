@@ -804,6 +804,13 @@ test("GsDict required helpers expose raw, value, and typed entries", async () =>
   assertDeepEqual(await dict.requireAllValue(["name"]), { name: "Ada" });
   assertEqual((await dict.requireAllDict(["nested"])).nested.oop, await dict.requireOop("nested"));
   assertEqual(await dict.getObject("missing"), null);
+  const pickedObjects = await dict.pickObject<{ name: string }>(["object", "missing"]);
+  assertEqual(pickedObjects.object?.oop, object);
+  assertEqual(pickedObjects.missing, null);
+  await pickedObjects.object?.release();
+  const pickedDicts = await dict.pickDict(["nested", "missing"]);
+  assertEqual(await pickedDicts.nested?.get("status"), "child");
+  assertEqual(pickedDicts.missing, null);
 
   const nullableObject = await dict.getObject<{ name: string }>("object");
   if (!nullableObject) throw new Error("getObject should return a typed handle for existing entries");
@@ -920,6 +927,13 @@ test("globalSet and globalGet round-trip through UserGlobals", async () => {
   const pickedOops = await session.globalPickOop(["JsBridgeObject", "MissingGlobal"]);
   assertEqual(pickedOops.JsBridgeObject, object);
   assertEqual(pickedOops.MissingGlobal, null);
+  const pickedObjects = await session.globalPickObject<{ status: string }>(["JsBridgeObject", "MissingGlobal"]);
+  assertEqual(pickedObjects.JsBridgeObject?.oop, object);
+  assertEqual(pickedObjects.MissingGlobal, null);
+  await pickedObjects.JsBridgeObject?.release();
+  const pickedDicts = await session.globalPickDict(["JsBridgeDict", "MissingGlobal"]);
+  assertEqual(await pickedDicts.JsBridgeDict?.get("status"), "nested");
+  assertEqual(pickedDicts.MissingGlobal, null);
   const entries = await session.globalEntries();
   assertEqual(entries.JsBridgeValue, "ready");
   assertEqual(entries.JsBridgeObject, object);
@@ -1034,6 +1048,13 @@ test("PersistentRoot required helpers expose raw, value, and dictionary entries"
   assertEqual(requiredRootOops.RootObject, object);
   assertEqual(await (await root.requireDict("RootDict")).get("name"), "Ada");
   assertEqual(await (await root.requireAllDict(["RootDict"])).RootDict.get("name"), "Ada");
+  const pickedObjects = await root.pickObject<{ status: string }>(["RootObject", "MissingRootEntry"]);
+  assertEqual(pickedObjects.RootObject?.oop, object);
+  assertEqual(pickedObjects.MissingRootEntry, null);
+  await pickedObjects.RootObject?.release();
+  const pickedDicts = await root.pickDict(["RootDict", "MissingRootEntry"]);
+  assertEqual(await pickedDicts.RootDict?.get("name"), "Ada");
+  assertEqual(pickedDicts.MissingRootEntry, null);
   const nullableObject = await root.getObject<{ status: string }>("RootObject");
   if (!nullableObject) throw new Error("getObject should return a typed handle for existing root entries");
   assertEqual(nullableObject.oop, object);

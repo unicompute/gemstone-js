@@ -356,6 +356,27 @@ export class Session implements AsyncDisposable {
     return result;
   }
 
+  async globalPickObject<T = unknown>(names: readonly string[]): Promise<Record<string, TypedOop<T> | null>> {
+    const result: Record<string, TypedOop<T> | null> = {};
+    try {
+      for (const name of names) {
+        result[name] = await this.globalGetObject<T>(name);
+      }
+      return result;
+    } catch (error) {
+      await releaseNullableHandles(Object.values(result));
+      throw error;
+    }
+  }
+
+  async globalPickDict(names: readonly string[]): Promise<Record<string, GsDict | null>> {
+    const result: Record<string, GsDict | null> = {};
+    for (const name of names) {
+      result[name] = await this.globalGetDict(name);
+    }
+    return result;
+  }
+
   async globalEntries(): Promise<Record<string, MarshalledValue>> {
     return this.globalPick(await this.globalKeys());
   }
@@ -449,7 +470,7 @@ export class Session implements AsyncDisposable {
       }
       return result;
     } catch (error) {
-      await Promise.allSettled(Object.values(result).map((handle) => handle.release()));
+      await releaseNullableHandles(Object.values(result));
       throw error;
     }
   }
@@ -972,6 +993,14 @@ export function resolveSessionConfig(config: SessionConfig = {}): ResolvedSessio
     metrics: fromEnv.metrics,
     slowQueryThresholdMs: fromEnv.slowQueryThresholdMs,
   };
+}
+
+async function releaseNullableHandles(handles: Iterable<ManagedOop<unknown> | null | undefined>): Promise<void> {
+  const releases: Promise<void>[] = [];
+  for (const handle of handles) {
+    if (handle) releases.push(handle.release());
+  }
+  await Promise.allSettled(releases);
 }
 
 function stoneNrs(config: ResolvedSessionConfig): string {

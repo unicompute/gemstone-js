@@ -61,6 +61,27 @@ export class PersistentRoot {
     return result;
   }
 
+  async pickObject<T = unknown>(names: readonly string[]): Promise<Record<string, TypedOop<T> | null>> {
+    const result: Record<string, TypedOop<T> | null> = {};
+    try {
+      for (const name of names) {
+        result[name] = await this.getObject<T>(name);
+      }
+      return result;
+    } catch (error) {
+      await releaseNullableHandles(Object.values(result));
+      throw error;
+    }
+  }
+
+  async pickDict(names: readonly string[]): Promise<Record<string, GsDict | null>> {
+    const result: Record<string, GsDict | null> = {};
+    for (const name of names) {
+      result[name] = await this.getDict(name);
+    }
+    return result;
+  }
+
   async has(name: string): Promise<boolean> {
     return await this.getOop(name) !== null;
   }
@@ -190,7 +211,7 @@ export class PersistentRoot {
       }
       return result;
     } catch (error) {
-      await Promise.allSettled(Object.values(result).map((handle) => handle.release()));
+      await releaseNullableHandles(Object.values(result));
       throw error;
     }
   }
@@ -273,6 +294,14 @@ export class PersistentRoot {
   #missingEntry(name: string): Error {
     return new Error(`Persistent root ${this.rootName} has no entry named ${name}.`);
   }
+}
+
+async function releaseNullableHandles(handles: Iterable<TypedOop<unknown> | null | undefined>): Promise<void> {
+  const releases: Promise<void>[] = [];
+  for (const handle of handles) {
+    if (handle) releases.push(handle.release());
+  }
+  await Promise.allSettled(releases);
 }
 
 function toBoolean(value: MarshalledValue, operation: string): boolean {

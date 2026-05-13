@@ -164,6 +164,27 @@ export class GsDict implements AsyncDisposable {
     return result;
   }
 
+  async pickObject<T = unknown>(keys: readonly string[]): Promise<Record<string, TypedOop<T> | null>> {
+    const result: Record<string, TypedOop<T> | null> = {};
+    try {
+      for (const key of keys) {
+        result[key] = await this.getObject<T>(key);
+      }
+      return result;
+    } catch (error) {
+      await releaseNullableHandles(Object.values(result));
+      throw error;
+    }
+  }
+
+  async pickDict(keys: readonly string[]): Promise<Record<string, GsDict | null>> {
+    const result: Record<string, GsDict | null> = {};
+    for (const key of keys) {
+      result[key] = await this.getDict(key);
+    }
+    return result;
+  }
+
   async entries(): Promise<Record<string, MarshalledValue>> {
     return this.pick(await this.keys());
   }
@@ -235,7 +256,7 @@ export class GsDict implements AsyncDisposable {
       }
       return result;
     } catch (error) {
-      await Promise.allSettled(Object.values(result).map((handle) => handle.release()));
+      await releaseNullableHandles(Object.values(result));
       throw error;
     }
   }
@@ -289,6 +310,14 @@ export class GsDict implements AsyncDisposable {
   #missingEntry(key: string): Error {
     return new Error(`GemStone dictionary has no entry for key ${key}.`);
   }
+}
+
+async function releaseNullableHandles(handles: Iterable<TypedOop<unknown> | null | undefined>): Promise<void> {
+  const releases: Promise<void>[] = [];
+  for (const handle of handles) {
+    if (handle) releases.push(handle.release());
+  }
+  await Promise.allSettled(releases);
 }
 
 function toSafeSize(value: MarshalledValue): number {

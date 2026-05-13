@@ -39,6 +39,7 @@ native package; the TypeScript package can be tested locally with a mock runtime
 - Dictionary/global helpers: `dictionaryToOop()`, `strDictGet()`,
   `strDictSet()`, `globalGet()`/`globalGetValue()`, `globalGetObject()`,
   `globalHas()`/`globalHasAll()`, `globalKeys()`, `globalPick()`, raw `globalPickOop()`,
+  nullable object/dictionary `globalPickObject()`/`globalPickDict()`,
   `globalEntries()`, raw `globalEntriesOop()`, `globalValues()`, `globalItems()`, raw
   `globalValuesOop()`/`globalItemsOop()`,
   `globalSet()`/`globalSetValue()` and `globalSetAll()`/`globalSetAllValue()`, raw
@@ -54,7 +55,8 @@ native package; the TypeScript package can be tested locally with a mock runtime
   `setOop()`/`setAllOop()`,
   `remove()`/`delete()`, `has()`, `size()`, `isEmpty()`, `keys()`,
   `values()`, raw `valuesOop()`, `items()`, raw `itemsOop()`, `entries()`,
-  raw `entriesOop()`, `pick()`, raw `pickOop()`, bulk `hasAll()` and
+  raw `entriesOop()`, `pick()`, raw `pickOop()`,
+  nullable object/dictionary `pickObject()`/`pickDict()`, bulk `hasAll()` and
   `removeAll()`/`deleteAll()`, required raw/value/object accessors plus object
   alias `require()` and `requireAll*()` bulk variants, nested dictionary helpers
   `getDict()`/`setDict()`/`setAllDict()`/`requireDict()`/`requireAllDict()`,
@@ -62,7 +64,8 @@ native package; the TypeScript package can be tested locally with a mock runtime
 - `PersistentRoot` now has value helpers (`getValue()`, `setValue()`,
   `setAllValue()`, `getDict()`, `setDict()`/`setAllDict()`), raw `setAll()`,
   `getObject()`, `remove()`/`delete()`, `removeAll()`/`deleteAll()`, `has()`,
-  `hasAll()`, `keys()`, `pick()`, raw `pickOop()`, `entries()`, raw
+  `hasAll()`, `keys()`, `pick()`, raw `pickOop()`, nullable
+  object/dictionary `pickObject()`/`pickDict()`, `entries()`, raw
   `entriesOop()`, `values()`, raw `valuesOop()`, `items()`, raw `itemsOop()`,
   and required raw/value/object/dictionary access plus `requireAll*()` bulk
   variants built on the session marshalling layer.
@@ -154,12 +157,14 @@ GS_RUN_LIVE=1 npm run test:live
 
 The live smoke covers connect, execute, class-side sends, `performWith()`,
 string, float, nested array marshalling/readback, global
-lookup/enumeration/bulk required/raw set/removal helpers, `GsDict` metadata,
-value/raw enumeration, bulk required-read, and bulk removal helpers, and
+lookup/enumeration/nullable object/bulk required/raw set/removal helpers,
+`GsDict` metadata, value/raw enumeration, nullable object/dictionary pick, bulk
+required-read, and bulk removal helpers, and
 `PersistentRoot` value, dictionary, key, pick, required-value, batch-value, bulk
-required-read, and bulk removal helpers. It also covers live query add/remove,
-`count()`, `exists()`, `first()`, `limit()`, and index create/remove when the
-backing collection supports GemStone index selectors.
+nullable object/dictionary pick, required-read, and bulk removal helpers. It
+also covers live query add/remove, `count()`, `exists()`, `first()`, `limit()`,
+and index create/remove when the backing collection supports GemStone index
+selectors.
 
 ## Example
 

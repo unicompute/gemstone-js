@@ -1,9 +1,20 @@
-import type { GemStoneArgument, MarshalledValue, Session } from "./client.ts";
+import type { GemStoneArgument, MarshalledValue, Session, TypedOop } from "./client.ts";
+import type { Oop } from "./oop.ts";
+
+export type GeneratedReturnKind = "value" | "oop" | "object";
 
 export interface GemStoneClassMetadata {
   className: string;
   target: Function;
   selectors: Map<string | symbol, string>;
+}
+
+export interface RenderGeneratedFunctionOptions {
+  exportedName: string;
+  className: string;
+  selector: string;
+  argNames: string[];
+  returnKind?: GeneratedReturnKind;
 }
 
 const classMetadata = new WeakMap<Function, GemStoneClassMetadata>();
@@ -45,34 +56,81 @@ export function inferSelector(methodName: string, arity: number): string {
   );
 }
 
+export function sendGenerated(
+  session: Session,
+  className: string,
+  selector: string,
+  args?: readonly GemStoneArgument[],
+): Promise<MarshalledValue>;
+export function sendGenerated(
+  session: Session,
+  className: string,
+  selector: string,
+  args: readonly GemStoneArgument[] | undefined,
+  returnKind: "value",
+): Promise<MarshalledValue>;
+export function sendGenerated(
+  session: Session,
+  className: string,
+  selector: string,
+  args: readonly GemStoneArgument[] | undefined,
+  returnKind: "oop",
+): Promise<Oop>;
+export function sendGenerated(
+  session: Session,
+  className: string,
+  selector: string,
+  args: readonly GemStoneArgument[] | undefined,
+  returnKind: "object",
+): Promise<TypedOop<unknown>>;
 export async function sendGenerated(
   session: Session,
   className: string,
   selector: string,
   args: readonly GemStoneArgument[] = [],
-): Promise<MarshalledValue> {
+  returnKind: GeneratedReturnKind = "value",
+): Promise<MarshalledValue | Oop | TypedOop<unknown>> {
+  const kind = assertReturnKind(returnKind);
+  if (kind === "object") {
+    return session.classRef(className).sendObject(selector, ...args);
+  }
   const receiver = await session.resolveSymbol(className);
+  if (kind === "oop") {
+    return session.performWith(receiver, selector, ...args);
+  }
   return session.performValueWith(receiver, selector, ...args);
 }
 
-export function renderGeneratedFunction(options: {
-  exportedName: string;
-  className: string;
-  selector: string;
-  argNames: string[];
-}): string {
+export function renderGeneratedFunction(options: RenderGeneratedFunctionOptions): string {
   const exportedName = assertIdentifier(options.exportedName, "exportedName");
   const argNames = options.argNames.map((arg) => assertIdentifier(arg, "argName"));
+  const returnKind = assertReturnKind(options.returnKind ?? "value");
   assertUniqueArgNames(argNames);
   const params = ["session", ...argNames].join(", ");
   const forwardedArgs = argNames.length ? `, ${argNames.join(", ")}` : "";
+
+  if (returnKind === "object") {
+    return [
+      `export async function ${exportedName}(${params}) {`,
+      `  return session.classRef(${JSON.stringify(options.className)}).sendObject(${JSON.stringify(options.selector)}${forwardedArgs});`,
+      `}`,
+      "",
+    ].join("\n");
+  }
+
+  const method = returnKind === "oop" ? "performWith" : "performValueWith";
   return [
     `export async function ${exportedName}(${params}) {`,
     `  const receiver = await session.resolveSymbol(${JSON.stringify(options.className)});`,
-    `  return session.performValueWith(receiver, ${JSON.stringify(options.selector)}${forwardedArgs});`,
+    `  return session.${method}(receiver, ${JSON.stringify(options.selector)}${forwardedArgs});`,
     `}`,
     "",
   ].join("\n");
+}
+
+function assertReturnKind(value: unknown): GeneratedReturnKind {
+  if (value === "value" || value === "oop" || value === "object") return value;
+  throw new RangeError(`Generated return kind must be "value", "oop", or "object": ${String(value)}`);
 }
 
 function assertIdentifier(value: string, field: string): string {

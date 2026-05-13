@@ -51,8 +51,9 @@ native package; the TypeScript package can be tested locally with a mock runtime
   objects.
 - Pool, observability hooks, persistent-root, query, codegen, and Express,
   Fastify, and Hono adapter scaffolds.
-- Codegen helpers render wrappers that use `performValueWith()`, so generated
-  methods share the same JavaScript argument marshalling as hand-written calls.
+- Codegen helpers render wrappers that share the same JavaScript argument
+  marshalling as hand-written calls and can return marshalled values, raw OOPs,
+  or retained typed object handles.
 - `InMemoryMetrics` and `InMemoryTracer` make observability behavior easy to
   assert in tests and examples.
 

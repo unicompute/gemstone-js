@@ -38,7 +38,9 @@ export {
   metadataFor,
   renderGeneratedFunction,
   sendGenerated,
+  type GeneratedReturnKind,
   type GemStoneClassMetadata,
+  type RenderGeneratedFunctionOptions,
 } from "./codegen.ts";
 export { PersistentRoot } from "./persistent-root.ts";
 export { GsDict } from "./gsdict.ts";

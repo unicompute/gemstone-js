@@ -7,6 +7,7 @@ import {
   sendGenerated,
   Session,
   smallintToOop,
+  type Oop,
 } from "../src/index.ts";
 import { MockGciRuntime } from "../src/testing/mock-runtime.ts";
 
@@ -26,6 +27,34 @@ test("sendGenerated uses the standard argument marshalling path", async () => {
   assertEqual(args[1], OOP_FALSE);
   assertEqual(args[2], smallintToOop(3));
 
+  await session.logout();
+});
+
+test("sendGenerated can return raw OOPs without result marshalling", async () => {
+  const runtime = new MockGciRuntime();
+  const session = await Session.connect({ username: "u", password: "p", runtime });
+
+  const raw = await sendGenerated(session, "Booking", "find:", ["B-1"], "oop");
+
+  assertEqual(raw, 0x3000n as Oop);
+  assert(runtime.calls.some((call) => call.method === "newString" && call.args[0] === "B-1"), "raw wrappers should still marshal arguments");
+  assert(!runtime.calls.some((call) => call.method === "fetchClass"), "raw wrappers should not marshal the return value");
+
+  await session.logout();
+});
+
+test("sendGenerated can return retained typed object handles", async () => {
+  const runtime = new MockGciRuntime();
+  const session = await Session.connect({ username: "u", password: "p", runtime });
+
+  const found = await sendGenerated(session, "Booking", "find:", ["B-2"], "object");
+
+  assertEqual(found.session, session);
+  assertEqual(found.oop, 0x3000n as Oop);
+  assert(runtime.calls.some((call) => call.method === "newString" && call.args[0] === "B-2"), "object wrappers should still marshal arguments");
+
+  await found.release();
+  assert(runtime.calls.some((call) => call.method === "addOopToExportSet" && call.args[0] === found.oop), "object wrappers should retain the returned handle");
   await session.logout();
 });
 
@@ -57,6 +86,35 @@ test("renderGeneratedFunction emits value-returning wrappers without dangling pa
   ].join("\n"));
 });
 
+test("renderGeneratedFunction emits raw-OOP and object-returning wrappers", () => {
+  assertEqual(renderGeneratedFunction({
+    exportedName: "rawBooking",
+    className: "Booking",
+    selector: "find:",
+    argNames: ["id"],
+    returnKind: "oop",
+  }), [
+    "export async function rawBooking(session, id) {",
+    "  const receiver = await session.resolveSymbol(\"Booking\");",
+    "  return session.performWith(receiver, \"find:\", id);",
+    "}",
+    "",
+  ].join("\n"));
+
+  assertEqual(renderGeneratedFunction({
+    exportedName: "findBookingObject",
+    className: "Booking",
+    selector: "find:",
+    argNames: ["id"],
+    returnKind: "object",
+  }), [
+    "export async function findBookingObject(session, id) {",
+    "  return session.classRef(\"Booking\").sendObject(\"find:\", id);",
+    "}",
+    "",
+  ].join("\n"));
+});
+
 test("renderGeneratedFunction rejects unsafe JavaScript identifiers", () => {
   assertThrows(() => renderGeneratedFunction({
     exportedName: "bad;name",
@@ -75,6 +133,13 @@ test("renderGeneratedFunction rejects unsafe JavaScript identifiers", () => {
     className: "Booking",
     selector: "find:again:",
     argNames: ["id", "id"],
+  }));
+  assertThrows(() => renderGeneratedFunction({
+    exportedName: "findBooking",
+    className: "Booking",
+    selector: "find:",
+    argNames: ["id"],
+    returnKind: "record" as never,
   }));
 });
 

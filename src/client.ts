@@ -38,6 +38,9 @@ export interface ArrayReadbackOptions {
   maxItems?: number;
   maxTotalItems?: number;
 }
+export interface ArrayOopReadbackOptions {
+  maxItems?: number;
+}
 export type GemStoneArrayArgument = readonly GemStoneArgument[];
 export type GemStoneDictionaryArgument = { readonly [key: string]: GemStoneArgument };
 export type GemStoneArgument =
@@ -269,6 +272,33 @@ export class Session implements AsyncDisposable {
     options: ArrayReadbackOptions = {},
   ): Promise<MarshalledValue[]> {
     return this.arrayOopToValues(typeof value === "bigint" ? value : value.oop, options);
+  }
+
+  async arrayOopToOops(array: Oop, options: ArrayOopReadbackOptions = {}): Promise<Oop[]> {
+    const maxItems = normalizeOptionalLimit(options.maxItems, "arrayOopToOops maxItems", 0);
+    const size = toSafeCollectionSize(await this.performValue(array, "size"), "GemStone Array");
+    if (size > maxItems) {
+      throw new RangeError(`GemStone Array readback exceeded maxItems ${maxItems}.`);
+    }
+    const values: Oop[] = [];
+    for (let index = 1; index <= size; index += 1) {
+      values.push(await this.perform(array, "at:", smallintToOop(index)));
+    }
+    return values;
+  }
+
+  async arrayOops(
+    value: TypedOop<unknown[]> | ManagedOop<unknown[]> | Oop,
+    options: ArrayOopReadbackOptions = {},
+  ): Promise<Oop[]> {
+    return this.arrayOopToOops(typeof value === "bigint" ? value : value.oop, options);
+  }
+
+  async arrayObjects<T = unknown>(
+    value: TypedOop<unknown[]> | ManagedOop<unknown[]> | Oop,
+    options: ArrayOopReadbackOptions = {},
+  ): Promise<TypedOop<T>[]> {
+    return (await this.arrayOops(value, options)).map((item) => this.typedOop<T>(item));
   }
 
   async dictionaryToOop(value: GemStoneDictionaryArgument): Promise<Oop> {

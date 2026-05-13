@@ -23,6 +23,9 @@ The first implementation slice follows `../plan.js.txt`:
 - `Session.arrayOopToValues()` recursively reads GemStone `Array` instances
   through `size` and `at:` with cycle detection plus optional per-array,
   total-item, and depth limits for callers that need bounded readback.
+- `Session.arrayOopToOops()` and `arrayObjects()` read raw and retained object
+  handles from GemStone `Array` instances through the same `size`/`at:` path,
+  with a `maxItems` bound for callers that need handles instead of values.
 - `Session.dictionaryOopToObject()` and `dictionaryValues()` read GemStone
   `StringKeyValueDictionary` instances through the `GsDict` key-enumeration
   path, preserving the existing string-key and value-marshalling behavior.
@@ -48,9 +51,9 @@ The first implementation slice follows `../plan.js.txt`:
   can count/check predicate matches without materializing selected results, can
   read whole collections, bounded pages, indexed items, or collection endpoints
   as handles or marshalled values, can check, add, remove, replace, or clear
-  collection members through explicit value and raw-OOP helpers, and unwrap
-  GemStone arrays through `size`/`at:` so iterators yield object handles instead
-  of chunk containers.
+  collection members through explicit value and raw-OOP helpers, and delegate
+  GemStone array unwrapping to the session readback helpers so iterators yield
+  object handles instead of chunk containers.
 - Codegen helpers validate generated JavaScript identifiers and emit wrappers
   that choose between `performValueWith()`, `performWith()`, or
   `classRef().sendObject()` based on the requested return kind. Selector shape,

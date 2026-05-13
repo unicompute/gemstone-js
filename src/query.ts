@@ -461,16 +461,11 @@ export class GSCollection<T = unknown> {
   }
 
   async #typedOopsFromArray(array: Oop): Promise<TypedOop<T>[]> {
-    return (await this.#arrayOops(array)).map((oop) => new TypedOop<T>(this.session, oop));
+    return this.session.arrayObjects<T>(array);
   }
 
   async #arrayOops(array: Oop): Promise<Oop[]> {
-    const size = toSafeArraySize(await this.session.performValue(array, "size"));
-    const result: Oop[] = [];
-    for (let index = 1; index <= size; index += 1) {
-      result.push(await this.session.perform(array, "at:", smallintToOop(index)));
-    }
-    return result;
+    return this.session.arrayOopToOops(array);
   }
 
   async #valuesFromArray(array: Oop): Promise<MarshalledValue[]> {

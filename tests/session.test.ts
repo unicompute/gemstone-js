@@ -442,6 +442,15 @@ test("arrayOopToValues converts GemStone Arrays back to JavaScript values", asyn
   assertEqual(nestedValues[1], false);
 
   const wrapped = session.typedOop<unknown[]>(array);
+  const rawItems = await session.arrayOopToOops(array);
+  assertEqual(rawItems[0], name);
+  assertEqual(rawItems[3], nested);
+  const wrappedRawItems = await session.arrayOops(wrapped);
+  assertEqual(wrappedRawItems[0], name);
+  const objectItems = await session.arrayObjects(wrapped);
+  assertEqual(objectItems[0].oop, name);
+  assertEqual(objectItems[3].oop, nested);
+  await Promise.all(objectItems.map((item) => item.release()));
   const wrappedValues = await session.arrayValues(wrapped);
   assertEqual(wrappedValues[0], "Ada");
   await wrapped.release();
@@ -500,8 +509,11 @@ test("arrayOopToValues enforces readback depth and item bounds", async () => {
   await assertRejects(() => session.arrayOopToValues(array, { maxTotalItems: 3 }), RangeError);
   await assertRejects(() => session.arrayOopToValues(array, { maxDepth: 1 }), RangeError);
   await assertRejects(() => session.arrayValues(array, { maxDepth: 0 }), RangeError);
+  await assertRejects(() => session.arrayOopToOops(array, { maxItems: 2 }), RangeError);
   const values = await session.arrayOopToValues(array, { maxDepth: 2, maxItems: 3, maxTotalItems: 4 });
   assertEqual(values.length, 3);
+  const oops = await session.arrayOopToOops(array, { maxItems: 3 });
+  assertEqual(oops.length, 3);
 
   await session.logout();
 });

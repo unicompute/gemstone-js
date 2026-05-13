@@ -26,6 +26,11 @@ export class GsDict implements AsyncDisposable {
     return this.session.strDictGetOop(this.oop, key);
   }
 
+  async getObject<T = unknown>(key: string): Promise<TypedOop<T> | null> {
+    const value = await this.getOop(key);
+    return value === null ? null : this.session.typedOop<T>(value);
+  }
+
   async set(key: string, value: GemStoneArgument): Promise<this> {
     await this.session.strDictSet(this.oop, key, value);
     return this;
@@ -64,6 +69,20 @@ export class GsDict implements AsyncDisposable {
     return this.pick(await this.keys());
   }
 
+  async requireOop(key: string): Promise<Oop> {
+    const value = await this.getOop(key);
+    if (value === null) throw this.#missingEntry(key);
+    return value;
+  }
+
+  async requireValue(key: string): Promise<MarshalledValue> {
+    return this.session.marshalOop(await this.requireOop(key));
+  }
+
+  async requireObject<T = unknown>(key: string): Promise<TypedOop<T>> {
+    return this.session.typedOop<T>(await this.requireOop(key));
+  }
+
   async send<R = MarshalledValue>(selector: string, ...args: GemStoneArgument[]): Promise<R> {
     return await this.session.performValueWith(this.oop, selector, ...args) as R;
   }
@@ -89,4 +108,8 @@ export class GsDict implements AsyncDisposable {
   }
 
   async [Symbol.asyncDispose](): Promise<void> {}
+
+  #missingEntry(key: string): Error {
+    return new Error(`GemStone dictionary has no entry for key ${key}.`);
+  }
 }

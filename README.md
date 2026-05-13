@@ -33,8 +33,8 @@ native package; the TypeScript package can be tested locally with a mock runtime
 - Dictionary/global helpers: `dictionaryToOop()`, `strDictGet()`,
   `strDictSet()`, `globalGet()`, and `globalSet()`.
 - `GsDict` wraps GemStone `StringKeyValueDictionary` objects with `get()`,
-  `set()`, `has()`, `keys()`, `entries()`, `pick()`, explicit send helpers, and
-  inspection helpers.
+  `getObject()`, `set()`, `has()`, `keys()`, `entries()`, `pick()`, required
+  raw/value/object accessors, explicit send helpers, and inspection helpers.
 - `PersistentRoot` now has value helpers (`getValue()`, `setValue()`,
   `getDict()`, `setDict()`), `has()`, and required raw/value/dictionary access
   built on the session marshalling layer.

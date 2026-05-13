@@ -557,6 +557,31 @@ test("GsDict keys and entries list dictionary contents", async () => {
   await session.logout();
 });
 
+test("GsDict required helpers expose raw, value, and typed entries", async () => {
+  const runtime = new MockGciRuntime();
+  const session = await Session.connect({ username: "u", password: "p", runtime });
+  const dict = await GsDict.create(session, { name: "Ada" });
+  const object = runtime.allocate();
+  await dict.setOop("object", object);
+
+  assertEqual(await dict.requireValue("name"), "Ada");
+  assertEqual(await dict.requireOop("object"), object);
+  assertEqual(await dict.getObject("missing"), null);
+
+  const nullableObject = await dict.getObject<{ name: string }>("object");
+  if (!nullableObject) throw new Error("getObject should return a typed handle for existing entries");
+  assertEqual(nullableObject.oop, object);
+  await nullableObject.release();
+
+  const requiredObject = await dict.requireObject<{ name: string }>("object");
+  assertEqual(requiredObject.oop, object);
+  await requiredObject.release();
+  assert(runtime.calls.some((call) => call.method === "addOopToExportSet" && call.args[0] === object), "object helpers should retain returned handles");
+  await assertRejects(() => dict.requireOop("missing"), Error);
+
+  await session.logout();
+});
+
 test("GsDict exposes send and inspect helpers", async () => {
   let runtime: MockGciRuntime;
   let inspectCount = 0;

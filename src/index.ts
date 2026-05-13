@@ -1,0 +1,80 @@
+export {
+  Session,
+  ManagedOop,
+  TypedOop,
+  resolveSessionConfig,
+  type GemStoneArgument,
+  type MarshalledValue,
+} from "./client.ts";
+export {
+  OOP_ASCII_NUL,
+  OOP_FALSE,
+  OOP_ILLEGAL,
+  OOP_NIL,
+  OOP_TRUE,
+  boolToOop,
+  charToOop,
+  isBoolean,
+  isChar,
+  isIllegal,
+  isNil,
+  isSmallint,
+  isSmalldouble,
+  marshalImmediateOop,
+  oop,
+  oopToBool,
+  oopToChar,
+  oopToHex,
+  oopToSmallint,
+  rawOop,
+  smallintToOop,
+  type Oop,
+} from "./oop.ts";
+export {
+  GemStoneClass,
+  GemStoneSelector,
+  inferSelector,
+  metadataFor,
+  renderGeneratedFunction,
+  sendGenerated,
+  type GemStoneClassMetadata,
+} from "./codegen.ts";
+export { PersistentRoot } from "./persistent-root.ts";
+export { GsDict } from "./gsdict.ts";
+export { GSCollection, type ComparisonOp } from "./query.ts";
+export { PooledSession, SessionPool, type PoolConfig } from "./pool.ts";
+export {
+  NULL_METRICS,
+  NULL_SPAN,
+  NULL_SPAN_CONTEXT,
+  NULL_TRACER,
+  NullMetrics,
+  NullTracer,
+  OpenTelemetryTracer,
+  observe,
+  type MetricsCollector,
+  type MetricLabels,
+  type Span,
+  type SpanAttributes,
+  type SpanContext,
+  type Tracer,
+} from "./observability.ts";
+export { SerializedGciRuntime, serializeGciRuntime } from "./runtime/serialized.ts";
+export {
+  createGciRuntime,
+  getGciRuntime,
+  setGciRuntimeFactoryForTesting,
+  setGciRuntimeForTesting,
+} from "./runtime/index.ts";
+export {
+  GemStoneConfigurationError,
+  GemStoneError,
+  type GciErrorInfo,
+  type GciRuntime,
+  type LoginOptions,
+  type PoolStats,
+  type ResolvedSessionConfig,
+  type RuntimeName,
+  type SessionConfig,
+  type SymDictLookup,
+} from "./types.ts";

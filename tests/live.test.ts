@@ -46,8 +46,11 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
   const globalKey = `${key}_Global`;
   const dictKey = `${key}_Dict`;
   await session.globalSet(globalKey, "global");
+  assert.equal(await session.globalHas(globalKey), true);
   assert.equal(await session.globalGet(globalKey), "global");
+  assert.equal(await session.globalRequireValue(globalKey), "global");
   assert.equal(await session.globalRemove(globalKey), true);
+  assert.equal(await session.globalHas(globalKey), false);
   assert.equal(await session.globalDelete(globalKey), false);
   await root.setAllValue({ [key]: "ok", [extraKey]: "extra" });
   await root.setDict(dictKey, { status: "stored" });

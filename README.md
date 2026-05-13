@@ -33,7 +33,8 @@ native package; the TypeScript package can be tested locally with a mock runtime
   `fetchSize()`, `fetchBytes()`, `arrayToOop()`, and retained `array()`
   wrappers.
 - Dictionary/global helpers: `dictionaryToOop()`, `strDictGet()`,
-  `strDictSet()`, `globalGet()`, `globalSet()`, and
+  `strDictSet()`, `globalGet()`, `globalGetObject()`, `globalHas()`,
+  `globalSet()`, raw `globalSetOop()`, required global accessors, and
   `globalRemove()`/`globalDelete()`.
 - `GsDict` wraps GemStone `StringKeyValueDictionary` objects with `get()`,
   `getObject()`, `set()`/`setAll()`, raw `setOop()`/`setAllOop()`,
@@ -119,9 +120,10 @@ GS_RUN_LIVE=1 npm run test:live
 ```
 
 The live smoke covers connect, execute, class-side sends, `performWith()`,
-string, float, and array marshalling, global removal, `GsDict` metadata,
-enumeration, required-read, and removal helpers, and `PersistentRoot` value,
-dictionary, key, pick, required-value, batch-value, and removal helpers.
+string, float, and array marshalling, global lookup/required/removal helpers,
+`GsDict` metadata, enumeration, required-read, and removal helpers, and
+`PersistentRoot` value, dictionary, key, pick, required-value, batch-value, and
+removal helpers.
 
 ## Example
 

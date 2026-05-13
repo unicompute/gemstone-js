@@ -302,11 +302,42 @@ export class Session implements AsyncDisposable {
     });
   }
 
+  async globalGetObject<T = unknown>(name: string): Promise<TypedOop<T> | null> {
+    const value = await this.globalGetOop(name);
+    return value === null ? null : this.typedOop<T>(value);
+  }
+
+  async globalHas(name: string): Promise<boolean> {
+    return await this.globalGetOop(name) !== null;
+  }
+
+  async globalRequireOop(name: string): Promise<Oop> {
+    const value = await this.globalGetOop(name);
+    if (value === null) throw this.#missingGlobal(name);
+    return value;
+  }
+
+  async globalRequireValue(name: string): Promise<MarshalledValue> {
+    return this.marshalOop(await this.globalRequireOop(name));
+  }
+
+  async globalRequireObject<T = unknown>(name: string): Promise<TypedOop<T>> {
+    return this.typedOop<T>(await this.globalRequireOop(name));
+  }
+
   async globalSet(name: string, value: GemStoneArgument): Promise<void> {
     await this.#observe("global_set", { name }, async () => {
       const userGlobals = await this.resolveSymbol("UserGlobals");
       const key = await this.newSymbol(name);
       await this.runtime.symDictAtObjPut(userGlobals, key, await this.argumentToOop(value));
+    });
+  }
+
+  async globalSetOop<T = unknown>(name: string, value: TypedOop<T> | ManagedOop<T> | Oop): Promise<void> {
+    await this.#observe("global_set_oop", { name }, async () => {
+      const userGlobals = await this.resolveSymbol("UserGlobals");
+      const key = await this.newSymbol(name);
+      await this.runtime.symDictAtObjPut(userGlobals, key, typeof value === "bigint" ? value : value.oop);
     });
   }
 
@@ -517,6 +548,10 @@ export class Session implements AsyncDisposable {
     if (!isIllegal(result)) return;
     const info = await this.runtime.err();
     throw info ? GemStoneError.fromInfo(info) : new GemStoneError(`GemStone returned illegal OOP ${oopToHex(result)}.`);
+  }
+
+  #missingGlobal(name: string): Error {
+    return new Error(`UserGlobals has no entry named ${name}.`);
   }
 
   async #stringClassKeys(): Promise<Set<string>> {

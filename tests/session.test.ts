@@ -734,14 +734,29 @@ test("Session.dictionary creates a GsDict wrapper", async () => {
 test("globalSet and globalGet round-trip through UserGlobals", async () => {
   const runtime = new MockGciRuntime();
   const session = await Session.connect({ username: "u", password: "p", runtime });
+  const object = runtime.allocate();
 
   await session.globalSet("JsBridgeValue", "ready");
+  await session.globalSetOop("JsBridgeObject", object);
 
+  assertEqual(await session.globalHas("JsBridgeValue"), true);
   assertEqual(await session.globalGet("JsBridgeValue"), "ready");
+  assertEqual(await session.globalRequireValue("JsBridgeValue"), "ready");
+  assertEqual(await session.globalRequireOop("JsBridgeObject"), object);
+  const nullableObject = await session.globalGetObject<{ status: string }>("JsBridgeObject");
+  if (!nullableObject) throw new Error("globalGetObject should return a typed handle for existing globals");
+  assertEqual(nullableObject.oop, object);
+  await nullableObject.release();
+  const requiredObject = await session.globalRequireObject<{ status: string }>("JsBridgeObject");
+  assertEqual(requiredObject.oop, object);
+  await requiredObject.release();
   assert(runtime.calls.some((call) => call.method === "symDictAtObjPut"), "globalSet should write a symbol-keyed global");
   assertEqual(await session.globalRemove("JsBridgeValue"), true);
+  assertEqual(await session.globalRemove("JsBridgeObject"), true);
   assertEqual(await session.globalGet("JsBridgeValue"), null);
+  assertEqual(await session.globalHas("JsBridgeObject"), false);
   assertEqual(await session.globalDelete("JsBridgeValue"), false);
+  await assertRejects(() => session.globalRequireOop("JsBridgeValue"), Error);
 
   await session.logout();
 });

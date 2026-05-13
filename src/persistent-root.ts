@@ -46,6 +46,14 @@ export class PersistentRoot {
     return result;
   }
 
+  async pickOop(names: readonly string[]): Promise<Record<string, Oop | null>> {
+    const result: Record<string, Oop | null> = {};
+    for (const name of names) {
+      result[name] = await this.getOop(name);
+    }
+    return result;
+  }
+
   async has(name: string): Promise<boolean> {
     return await this.getOop(name) !== null;
   }
@@ -129,6 +137,10 @@ export class PersistentRoot {
 
   async entries(): Promise<Record<string, MarshalledValue>> {
     return this.pick(await this.keys());
+  }
+
+  async entriesOop(): Promise<Record<string, Oop | null>> {
+    return this.pickOop(await this.keys());
   }
 
   async values(): Promise<MarshalledValue[]> {

@@ -35,6 +35,7 @@ export type MarshalledValue = bigint | number | boolean | string | null | Oop | 
 export interface ArrayReadbackOptions {
   maxDepth?: number;
   maxItems?: number;
+  maxTotalItems?: number;
 }
 export type GemStoneArrayArgument = readonly GemStoneArgument[];
 export type GemStoneDictionaryArgument = { readonly [key: string]: GemStoneArgument };
@@ -254,7 +255,12 @@ export class Session implements AsyncDisposable {
   }
 
   async arrayOopToValues(array: Oop, options: ArrayReadbackOptions = {}): Promise<MarshalledValue[]> {
-    return this.#arrayOopToValues(array, new Set(), normalizeArrayReadbackOptions(options), 1);
+    return this.#arrayOopToValues(
+      array,
+      { seen: new Set(), totalItems: 0 },
+      normalizeArrayReadbackOptions(options),
+      1,
+    );
   }
 
   async arrayValues(
@@ -333,8 +339,20 @@ export class Session implements AsyncDisposable {
     return result;
   }
 
+  async globalPickOop(names: readonly string[]): Promise<Record<string, Oop | null>> {
+    const result: Record<string, Oop | null> = {};
+    for (const name of names) {
+      result[name] = await this.globalGetOop(name);
+    }
+    return result;
+  }
+
   async globalEntries(): Promise<Record<string, MarshalledValue>> {
     return this.globalPick(await this.globalKeys());
+  }
+
+  async globalEntriesOop(): Promise<Record<string, Oop | null>> {
+    return this.globalPickOop(await this.globalKeys());
   }
 
   async globalValues(): Promise<MarshalledValue[]> {
@@ -636,7 +654,7 @@ export class Session implements AsyncDisposable {
 
   async #arrayOopToValues(
     array: Oop,
-    seen: Set<string>,
+    context: ArrayReadbackContext,
     options: NormalizedArrayReadbackOptions,
     depth: number,
   ): Promise<MarshalledValue[]> {
@@ -644,34 +662,38 @@ export class Session implements AsyncDisposable {
       throw new RangeError(`GemStone Array readback exceeded maxDepth ${options.maxDepth}.`);
     }
     const key = array.toString();
-    if (seen.has(key)) {
+    if (context.seen.has(key)) {
       throw new GemStoneError("Cannot marshal cyclic GemStone Array.");
     }
-    seen.add(key);
+    context.seen.add(key);
     try {
       const size = toSafeCollectionSize(await this.performValue(array, "size"), "GemStone Array");
       if (size > options.maxItems) {
         throw new RangeError(`GemStone Array readback exceeded maxItems ${options.maxItems}.`);
       }
+      context.totalItems += size;
+      if (context.totalItems > options.maxTotalItems) {
+        throw new RangeError(`GemStone Array readback exceeded maxTotalItems ${options.maxTotalItems}.`);
+      }
       const values: MarshalledValue[] = [];
       for (let index = 1; index <= size; index += 1) {
         const item = await this.perform(array, "at:", smallintToOop(index));
-        values.push(await this.#marshalArrayItem(item, seen, options, depth));
+        values.push(await this.#marshalArrayItem(item, context, options, depth));
       }
       return values;
     } finally {
-      seen.delete(key);
+      context.seen.delete(key);
     }
   }
 
   async #marshalArrayItem(
     value: Oop,
-    seen: Set<string>,
+    context: ArrayReadbackContext,
     options: NormalizedArrayReadbackOptions,
     depth: number,
   ): Promise<MarshalledValue> {
     if (await this.#isArrayOop(value)) {
-      return this.#arrayOopToValues(value, seen, options, depth + 1);
+      return this.#arrayOopToValues(value, context, options, depth + 1);
     }
     return this.marshalOop(value);
   }
@@ -871,12 +893,19 @@ function isPlainRecord(value: unknown): value is GemStoneDictionaryArgument {
 interface NormalizedArrayReadbackOptions {
   maxDepth: number;
   maxItems: number;
+  maxTotalItems: number;
+}
+
+interface ArrayReadbackContext {
+  seen: Set<string>;
+  totalItems: number;
 }
 
 function normalizeArrayReadbackOptions(options: ArrayReadbackOptions): NormalizedArrayReadbackOptions {
   return {
     maxDepth: normalizeOptionalLimit(options.maxDepth, "arrayOopToValues maxDepth", 1),
     maxItems: normalizeOptionalLimit(options.maxItems, "arrayOopToValues maxItems", 0),
+    maxTotalItems: normalizeOptionalLimit(options.maxTotalItems, "arrayOopToValues maxTotalItems", 0),
   };
 }
 

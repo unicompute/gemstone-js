@@ -32,25 +32,27 @@ native package; the TypeScript package can be tested locally with a mock runtime
 - Low-level allocation/fetch helpers: `newOop()`, `fetchClass()`,
   `fetchSize()`, `fetchBytes()`, `arrayToOop()`, `arrayOopToValues()`, and
   retained `array()` wrappers. Array readback accepts optional `maxDepth` and
-  `maxItems` bounds to guard recursive or unexpectedly large arrays.
+  `maxItems`/`maxTotalItems` bounds to guard recursive or unexpectedly large
+  arrays.
 - Dictionary/global helpers: `dictionaryToOop()`, `strDictGet()`,
   `strDictSet()`, `globalGet()`, `globalGetObject()`, `globalHas()`,
-  `globalKeys()`, `globalPick()`, `globalEntries()`, `globalValues()`,
-  `globalItems()`, raw `globalValuesOop()`/`globalItemsOop()`, `globalSet()`/
-  `globalSetAll()`, raw `globalSetOop()`/`globalSetAllOop()`, required global
-  accessors, and `globalRemove()`/`globalDelete()`.
+  `globalKeys()`, `globalPick()`, raw `globalPickOop()`, `globalEntries()`,
+  raw `globalEntriesOop()`, `globalValues()`, `globalItems()`, raw
+  `globalValuesOop()`/`globalItemsOop()`, `globalSet()`/`globalSetAll()`, raw
+  `globalSetOop()`/`globalSetAllOop()`, required global accessors, and
+  `globalRemove()`/`globalDelete()`.
 - `GsDict` wraps GemStone `StringKeyValueDictionary` objects with `get()`,
   `getObject()`, `set()`/`setAll()`, raw `setOop()`/`setAllOop()`,
   `remove()`/`delete()`, `has()`, `size()`, `isEmpty()`, `keys()`,
   `values()`, raw `valuesOop()`, `items()`, raw `itemsOop()`, `entries()`,
-  `pick()`, required raw/value/object accessors, explicit send helpers, and
-  inspection helpers.
+  raw `entriesOop()`, `pick()`, raw `pickOop()`, required raw/value/object
+  accessors, explicit send helpers, and inspection helpers.
 - `PersistentRoot` now has value helpers (`getValue()`, `setValue()`,
   `setAllValue()`, `getDict()`, `setDict()`), raw `setAll()`,
   `getObject()`, `remove()`/`delete()`, `has()`, `keys()`, `pick()`,
-  `entries()`, `values()`, raw `valuesOop()`, `items()`, raw `itemsOop()`,
-  and required raw/value/object/dictionary access built on the session
-  marshalling layer.
+  raw `pickOop()`, `entries()`, raw `entriesOop()`, `values()`, raw
+  `valuesOop()`, `items()`, raw `itemsOop()`, and required
+  raw/value/object/dictionary access built on the session marshalling layer.
 - Session pool release is reset-aware: dirty sessions are aborted before reuse,
   failed resets are discarded, waiters are served with replacement sessions, and
   close rejects pending acquires. Explicit validation queries run without

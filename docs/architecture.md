@@ -20,6 +20,9 @@ The first implementation slice follows `../plan.js.txt`:
 - `Session.marshalOop()` mirrors the Python binding's marshalling order:
   immediate values, float conversion, string/symbol class detection, then raw
   OOP fallback.
+- `Session.arrayOopToValues()` recursively reads GemStone `Array` instances
+  through `size` and `at:` with cycle detection plus optional per-array,
+  total-item, and depth limits for callers that need bounded readback.
 - `Session.argumentToOop()` handles the common JS-to-GemStone path. Use
   `perform()` for raw OOP arguments; use `performWith()` when you want JS values
   converted into GemStone objects.

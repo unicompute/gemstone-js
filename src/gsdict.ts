@@ -99,8 +99,20 @@ export class GsDict implements AsyncDisposable {
     return result;
   }
 
+  async pickOop(keys: readonly string[]): Promise<Record<string, Oop | null>> {
+    const result: Record<string, Oop | null> = {};
+    for (const key of keys) {
+      result[key] = await this.getOop(key);
+    }
+    return result;
+  }
+
   async entries(): Promise<Record<string, MarshalledValue>> {
     return this.pick(await this.keys());
+  }
+
+  async entriesOop(): Promise<Record<string, Oop | null>> {
+    return this.pickOop(await this.keys());
   }
 
   async values(): Promise<MarshalledValue[]> {

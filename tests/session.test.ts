@@ -497,9 +497,10 @@ test("arrayOopToValues enforces readback depth and item bounds", async () => {
   const session = await Session.connect({ username: "u", password: "p", runtime });
 
   await assertRejects(() => session.arrayOopToValues(array, { maxItems: 2 }), RangeError);
+  await assertRejects(() => session.arrayOopToValues(array, { maxTotalItems: 3 }), RangeError);
   await assertRejects(() => session.arrayOopToValues(array, { maxDepth: 1 }), RangeError);
   await assertRejects(() => session.arrayValues(array, { maxDepth: 0 }), RangeError);
-  const values = await session.arrayOopToValues(array, { maxDepth: 2, maxItems: 3 });
+  const values = await session.arrayOopToValues(array, { maxDepth: 2, maxItems: 3, maxTotalItems: 4 });
   assertEqual(values.length, 3);
 
   await session.logout();
@@ -696,6 +697,8 @@ test("GsDict wraps StringKeyValueDictionary access", async () => {
   assertEqual(await dict.getOop("object"), object);
   assertEqual(await dict.has("missing"), false);
   assertEqual((await dict.pick(["name", "city"])).city, "London");
+  assertEqual((await dict.pickOop(["object", "missing"])).object, object);
+  assertEqual((await dict.pickOop(["object", "missing"])).missing, null);
   assertEqual(await dict.remove("city"), true);
   assertEqual(await dict.has("city"), false);
   assertEqual(await dict.delete("missing"), false);
@@ -742,6 +745,9 @@ test("GsDict keys and entries list dictionary contents", async () => {
   const entries = await dict.entries();
   assertEqual(entries.name, "Ada");
   assertEqual(entries.city, "London");
+  const rawEntries = await dict.entriesOop();
+  assertEqual(await session.marshalOop(rawEntries.name ?? OOP_NIL), "Ada");
+  assertEqual(await session.marshalOop(rawEntries.city ?? OOP_NIL), "London");
   const values = await dict.values();
   assertEqual(values.join(","), "Ada,London");
   const rawValues = await dict.valuesOop();
@@ -757,7 +763,7 @@ test("GsDict keys and entries list dictionary contents", async () => {
   assertEqual(await session.marshalOop(rawItems[0][1]), "Ada");
   assertEqual(rawItems[1][0], "city");
   assertEqual(await session.marshalOop(rawItems[1][1]), "London");
-  assertEqual(keyListCalls, 6);
+  assertEqual(keyListCalls, 7);
 
   await session.logout();
 });
@@ -869,9 +875,15 @@ test("globalSet and globalGet round-trip through UserGlobals", async () => {
   assertEqual(await session.globalRequireOop("JsBridgeObject"), object);
   assertEqual((await session.globalKeys()).join(","), "JsBridgeValue,JsBridgeObject");
   assertEqual((await session.globalPick(["JsBridgeValue", "MissingGlobal"])).JsBridgeValue, "ready");
+  const pickedOops = await session.globalPickOop(["JsBridgeObject", "MissingGlobal"]);
+  assertEqual(pickedOops.JsBridgeObject, object);
+  assertEqual(pickedOops.MissingGlobal, null);
   const entries = await session.globalEntries();
   assertEqual(entries.JsBridgeValue, "ready");
   assertEqual(entries.JsBridgeObject, object);
+  const entriesOop = await session.globalEntriesOop();
+  assertEqual(await session.marshalOop(entriesOop.JsBridgeValue ?? OOP_NIL), "ready");
+  assertEqual(entriesOop.JsBridgeObject, object);
   const globalValues = await session.globalValues();
   assertEqual(globalValues[0], "ready");
   assertEqual(globalValues[1], object);
@@ -888,7 +900,7 @@ test("globalSet and globalGet round-trip through UserGlobals", async () => {
   assertEqual(await session.marshalOop(globalItemsOop[0][1]), "ready");
   assertEqual(globalItemsOop[1][0], "JsBridgeObject");
   assertEqual(globalItemsOop[1][1], object);
-  assertEqual(listCalls, 6);
+  assertEqual(listCalls, 7);
   const nullableObject = await session.globalGetObject<{ status: string }>("JsBridgeObject");
   if (!nullableObject) throw new Error("globalGetObject should return a typed handle for existing globals");
   assertEqual(nullableObject.oop, object);
@@ -980,10 +992,16 @@ test("PersistentRoot pick and entries read root values by listed names", async (
   const picked = await root.pick(["RootStatus", "MissingRootEntry"]);
   assertEqual(picked.RootStatus, "ready");
   assertEqual(picked.MissingRootEntry, null);
+  const pickedOop = await root.pickOop(["RootStatus", "MissingRootEntry"]);
+  assertEqual(await session.marshalOop(pickedOop.RootStatus ?? OOP_NIL), "ready");
+  assertEqual(pickedOop.MissingRootEntry, null);
 
   const entries = await root.entries();
   assertEqual(entries.RootStatus, "ready");
   assertEqual(entries.RootEnabled, true);
+  const entriesOop = await root.entriesOop();
+  assertEqual(await session.marshalOop(entriesOop.RootStatus ?? OOP_NIL), "ready");
+  assertEqual(await session.marshalOop(entriesOop.RootEnabled ?? OOP_NIL), true);
   const values = await root.values();
   assertEqual(values.join(","), "ready,true");
   const items = await root.items();
@@ -999,7 +1017,7 @@ test("PersistentRoot pick and entries read root values by listed names", async (
   assertEqual(await session.marshalOop(rawItems[0][1]), "ready");
   assertEqual(rawItems[1][0], "RootEnabled");
   assertEqual(await session.marshalOop(rawItems[1][1]), true);
-  assertEqual(listCalls, 5);
+  assertEqual(listCalls, 6);
 
   await session.logout();
 });

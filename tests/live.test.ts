@@ -68,7 +68,15 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
   await globalObject.release();
   assert.equal((await session.globalKeys()).includes(globalKey), true);
   assert.deepEqual(await session.globalPick([globalKey, `${globalKey}_Missing`]), { [globalKey]: "global", [`${globalKey}_Missing`]: null });
+  const liveGlobalPickOop = await session.globalPickOop([globalKey, `${globalKey}_Missing`]);
+  const pickedGlobalOop = liveGlobalPickOop[globalKey];
+  if (pickedGlobalOop === null) throw new Error("globalPickOop should include the live global value.");
+  assert.equal(await session.marshalOop(pickedGlobalOop), "global");
+  assert.equal(liveGlobalPickOop[`${globalKey}_Missing`], null);
   assert.equal((await session.globalEntries())[globalKey], "global");
+  const entryGlobalOop = (await session.globalEntriesOop())[globalKey];
+  if (entryGlobalOop === null) throw new Error("globalEntriesOop should include the live global value.");
+  assert.equal(await session.marshalOop(entryGlobalOop), "global");
   assert.equal((await session.globalValues()).includes("global"), true);
   assert.equal(new Map(await session.globalItems()).get(globalKey), "global");
   const globalItemsOop = new Map(await session.globalItemsOop());

@@ -229,7 +229,8 @@ export function validateGeneratedFunctionOptions(value: unknown): asserts value 
   normalizeArgTypes(argNames, options.argTypes);
   if (options.sessionType !== undefined) assertTypeExpression(options.sessionType, "sessionType");
   const returnType = options.returnType === undefined ? undefined : assertTypeExpression(options.returnType, "returnType");
-  assertReturnKind(options.returnKind ?? inferGeneratedReturnKind(returnType));
+  const returnKind = assertReturnKind(options.returnKind ?? inferGeneratedReturnKind(returnType));
+  assertReturnKindMatchesReturnType(returnKind, returnType);
 }
 
 function assertKnownKeys(record: Record<string, unknown>, label: string, allowed: readonly string[]): void {
@@ -244,6 +245,14 @@ function assertKnownKeys(record: Record<string, unknown>, label: string, allowed
 function assertReturnKind(value: unknown): GeneratedReturnKind {
   if (value === "value" || value === "oop" || value === "object") return value;
   throw new RangeError(`Generated return kind must be "value", "oop", or "object": ${String(value)}`);
+}
+
+function assertReturnKindMatchesReturnType(returnKind: GeneratedReturnKind, returnType: string | undefined): void {
+  if (!returnType) return;
+  const inferred = inferGeneratedReturnKind(returnType);
+  if (returnKind !== inferred) {
+    throw new RangeError(`Generated returnKind ${returnKind} does not match returnType ${returnType}; inferred ${inferred}.`);
+  }
 }
 
 function assertNonEmptyString(value: unknown, field: string): string {

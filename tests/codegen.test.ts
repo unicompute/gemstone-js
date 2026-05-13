@@ -363,6 +363,30 @@ test("renderGeneratedFunction rejects unsafe JavaScript identifiers", () => {
     returnKind: "record" as never,
   }));
   assertThrows(() => renderGeneratedFunction({
+    exportedName: "rawBooking",
+    className: "Booking",
+    selector: "find:",
+    argNames: ["id"],
+    returnType: "Oop",
+    returnKind: "value",
+  }));
+  assertThrows(() => renderGeneratedFunction({
+    exportedName: "findBookingObject",
+    className: "Booking",
+    selector: "find:",
+    argNames: ["id"],
+    returnType: "TypedOop<Booking>",
+    returnKind: "oop",
+  }));
+  assertThrows(() => renderGeneratedFunction({
+    exportedName: "findBooking",
+    className: "Booking",
+    selector: "find:",
+    argNames: ["id"],
+    returnType: "string",
+    returnKind: "object",
+  }));
+  assertThrows(() => renderGeneratedFunction({
     exportedName: "findBooking",
     className: "",
     selector: "find:",

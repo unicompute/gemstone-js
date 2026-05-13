@@ -149,7 +149,56 @@
         "returnKind": {
           "enum": ["value", "oop", "object"]
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": ["returnKind"],
+            "properties": {
+              "returnKind": { "const": "value" }
+            }
+          },
+          "then": {
+            "properties": {
+              "returnType": {
+                "not": {
+                  "pattern": "^\\s*(?:Oop|TypedOop\\s*(?:<.+>)?)\\s*$"
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": ["returnKind"],
+            "properties": {
+              "returnKind": { "const": "oop" }
+            }
+          },
+          "then": {
+            "properties": {
+              "returnType": {
+                "pattern": "^\\s*Oop\\s*$"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": ["returnKind"],
+            "properties": {
+              "returnKind": { "const": "object" }
+            }
+          },
+          "then": {
+            "properties": {
+              "returnType": {
+                "pattern": "^\\s*TypedOop\\s*(?:<.+>)?\\s*$"
+              }
+            }
+          }
+        }
+      ]
     }
   }
 }

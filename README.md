@@ -45,6 +45,8 @@ native package; the TypeScript package can be tested locally with a mock runtime
   objects.
 - Pool, observability hooks, persistent-root, query, codegen, and Express,
   Fastify, and Hono adapter scaffolds.
+- `InMemoryMetrics` and `InMemoryTracer` make observability behavior easy to
+  assert in tests and examples.
 
 ## Local Smoke Test
 

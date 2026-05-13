@@ -21,6 +21,26 @@ export interface MetricsCollector {
   recordDuration(name: string, labels: MetricLabels | undefined, durationMs: number): void;
 }
 
+export interface RecordedMetricIncrement {
+  name: string;
+  labels?: Record<string, string | number | boolean | null | undefined>;
+  value: number;
+}
+
+export interface RecordedMetricDuration {
+  name: string;
+  labels?: Record<string, string | number | boolean | null | undefined>;
+  durationMs: number;
+}
+
+export interface RecordedSpan {
+  name: string;
+  attributes: Record<string, string | number | boolean | null | undefined>;
+  exceptions: unknown[];
+  status?: "ok" | "error";
+  ended: boolean;
+}
+
 class NullSpan implements Span {
   setAttribute(_key: string, _value: string | number | boolean | null | undefined): void {}
   recordException(_error: unknown): void {}
@@ -48,6 +68,70 @@ export const NULL_SPAN_CONTEXT = new NullSpanContext();
 export const NULL_TRACER = new NullTracer();
 export const NULL_METRICS = new NullMetrics();
 
+export class InMemoryMetrics implements MetricsCollector {
+  readonly increments: RecordedMetricIncrement[] = [];
+  readonly durations: RecordedMetricDuration[] = [];
+
+  increment(name: string, labels?: MetricLabels, value = 1): void {
+    this.increments.push({ name, labels: labels ? { ...labels } : undefined, value });
+  }
+
+  recordDuration(name: string, labels: MetricLabels | undefined, durationMs: number): void {
+    this.durations.push({ name, labels: labels ? { ...labels } : undefined, durationMs });
+  }
+
+  clear(): void {
+    this.increments.length = 0;
+    this.durations.length = 0;
+  }
+}
+
+export class InMemoryTracer implements Tracer {
+  readonly spans: RecordedSpan[] = [];
+
+  startSpan(name: string, attrs?: SpanAttributes): SpanContext {
+    const record: RecordedSpan = {
+      name,
+      attributes: { ...(attrs ?? {}) },
+      exceptions: [],
+      ended: false,
+    };
+    this.spans.push(record);
+    const span = new InMemorySpan(record);
+    return {
+      span,
+      end(error?: unknown) {
+        span.end(error === undefined ? "ok" : "error");
+      },
+    };
+  }
+
+  clear(): void {
+    this.spans.length = 0;
+  }
+}
+
+class InMemorySpan implements Span {
+  readonly #record: RecordedSpan;
+
+  constructor(record: RecordedSpan) {
+    this.#record = record;
+  }
+
+  setAttribute(key: string, value: string | number | boolean | null | undefined): void {
+    this.#record.attributes[key] = value;
+  }
+
+  recordException(error: unknown): void {
+    this.#record.exceptions.push(error);
+  }
+
+  end(status?: "ok" | "error"): void {
+    this.#record.status = status;
+    this.#record.ended = true;
+  }
+}
+
 export class OpenTelemetryTracer implements Tracer {
   readonly #tracer: {
     startActiveSpan?: (name: string, options: unknown, callback: (span: unknown) => unknown) => unknown;
@@ -67,7 +151,6 @@ export class OpenTelemetryTracer implements Tracer {
     return {
       span,
       end(error?: unknown) {
-        if (error !== undefined) span.recordException(error);
         span.end(error === undefined ? "ok" : "error");
       },
     };

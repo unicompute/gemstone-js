@@ -30,6 +30,8 @@ The first implementation slice follows `../plan.js.txt`:
   discard the lease instead of returning it to the pool.
 - `SessionPool.warm()` targets total pool capacity and `stats()` includes
   pending acquires so saturated pools can be observed.
+- `InMemoryMetrics` and `InMemoryTracer` provide dependency-free observability
+  recorders for tests while the OpenTelemetry adapter maps to real spans.
 - `src/runtime/serialized.ts` serializes all session-bound calls and reactivates
   the session id before dispatching into GCI. This is the current safety layer
   before a dedicated native session thread lands.

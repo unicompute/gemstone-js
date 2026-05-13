@@ -335,6 +335,49 @@ test("ManagedOop.sendObject wraps object results as retained typed handles", asy
   await session.logout();
 });
 
+test("ManagedOop inspect helpers delegate through the retained handle", async () => {
+  let runtime: MockGciRuntime;
+  let object = OOP_NIL;
+  const classOop = smallintToOop(99);
+  let executeCount = 0;
+  runtime = new MockGciRuntime({
+    async execute(source) {
+      executeCount += 1;
+      assert(source.includes(`Object _objectForOop: ${object.toString()}.`), "inspect should target the managed OOP");
+      return runtime.newString([
+        object.toString(),
+        "Booking",
+        "a Booking",
+        "--gemstone-js-inspect--",
+        `classOop=${classOop.toString()}`,
+        "size=0",
+        "byteSize=0",
+        "classHierarchy=Booking,Object",
+        "",
+      ].join("\n"));
+    },
+  });
+  object = runtime.allocate();
+  const session = await Session.connect({ username: "u", password: "p", runtime });
+  const managed = session.managedOop(object);
+
+  const inspection = await managed.inspect();
+
+  assertEqual(inspection.oop, object);
+  assertEqual(inspection.class, "Booking");
+  assertEqual(inspection.printString, "a Booking");
+  assertEqual(inspection.classHierarchy?.join(">"), "Booking>Object");
+  assertEqual(await managed.printString(), "a Booking");
+  assertEqual(executeCount, 2);
+  const retainIndex = runtime.calls.findIndex((call) => call.method === "addOopToExportSet" && call.args[0] === object);
+  const inspectIndex = runtime.calls.findIndex((call) => call.method === "executeStr");
+  assert(retainIndex >= 0, "managed OOP should be retained before inspection");
+  assert(inspectIndex > retainIndex, "inspect should wait for export-set retain");
+
+  await managed.release();
+  await session.logout();
+});
+
 test("Session.classRef exposes explicit class-side sends and typed wrapping", async () => {
   const runtime = new MockGciRuntime();
   const session = await Session.connect({ username: "u", password: "p", runtime });

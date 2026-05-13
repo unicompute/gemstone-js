@@ -546,6 +546,15 @@ export class ManagedOop<T = unknown> implements AsyncDisposable {
     return this.session.typedOop<R>(await this.sendOop(selector, ...args));
   }
 
+  async inspect(): Promise<GemStoneInspection> {
+    await this.#ready;
+    return this.session.inspect(this.oop);
+  }
+
+  async printString(): Promise<string> {
+    return (await this.inspect()).printString;
+  }
+
   async release(): Promise<void> {
     if (this.#released) return;
     this.#released = true;

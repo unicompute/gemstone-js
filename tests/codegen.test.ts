@@ -254,7 +254,18 @@ test("renderGeneratedModule rejects invalid manifests", () => {
   assertThrows(() => renderGeneratedModule(null as never));
   assertThrows(() => renderGeneratedModule([] as never));
   assertThrows(() => renderGeneratedModule({ functions: "oops" as never }));
+  assertThrows(() => renderGeneratedModule({ functions: [], extra: true } as never));
+  assertThrows(() => renderGeneratedModule({ $schema: 42, functions: [] } as never));
+  assertThrows(() => renderGeneratedModule({ banner: 42, functions: [] } as never));
   assertThrows(() => renderGeneratedModule({ imports: "oops" as never, functions: [] }));
+  assertThrows(() => renderGeneratedModule({
+    imports: [{ from: "gemstone-js", typeNames: ["Session", "Session"] }],
+    functions: [],
+  }));
+  assertThrows(() => renderGeneratedModule({
+    imports: [{ from: "gemstone-js", typeNames: ["Session"], extra: true }],
+    functions: [],
+  } as never));
   assertThrows(() => renderGeneratedModule({
     imports: [{ from: "gemstone-js", namespaceName: "GemStone", names: ["Session"] }],
     functions: [],
@@ -297,6 +308,13 @@ test("renderGeneratedFunction rejects unsafe JavaScript identifiers", () => {
     selector: "find:",
     argNames: [42] as never,
   }));
+  assertThrows(() => renderGeneratedFunction({
+    exportedName: "findBooking",
+    className: "Booking",
+    selector: "find:",
+    argNames: ["id"],
+    extra: true,
+  } as never));
   assertThrows(() => renderGeneratedFunction({
     exportedName: "findBooking",
     className: "Booking",

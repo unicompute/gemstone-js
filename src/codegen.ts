@@ -187,7 +187,14 @@ export function validateGeneratedModuleOptions(options: unknown): asserts option
   if (typeof options !== "object" || options === null || Array.isArray(options)) {
     throw new TypeError("Generated module options must be an object.");
   }
-  const record = options as { functions?: unknown; imports?: unknown };
+  const record = options as Record<string, unknown>;
+  assertKnownKeys(record, "Generated module options", ["$schema", "banner", "imports", "functions"]);
+  if (record.$schema !== undefined && typeof record.$schema !== "string") {
+    throw new TypeError("Generated module $schema must be a string.");
+  }
+  if (record.banner !== undefined && typeof record.banner !== "string" && record.banner !== false) {
+    throw new TypeError("Generated module banner must be a string or false.");
+  }
   if (!Array.isArray(record.functions)) {
     throw new TypeError("Generated module functions must be an array.");
   }
@@ -203,6 +210,16 @@ export function validateGeneratedFunctionOptions(value: unknown): asserts value 
     throw new TypeError("Generated function options must be an object.");
   }
   const options = value as Record<string, unknown>;
+  assertKnownKeys(options, "Generated function options", [
+    "exportedName",
+    "className",
+    "selector",
+    "argNames",
+    "argTypes",
+    "sessionType",
+    "returnType",
+    "returnKind",
+  ]);
   assertIdentifier(options.exportedName, "exportedName");
   assertNonEmptyString(options.className, "className");
   const selector = assertSelector(options.selector);
@@ -211,8 +228,17 @@ export function validateGeneratedFunctionOptions(value: unknown): asserts value 
   assertSelectorArity(selector, argNames);
   normalizeArgTypes(argNames, options.argTypes);
   if (options.sessionType !== undefined) assertTypeExpression(options.sessionType, "sessionType");
-  if (options.returnType !== undefined) assertTypeExpression(options.returnType, "returnType");
-  assertReturnKind(options.returnKind ?? inferGeneratedReturnKind(options.returnType as string | undefined));
+  const returnType = options.returnType === undefined ? undefined : assertTypeExpression(options.returnType, "returnType");
+  assertReturnKind(options.returnKind ?? inferGeneratedReturnKind(returnType));
+}
+
+function assertKnownKeys(record: Record<string, unknown>, label: string, allowed: readonly string[]): void {
+  const allowedSet = new Set(allowed);
+  for (const key of Object.keys(record)) {
+    if (!allowedSet.has(key)) {
+      throw new RangeError(`${label} contains unknown field: ${key}`);
+    }
+  }
 }
 
 function assertReturnKind(value: unknown): GeneratedReturnKind {
@@ -308,7 +334,8 @@ function assertImportSpecs(value: unknown): readonly GeneratedImportSpec[] {
     if (typeof item !== "object" || item === null || Array.isArray(item)) {
       throw new TypeError("Generated module import entries must be objects.");
     }
-    const spec = item as GeneratedImportSpec;
+    const spec = item as GeneratedImportSpec & Record<string, unknown>;
+    assertKnownKeys(spec, "Generated module import entry", ["from", "defaultName", "namespaceName", "names", "typeNames"]);
     assertNonEmptyString(spec.from, "import from");
     if (spec.defaultName !== undefined) assertIdentifier(spec.defaultName, "import defaultName");
     if (spec.namespaceName !== undefined) assertIdentifier(spec.namespaceName, "import namespaceName");
@@ -329,8 +356,13 @@ function assertOptionalIdentifierArray(value: unknown, field: string): void {
   if (!Array.isArray(value)) {
     throw new TypeError(`Generated ${field} must be an array.`);
   }
+  const seen = new Set<string>();
   for (const name of value) {
     assertIdentifier(name, field);
+    if (seen.has(name)) {
+      throw new RangeError(`Generated ${field} must contain unique identifiers: ${name}`);
+    }
+    seen.add(name);
   }
 }
 

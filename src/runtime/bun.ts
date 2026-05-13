@@ -68,8 +68,9 @@ export const gci: GciRuntime = {
     return oopFrom(openLibrary().symbols.GciExecuteStr(cString(source), receiver));
   },
 
-  async perform(_receiver: Oop, _selector: string, _args: Oop[] = []): Promise<Oop> {
-    throw new Error("Bun GciPerform pointer-array marshalling is not implemented yet.");
+  async perform(receiver: Oop, selector: string, args: Oop[] = []): Promise<Oop> {
+    const argBuffer = oopArray(args);
+    return oopFrom(openLibrary().symbols.GciPerform(receiver, cString(selector), argBuffer, argBuffer.length));
   },
 
   async newString(value: string): Promise<Oop> {
@@ -96,8 +97,15 @@ export const gci: GciRuntime = {
     return Number(openLibrary().symbols.GciFetchSize_(value));
   },
 
-  async fetchBytes(_value: Oop, _start: number, _count: number): Promise<Uint8Array> {
-    throw new Error("Bun GciFetchBytes_ buffer marshalling is not implemented yet.");
+  async fetchBytes(value: Oop, start: number, count: number): Promise<Uint8Array> {
+    const validatedStart = validateFetchStart(start);
+    const validatedCount = validateFetchCount(count);
+    const bytes = new Uint8Array(validatedCount);
+    const read = Number(openLibrary().symbols.GciFetchBytes_(value, validatedStart, bytes, validatedCount));
+    if (read < 0) {
+      throw new Error(`GciFetchBytes_ returned negative byte count ${read}.`);
+    }
+    return bytes.slice(0, Math.min(read, bytes.length));
   },
 
   async getSessionId(): Promise<number> {
@@ -120,12 +128,20 @@ export const gci: GciRuntime = {
     return oopFrom(openLibrary().symbols.GciFltToOop(value));
   },
 
-  async oopToFlt(_value: Oop): Promise<number> {
-    throw new Error("Bun GciOopToFlt_ out-parameter marshalling is not implemented yet.");
+  async oopToFlt(value: Oop): Promise<number> {
+    const out = new Float64Array(1);
+    const ok = Number(openLibrary().symbols.GciOopToFlt_(value, out));
+    if (ok === 0) {
+      throw new Error("OOP cannot be converted to Float.");
+    }
+    return out[0];
   },
 
-  async symDictAt(_dict: Oop, _key: string): Promise<SymDictLookup> {
-    throw new Error("Bun GciSymDictAt out-parameter marshalling is not implemented yet.");
+  async symDictAt(dict: Oop, key: string): Promise<SymDictLookup> {
+    const value = outOop();
+    const assoc = outOop();
+    openLibrary().symbols.GciSymDictAt(dict, cString(key), value, assoc);
+    return { value: oopFrom(value[0]), assoc: oopFrom(assoc[0]) };
   },
 
   async symDictAtPut(dict: Oop, key: string, value: Oop): Promise<void> {
@@ -136,8 +152,10 @@ export const gci: GciRuntime = {
     openLibrary().symbols.GciSymDictAtObjPut(dict, key, value);
   },
 
-  async strKeyValueDictAt(_dict: Oop, _key: string): Promise<Oop> {
-    throw new Error("Bun GciStrKeyValueDictAt out-parameter marshalling is not implemented yet.");
+  async strKeyValueDictAt(dict: Oop, key: string): Promise<Oop> {
+    const value = outOop();
+    openLibrary().symbols.GciStrKeyValueDictAt(dict, cString(key), value);
+    return oopFrom(value[0]);
   },
 
   async strKeyValueDictAtPut(dict: Oop, key: string, value: Oop): Promise<void> {
@@ -186,11 +204,37 @@ function readCString(value: Uint8Array): string {
   return new TextDecoder().decode(end === -1 ? value : value.subarray(0, end));
 }
 
+function oopArray(values: readonly Oop[]): BigUint64Array {
+  const out = new BigUint64Array(values.length);
+  values.forEach((value, index) => {
+    out[index] = BigInt.asUintN(64, value);
+  });
+  return out;
+}
+
+function outOop(): BigUint64Array {
+  return new BigUint64Array(1);
+}
+
 function oopFrom(value: unknown): Oop {
   if (typeof value === "bigint" || typeof value === "number" || typeof value === "string") {
     return oop(value);
   }
   throw new TypeError(`Expected OOP-compatible bigint, number, or string; got ${typeof value}.`);
+}
+
+function validateFetchStart(value: number): number {
+  if (!Number.isSafeInteger(value) || value < 1) {
+    throw new RangeError("fetchBytes start must be a positive safe integer.");
+  }
+  return value;
+}
+
+function validateFetchCount(value: number): number {
+  if (!Number.isSafeInteger(value) || value < 0) {
+    throw new RangeError("fetchBytes count must be a non-negative safe integer.");
+  }
+  return value;
 }
 
 function symbols(ffi: BunFFI): Record<string, unknown> {
@@ -204,15 +248,20 @@ function symbols(ffi: BunFFI): Record<string, unknown> {
     GciCommit: { args: [t.ptr], returns: t.i32 },
     GciAbort: { args: [t.ptr], returns: t.i32 },
     GciExecuteStr: { args: [t.ptr, t.u64], returns: t.u64 },
+    GciPerform: { args: [t.u64, t.ptr, t.ptr, t.i32], returns: t.u64 },
     GciNewString: { args: [t.ptr], returns: t.u64 },
     GciNewSymbol: { args: [t.ptr], returns: t.u64 },
     GciNewOop: { args: [t.u64], returns: t.u64 },
     GciFltToOop: { args: [t.f64], returns: t.u64 },
+    GciOopToFlt_: { args: [t.u64, t.ptr], returns: t.i32 },
     GciFetchClass: { args: [t.u64], returns: t.u64 },
     GciFetchSize_: { args: [t.u64], returns: t.i64 },
+    GciFetchBytes_: { args: [t.u64, t.i64, t.ptr, t.i64], returns: t.i64 },
     GciResolveSymbol: { args: [t.ptr, t.u64], returns: t.u64 },
+    GciSymDictAt: { args: [t.u64, t.ptr, t.ptr, t.ptr], returns: t.void },
     GciSymDictAtPut: { args: [t.u64, t.ptr, t.u64], returns: t.void },
     GciSymDictAtObjPut: { args: [t.u64, t.u64, t.u64], returns: t.void },
+    GciStrKeyValueDictAt: { args: [t.u64, t.ptr, t.ptr], returns: t.void },
     GciStrKeyValueDictAtPut: { args: [t.u64, t.ptr, t.u64], returns: t.void },
     GciGetSessionId: { args: [], returns: t.i32 },
     GciSetSessionId: { args: [t.i32], returns: t.void },

@@ -8,7 +8,9 @@ The first implementation slice follows `../plan.js.txt`:
   `../gemstone-js-native`. The native module import is cached, but the Node GCI
   wrapper is per session.
 - `src/runtime/deno.ts` and `src/runtime/bun.ts` define the same low-level GCI
-  surface through native FFI.
+  surface through native FFI. Pointer-array and out-parameter calls use typed
+  arrays so `perform()`, `fetchBytes()`, float conversion, and dictionary
+  lookups share the same runtime contract as the Node adapter.
 - `src/runtime/library-discovery.ts` mirrors the Rust/Python loader order:
   explicit path, `GS_LIB_PATH`, scan `GS_LIB`, then scan `GEMSTONE/lib`.
 - `src/client.ts` owns the public async `Session` API. This lets the native

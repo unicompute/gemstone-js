@@ -21,6 +21,8 @@ native package; the TypeScript package can be tested locally with a mock runtime
   starter, and a mock runtime for tests.
 - Runtime library discovery follows `libPath`, `GS_LIB_PATH`, `GS_LIB`, then
   `GEMSTONE/lib` for the Deno and Bun FFI adapters.
+- Deno and Bun FFI adapters now marshal pointer-buffer calls for `perform()`,
+  `fetchBytes()`, float conversion, and dictionary lookups.
 - OOP helpers ported from `gemstone-rs/crates/gemstone-gci`.
 - Low-level allocation/fetch helpers: `newOop()`, `fetchClass()`,
   `fetchSize()`, and `fetchBytes()`.
@@ -84,6 +86,6 @@ and is intended to expose napi-rs bindings over the shared `gemstone-gci` Rust
 crate.
 
 Deno and Bun adapters declare the GCI symbols directly with their built-in FFI
-systems. They are present so the public API and dispatch shape are fixed early;
-the pointer-array details for calls such as `GciPerform` still need live-runtime
-hardening.
+systems. Pointer-array and out-parameter calls are wired through typed arrays;
+live-runtime hardening is still needed around `GciErr` decoding and platform
+coverage.

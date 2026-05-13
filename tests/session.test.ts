@@ -692,6 +692,7 @@ test("GsDict wraps StringKeyValueDictionary access", async () => {
   await dict.setAll({ city: "London", enabled: true });
   await dict.setValue("role", "Engineer");
   await dict.setAllValue({ zone: "A1" });
+  const nested = await dict.setDict("nested", { status: "child" });
   await dict.setAllOop({ object });
 
   assertEqual(await dict.get("name"), "Ada");
@@ -700,6 +701,9 @@ test("GsDict wraps StringKeyValueDictionary access", async () => {
   assertEqual(await dict.getValue("role"), "Engineer");
   assertEqual(await dict.getValue("zone"), "A1");
   assertEqual(await dict.get("enabled"), true);
+  assertEqual(await (await dict.getDict("nested"))?.get("status"), "child");
+  assertEqual(await (await dict.requireDict("nested")).requireValue("status"), "child");
+  assertEqual(nested.oop, await dict.requireOop("nested"));
   assertEqual(await dict.getOop("object"), object);
   assertEqual(await dict.requireValue("name"), "Ada");
   assertEqual(await dict.requireOop("object"), object);

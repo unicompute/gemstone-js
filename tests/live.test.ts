@@ -43,6 +43,12 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
   ))));
   assert.equal(dictItemsOop.get("status"), "ready");
   assert.equal(await dict.requireValue("status"), "ready");
+  await dict.setDict("nested", { status: "child" });
+  const nestedDict = await dict.getDict("nested");
+  if (!nestedDict) throw new Error("GsDict.getDict should return the live nested dictionary.");
+  assert.equal(await nestedDict.requireValue("status"), "child");
+  assert.equal(await (await dict.requireDict("nested")).requireValue("status"), "child");
+  assert.equal(await dict.delete("nested"), true);
   assert.equal(await dict.remove("count"), true);
   assert.equal(await dict.has("count"), false);
   assert.equal(await dict.delete("missing"), false);

@@ -1,4 +1,10 @@
-import type { GemStoneArgument, MarshalledValue, Session, TypedOop } from "./client.ts";
+import type {
+  GemStoneArgument,
+  GemStoneDictionaryArgument,
+  MarshalledValue,
+  Session,
+  TypedOop,
+} from "./client.ts";
 import type { Oop } from "./oop.ts";
 import type { GemStoneInspection } from "./types.ts";
 
@@ -35,6 +41,11 @@ export class GsDict implements AsyncDisposable {
     return value === null ? null : this.session.typedOop<T>(value);
   }
 
+  async getDict(key: string): Promise<GsDict | null> {
+    const value = await this.getOop(key);
+    return value === null ? null : new GsDict(this.session, value);
+  }
+
   async set(key: string, value: GemStoneArgument): Promise<this> {
     await this.session.strDictSet(this.oop, key, value);
     return this;
@@ -53,6 +64,12 @@ export class GsDict implements AsyncDisposable {
 
   async setAllValue(values: Record<string, GemStoneArgument>): Promise<this> {
     return this.setAll(values);
+  }
+
+  async setDict(key: string, value: GemStoneDictionaryArgument): Promise<GsDict> {
+    const dict = await this.session.dictionary(value);
+    await this.setOop(key, dict.oop);
+    return dict;
   }
 
   async setOop(key: string, value: Oop): Promise<this> {
@@ -164,6 +181,10 @@ export class GsDict implements AsyncDisposable {
 
   async requireObject<T = unknown>(key: string): Promise<TypedOop<T>> {
     return this.session.typedOop<T>(await this.requireOop(key));
+  }
+
+  async requireDict(key: string): Promise<GsDict> {
+    return new GsDict(this.session, await this.requireOop(key));
   }
 
   async require<T = unknown>(key: string): Promise<TypedOop<T>> {

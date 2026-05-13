@@ -52,8 +52,9 @@ native package; the TypeScript package can be tested locally with a mock runtime
   `remove()`/`delete()`, `has()`, `size()`, `isEmpty()`, `keys()`,
   `values()`, raw `valuesOop()`, `items()`, raw `itemsOop()`, `entries()`,
   raw `entriesOop()`, `pick()`, raw `pickOop()`, required raw/value/object
-  accessors plus object alias `require()`, explicit send helpers, and
-  inspection helpers.
+  accessors plus object alias `require()`, nested dictionary helpers
+  `getDict()`/`setDict()`/`requireDict()`, explicit send helpers, and inspection
+  helpers.
 - `PersistentRoot` now has value helpers (`getValue()`, `setValue()`,
   `setAllValue()`, `getDict()`, `setDict()`), raw `setAll()`,
   `getObject()`, `remove()`/`delete()`, `has()`, `keys()`, `pick()`,

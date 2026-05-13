@@ -33,8 +33,8 @@ The first implementation slice follows `../plan.js.txt`:
 - `GsDict` and `PersistentRoot` are convenience layers over the same session
   primitives. They should stay thin: the session owns marshalling and GCI calls,
   while wrappers expose explicit value/raw/object accessors, value-named setter
-  aliases, send helpers, dictionary metadata, dictionary/root enumeration, and
-  required global/root accessors.
+  aliases, nested dictionary helpers, send helpers, dictionary metadata,
+  dictionary/root enumeration, and required global/root accessors.
 - Source-rendered helper names and class-ref names share one validation policy.
   Collection names, class names, persistent-root names, persistent-root entries,
   and direct global names must be simple GemStone global-style identifiers;

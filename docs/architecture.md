@@ -53,7 +53,10 @@ The first implementation slice follows `../plan.js.txt`:
   as handles or marshalled values, can check, add, remove, replace, or clear
   collection members through explicit value and raw-OOP helpers, and delegate
   GemStone array unwrapping to the session readback helpers so iterators yield
-  object handles instead of chunk containers.
+  object handles instead of chunk containers. Selector paths and comparison
+  operators are both validated before source is emitted, and alias helpers such
+  as `find()`, `any()`, and `none()` use the same underlying bounded query
+  forms as `first()` and `exists()`.
 - Codegen helpers validate generated JavaScript identifiers and emit wrappers
   that choose between `performValueWith()`, `performWith()`, or
   `classRef().sendObject()` based on the requested return kind. Selector shape,

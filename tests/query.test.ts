@@ -6,6 +6,7 @@ import {
   oopToSmallint,
   smallintToOop,
   Session,
+  type ComparisonOp,
   type MarshalledValue,
   type Oop,
 } from "../src/index.ts";
@@ -199,6 +200,7 @@ test("GSCollection value helpers marshal collection results without retaining ha
   assertEqual(await collection.firstItemValue(), 1n);
   assertEqual(await collection.lastItemValue(), 3n);
   assertEqual(await collection.firstValue("value", "=", 2), 2n);
+  assertEqual(await collection.findValue("value", "=", 2), 2n);
   assertEqual((await collection.searchValues("value", "=", 2)).join(","), "2");
   assertEqual((await collection.limitValues("value", ">", 1, 2)).join(","), "2,3");
   assertEqual((await collection.takeValues("value", ">", 1, 2)).join(","), "2,3");
@@ -252,7 +254,7 @@ test("GSCollection limit helpers fetch bounded result arrays", async () => {
 
 test("GSCollection first helpers return nullable first matches without array fetches", async () => {
   let first = OOP_NIL;
-  const executeResults = [first, OOP_NIL];
+  const executeResults = [first, first, OOP_NIL, OOP_NIL];
   const executeSources: string[] = [];
   const runtime = new MockGciRuntime({
     execute(source) {
@@ -262,6 +264,7 @@ test("GSCollection first helpers return nullable first matches without array fet
   });
   first = runtime.allocate();
   executeResults[0] = first;
+  executeResults[1] = first;
   const session = await Session.connect({ username: "u", password: "p", runtime });
   const collection = new GSCollection<{ name: string }>(session, "Bookings");
 
@@ -270,18 +273,25 @@ test("GSCollection first helpers return nullable first matches without array fet
   assertEqual(found.oop, first);
   await found.release();
 
+  const foundAlias = await collection.find("customer.name", "=", "Ada's booking");
+  if (!foundAlias) throw new Error("find should alias first");
+  assertEqual(foundAlias.oop, first);
+  await foundAlias.release();
+
   const missing = await collection.firstOop("status", "=", "missing");
   assertEqual(missing, null);
+  assertEqual(await collection.findOop("status", "=", "missing"), null);
 
   assert(executeSources[0].includes("collection detect: [:each | (each customer name = 'Ada''s booking')] ifNone: [nil]"), "first should render a detect query");
-  assert(executeSources[1].includes("collection detect: [:each | (each status = 'missing')] ifNone: [nil]"), "firstOop should reuse the detect query");
+  assert(executeSources[1].includes("collection detect: [:each | (each customer name = 'Ada''s booking')] ifNone: [nil]"), "find should reuse the detect query");
+  assert(executeSources[2].includes("collection detect: [:each | (each status = 'missing')] ifNone: [nil]"), "firstOop should reuse the detect query");
   assert(!runtime.calls.some((call) => call.method === "perform" && call.args[1] === "at:"), "first helpers should not fetch result arrays");
   await session.logout();
 });
 
 test("GSCollection count and exists render validated predicates without fetching handles", async () => {
   const executeSources: string[] = [];
-  const results = [smallintToOop(3), OOP_FALSE];
+  const results = [smallintToOop(3), OOP_TRUE, OOP_FALSE, OOP_FALSE, OOP_FALSE];
   const runtime = new MockGciRuntime({
     execute(source) {
       executeSources.push(source);
@@ -292,13 +302,17 @@ test("GSCollection count and exists render validated predicates without fetching
   const collection = new GSCollection(session, "Bookings");
 
   assertEqual(await collection.count("customer.name", "=", "Ada's booking"), 3);
-  assertEqual(await collection.exists("status", "=", "missing"), false);
+  assertEqual(await collection.exists("status", "=", "done"), true);
+  assertEqual(await collection.any("status", "=", "missing"), false);
+  assertEqual(await collection.anyMatch("status", "=", "missing"), false);
+  assertEqual(await collection.none("status", "=", "missing"), true);
 
   assert(executeSources[0].includes("count := 0."), "count should initialize a counter");
   assert(executeSources[0].includes("collection do: [:each |"), "count should scan without materializing selected results");
   assert(executeSources[0].includes("(each customer name = 'Ada''s booking') ifTrue: [count := count + 1]"), "count should render escaped Smalltalk predicate");
   assert(!executeSources[0].includes("select:"), "count should avoid materializing selected matches");
-  assert(executeSources[1].includes("collection detect: [:each | (each status = 'missing')] ifNone: [nil]"), "exists should early-exit with detect:");
+  assert(executeSources[1].includes("collection detect: [:each | (each status = 'done')] ifNone: [nil]"), "exists should early-exit with detect:");
+  assert(executeSources[2].includes("collection detect: [:each | (each status = 'missing')] ifNone: [nil]"), "any should reuse the detect query");
   assert(!executeSources[1].includes("count :="), "exists should not count all matches");
   assert(!runtime.calls.some((call) => call.method === "addOopToExportSet"), "count helpers should not retain object handles");
   await session.logout();
@@ -458,6 +472,7 @@ test("GSCollection rejects unsafe query inputs before rendering Smalltalk", asyn
   assertThrows(() => new GSCollection(session, "Bookings; System abortTransaction"));
   await assertRejects(() => collection.search("customer; System abortTransaction", "=", "Ada"), RangeError);
   await assertRejects(() => collection.count("customer; System abortTransaction", "=", "Ada"), RangeError);
+  await assertRejects(() => collection.exists("status", "includes:" as ComparisonOp, "Ada"), RangeError);
   await assertRejects(() => collection.limit("customer.name", "=", "Ada", -1), RangeError);
   await assertRejects(() => collection.page(0, 1), RangeError);
   await assertRejects(() => collection.page(1, -1), RangeError);

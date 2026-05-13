@@ -101,12 +101,14 @@ native package; the TypeScript package can be tested locally with a mock runtime
   `removeAll()`/`removeAllOop()` remove batches, and
   `replaceAll()`/`replaceAllOop()` plus `clear()` manage whole collections,
   `first()`/`firstOop()` return nullable first matches without materializing
-  result arrays, `limit()`/`take()` fetch bounded predicate matches,
+  result arrays, `find()`/`findOop()`/`findValue()` alias the first-match
+  helpers, `limit()`/`take()` fetch bounded predicate matches,
   `size()`/`isEmpty()` expose collection metadata, `count()` increments a
-  counter without materializing selected matches, `exists()` early-exits with
-  `detect:ifNone:`, and `GSCollection.iter()` fetches collection chunks while
-  yielding individual objects. Equality-index helpers are available through both
-  explicit
+  counter without materializing selected matches, `exists()` and
+  `any()`/`anyMatch()`/`none()` early-exit with `detect:ifNone:`, and
+  `GSCollection.iter()` fetches collection chunks while yielding individual
+  objects. Query comparison operators are validated before Smalltalk source is
+  emitted. Equality-index helpers are available through both explicit
   `createEqualityIndexOn()`/`removeEqualityIndexOn()` and higher-level
   `createIndex()`/`removeIndex()` calls. Source-rendering helpers validate
   collection names, persistent-root names, and SymbolDictionary entry names

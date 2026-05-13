@@ -4,11 +4,13 @@ export {
   ManagedOop,
   TypedOop,
   resolveSessionConfig,
+  type ArrayOopReadbackOptions,
   type ArrayReadbackOptions,
   type GemStoneArrayArgument,
   type GemStoneArgument,
   type GemStoneDictionaryArgument,
   type MarshalledArray,
+  type MarshalledDictionary,
   type MarshalledValue,
 } from "./client.ts";
 export {

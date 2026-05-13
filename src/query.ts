@@ -283,6 +283,10 @@ export class GSCollection<T = unknown> {
     return result === null ? null : this.session.typedOop<T>(result);
   }
 
+  async find(path: string, op: ComparisonOp, value: string | number | bigint | boolean): Promise<TypedOop<T> | null> {
+    return this.first(path, op, value);
+  }
+
   async firstOop(path: string, op: ComparisonOp, value: string | number | bigint | boolean): Promise<Oop | null> {
     const predicate = await this.#predicate(path, op, value);
     const source = `
@@ -294,9 +298,17 @@ export class GSCollection<T = unknown> {
     return result === OOP_NIL ? null : result;
   }
 
+  async findOop(path: string, op: ComparisonOp, value: string | number | bigint | boolean): Promise<Oop | null> {
+    return this.firstOop(path, op, value);
+  }
+
   async firstValue(path: string, op: ComparisonOp, value: string | number | bigint | boolean): Promise<MarshalledValue> {
     const result = await this.firstOop(path, op, value);
     return result === null ? null : this.session.marshalOop(result);
+  }
+
+  async findValue(path: string, op: ComparisonOp, value: string | number | bigint | boolean): Promise<MarshalledValue> {
+    return this.firstValue(path, op, value);
   }
 
   async count(path: string, op: ComparisonOp, value: string | number | bigint | boolean): Promise<number> {
@@ -320,6 +332,18 @@ export class GSCollection<T = unknown> {
       ((collection detect: [:each | ${predicate}] ifNone: [nil]) isNil) not
     `;
     return toBoolean(await this.session.eval(source), "GSCollection exists");
+  }
+
+  async any(path: string, op: ComparisonOp, value: string | number | bigint | boolean): Promise<boolean> {
+    return this.exists(path, op, value);
+  }
+
+  async anyMatch(path: string, op: ComparisonOp, value: string | number | bigint | boolean): Promise<boolean> {
+    return this.exists(path, op, value);
+  }
+
+  async none(path: string, op: ComparisonOp, value: string | number | bigint | boolean): Promise<boolean> {
+    return !await this.exists(path, op, value);
   }
 
   async #collectionOop(): Promise<Oop> {
@@ -491,7 +515,8 @@ function selectorForPath(path: string): string {
 function smalltalkOp(op: ComparisonOp): string {
   if (op === "==" || op === "=") return "=";
   if (op === "!=") return "~=";
-  return op;
+  if (op === "~=" || op === "<" || op === "<=" || op === ">" || op === ">=") return op;
+  throw new RangeError(`Unsupported GemStone query comparison operator: ${String(op)}`);
 }
 
 function selectorsForIndexKind(kind: GSCollectionIndexKind): { create: string; remove: string } {

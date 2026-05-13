@@ -205,10 +205,16 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
   assert.equal(await query.delete("plain value"), false);
   assert.equal(await query.count("key", "=", "ready"), 2);
   assert.equal(await query.exists("key", "=", "done"), true);
+  assert.equal(await query.any("key", "=", "done"), true);
+  assert.equal(await query.anyMatch("key", "=", "missing"), false);
+  assert.equal(await query.none("key", "=", "missing"), true);
   assert.equal(await query.exists("key", "=", "missing"), false);
   const firstDone = await query.first("key", "=", "done");
   assert.notEqual(firstDone, null);
   await firstDone?.release();
+  const foundDone = await query.find("key", "=", "done");
+  assert.notEqual(foundDone, null);
+  await foundDone?.release();
   const limited = await query.limit("key", "=", "ready", 1);
   assert.equal(limited.length, 1);
   await Promise.all(limited.map((item) => item.release()));

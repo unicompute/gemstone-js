@@ -6,6 +6,8 @@ import {
 import type { GemStoneNativeError } from "@gemstone-js/native";
 import {
   cString,
+  decodeGciErrorInfo,
+  gciErrorBuffer,
   oopArray,
   oopFrom,
   outOop,
@@ -35,6 +37,27 @@ test("shared FFI buffer helpers encode C strings and OOP buffers", () => {
   assertThrows(() => validateFetchStart(0), RangeError);
   assertThrows(() => validateFetchCount(-1), RangeError);
   assertThrows(() => oopFrom({}), TypeError);
+});
+
+test("shared FFI buffer helpers decode GciErr payloads", () => {
+  const empty = gciErrorBuffer();
+  assertEqual(decodeGciErrorInfo(empty, 0), null);
+
+  const buffer = gciErrorBuffer();
+  writeFakeGciErr(buffer);
+  const info = decodeGciErrorInfo(buffer, 1);
+  if (!info) throw new Error("expected decoded GciErr payload");
+
+  assertEqual(info.category, oop(1000));
+  assertEqual(info.context, oop(1001));
+  assertEqual(info.exceptionObj, oop(1002));
+  assertEqual(info.args?.length, 2);
+  assertEqual(info.args?.[0], oop(1003));
+  assertEqual(info.args?.[1], oop(1004));
+  assertEqual(info.number, 2406);
+  assertEqual(info.fatal, true);
+  assertEqual(info.message, "message text");
+  assertEqual(info.reason, "reason text");
 });
 
 test("ambient native module exposes the mapped error type guard", () => {
@@ -77,6 +100,7 @@ test("Deno runtime marshals pointer-buffer GCI calls", async () => {
     assert(declaredSymbols && "GciPerform" in declaredSymbols, "Deno symbols should include GciPerform");
     assert(declaredSymbols && "GciFetchBytes_" in declaredSymbols, "Deno symbols should include GciFetchBytes_");
     assert(declaredSymbols && "GciOopToFlt_" in declaredSymbols, "Deno symbols should include GciOopToFlt_");
+    assert(declaredSymbols && "GciErr" in declaredSymbols, "Deno symbols should include GciErr");
   } finally {
     if (previousDeno === undefined) delete globals.Deno;
     else globals.Deno = previousDeno;
@@ -119,6 +143,7 @@ test("Bun runtime marshals pointer-buffer GCI calls", async () => {
     assert(declaredSymbols && "GciPerform" in declaredSymbols, "Bun symbols should include GciPerform");
     assert(declaredSymbols && "GciFetchBytes_" in declaredSymbols, "Bun symbols should include GciFetchBytes_");
     assert(declaredSymbols && "GciOopToFlt_" in declaredSymbols, "Bun symbols should include GciOopToFlt_");
+    assert(declaredSymbols && "GciErr" in declaredSymbols, "Bun symbols should include GciErr");
   } finally {
     if (previousBun === undefined) delete globals.Bun;
     else globals.Bun = previousBun;
@@ -135,6 +160,13 @@ async function assertRuntimePointerCalls(runtime: {
   perform(receiver: Oop, selector: string, args?: Oop[]): Promise<Oop>;
   fetchBytes(value: Oop, start: number, count: number): Promise<Uint8Array>;
   oopToFlt(value: Oop): Promise<number>;
+  err(): Promise<{
+    number: number;
+    fatal: boolean;
+    message: string;
+    reason?: string;
+    args?: Oop[];
+  } | null>;
   symDictAt(dict: Oop, key: string): Promise<{ value: Oop; assoc: Oop }>;
   strKeyValueDictAt(dict: Oop, key: string): Promise<Oop>;
 }): Promise<void> {
@@ -148,6 +180,14 @@ async function assertRuntimePointerCalls(runtime: {
 
   assertEqual(await runtime.oopToFlt(oop(300)), 3.25);
   await assertRejects(() => runtime.oopToFlt(oop(0)), Error);
+
+  const info = await runtime.err();
+  if (!info) throw new Error("err should decode fake GciErr payload");
+  assertEqual(info.number, 2406);
+  assertEqual(info.fatal, true);
+  assertEqual(info.message, "message text");
+  assertEqual(info.reason, "reason text");
+  assertEqual(info.args?.[0], oop(1003));
 
   const lookup = await runtime.symDictAt(oop(400), "UserGlobals");
   assertEqual(lookup.value, oop(700));
@@ -179,6 +219,10 @@ function fakeSymbols(): Record<string, (...args: unknown[]) => unknown> {
       if (value === oop(0)) return 0;
       assertEqual(value, oop(300));
       floatOut[0] = 3.25;
+      return 1;
+    },
+    GciErr(out) {
+      writeFakeGciErr(expectUint8Array(out, "GciErr out buffer"));
       return 1;
     },
     GciSymDictAt(dict, key, valueOut, assocOut) {
@@ -230,6 +274,25 @@ function expectUint8Array(value: unknown, label: string): Uint8Array {
     throw new Error(`${label} should be a Uint8Array`);
   }
   return value;
+}
+
+function writeFakeGciErr(buffer: Uint8Array): void {
+  const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+  view.setBigUint64(0, oop(1000), true);
+  view.setBigUint64(8, oop(1001), true);
+  view.setBigUint64(16, oop(1002), true);
+  view.setBigUint64(24, oop(1003), true);
+  view.setBigUint64(32, oop(1004), true);
+  view.setInt32(104, 2406, true);
+  view.setInt32(108, 2, true);
+  buffer[112] = 1;
+  writeCString(buffer, 113, "message text");
+  writeCString(buffer, 1138, "reason text");
+}
+
+function writeCString(buffer: Uint8Array, offset: number, value: string): void {
+  buffer.set(new TextEncoder().encode(value), offset);
+  buffer[offset + value.length] = 0;
 }
 
 function test(name: string, fn: () => void | Promise<void>): void {

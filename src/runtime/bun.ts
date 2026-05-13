@@ -1,6 +1,16 @@
 import { OOP_NIL, type Oop } from "../oop.ts";
 import type { GciErrorInfo, GciRuntime, LoginOptions, SymDictLookup } from "../types.ts";
-import { cString, oopArray, oopFrom, outOop, readCString, validateFetchCount, validateFetchStart } from "./ffi-buffers.ts";
+import {
+  cString,
+  decodeGciErrorInfo,
+  gciErrorBuffer,
+  oopArray,
+  oopFrom,
+  outOop,
+  readCString,
+  validateFetchCount,
+  validateFetchStart,
+} from "./ffi-buffers.ts";
 import { resolveGciLibraryPath } from "./library-discovery.ts";
 
 type BunFFI = {
@@ -61,7 +71,9 @@ export const gci: GciRuntime = {
   },
 
   async err(): Promise<GciErrorInfo | null> {
-    throw new Error("Bun GciErr struct decoding is not implemented yet.");
+    const buffer = gciErrorBuffer();
+    const ok = openLibrary().symbols.GciErr(buffer);
+    return decodeGciErrorInfo(buffer, ok);
   },
 
   async executeStr(source: string, receiver: Oop = OOP_NIL): Promise<Oop> {
@@ -202,6 +214,7 @@ function symbols(ffi: BunFFI): Record<string, unknown> {
     GciLogout: { args: [], returns: t.i32 },
     GciCommit: { args: [t.ptr], returns: t.i32 },
     GciAbort: { args: [t.ptr], returns: t.i32 },
+    GciErr: { args: [t.ptr], returns: t.i32 },
     GciExecuteStr: { args: [t.ptr, t.u64], returns: t.u64 },
     GciPerform: { args: [t.u64, t.ptr, t.ptr, t.i32], returns: t.u64 },
     GciNewString: { args: [t.ptr], returns: t.u64 },

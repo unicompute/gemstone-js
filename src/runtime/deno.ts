@@ -1,6 +1,16 @@
 import { OOP_NIL, type Oop } from "../oop.ts";
 import type { GciErrorInfo, GciRuntime, LoginOptions, SymDictLookup } from "../types.ts";
-import { cString, oopArray, oopFrom, outOop, readCString, validateFetchCount, validateFetchStart } from "./ffi-buffers.ts";
+import {
+  cString,
+  decodeGciErrorInfo,
+  gciErrorBuffer,
+  oopArray,
+  oopFrom,
+  outOop,
+  readCString,
+  validateFetchCount,
+  validateFetchStart,
+} from "./ffi-buffers.ts";
 import { resolveGciLibraryPath } from "./library-discovery.ts";
 
 type DenoLibrary = {
@@ -59,7 +69,9 @@ export const gci: GciRuntime = {
   },
 
   async err(): Promise<GciErrorInfo | null> {
-    throw new Error("Deno GciErr struct decoding is not implemented yet.");
+    const buffer = gciErrorBuffer();
+    const ok = openLibrary().symbols.GciErr(buffer);
+    return decodeGciErrorInfo(buffer, ok);
   },
 
   async executeStr(source: string, receiver: Oop = OOP_NIL): Promise<Oop> {
@@ -209,6 +221,7 @@ const symbols = {
   GciLogout: { parameters: [], result: "i32" },
   GciCommit: { parameters: ["pointer"], result: "i32" },
   GciAbort: { parameters: ["pointer"], result: "i32" },
+  GciErr: { parameters: ["buffer"], result: "i32" },
   GciExecuteStr: { parameters: ["buffer", "u64"], result: "u64" },
   GciPerform: { parameters: ["u64", "buffer", "buffer", "i32"], result: "u64" },
   GciNewString: { parameters: ["buffer"], result: "u64" },

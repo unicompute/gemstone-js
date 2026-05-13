@@ -9,9 +9,9 @@ The first implementation slice follows `../plan.js.txt`:
   wrapper is per session.
 - `src/runtime/deno.ts` and `src/runtime/bun.ts` define the same low-level GCI
   surface through native FFI. Pointer-array and out-parameter calls use typed
-  arrays so `perform()`, `fetchBytes()`, float conversion, and dictionary
-  lookups share the same runtime contract as the Node adapter. Shared buffer
-  helpers live in `src/runtime/ffi-buffers.ts`.
+  arrays so `perform()`, `fetchBytes()`, float conversion, `GciErr`, and
+  dictionary lookups share the same runtime contract as the Node adapter. Shared
+  buffer helpers live in `src/runtime/ffi-buffers.ts`.
 - `src/runtime/library-discovery.ts` mirrors the Rust/Python loader order:
   explicit path, `GS_LIB_PATH`, scan `GS_LIB`, then scan `GEMSTONE/lib`.
 - `src/client.ts` owns the public async `Session` API. This lets the native

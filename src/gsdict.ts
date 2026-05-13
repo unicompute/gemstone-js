@@ -40,12 +40,28 @@ export class GsDict implements AsyncDisposable {
     return await this.getOop(key) !== null;
   }
 
+  async keys(): Promise<string[]> {
+    const source = `
+      | dict |
+      dict := Object _objectForOop: ${this.oop.toString()}.
+      String streamContents: [:stream |
+        dict keysAndValuesDo: [:key :value |
+          stream nextPutAll: key asString; lf]]
+    `;
+    const result = await this.session.eval(source);
+    return typeof result === "string" ? result.split(/\r?\n/).filter(Boolean) : [];
+  }
+
   async pick(keys: readonly string[]): Promise<Record<string, MarshalledValue>> {
     const result: Record<string, MarshalledValue> = {};
     for (const key of keys) {
       result[key] = await this.get(key);
     }
     return result;
+  }
+
+  async entries(): Promise<Record<string, MarshalledValue>> {
+    return this.pick(await this.keys());
   }
 
   async send<R = MarshalledValue>(selector: string, ...args: GemStoneArgument[]): Promise<R> {

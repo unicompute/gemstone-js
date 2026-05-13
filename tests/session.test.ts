@@ -532,6 +532,31 @@ test("GsDict wraps StringKeyValueDictionary access", async () => {
   await session.logout();
 });
 
+test("GsDict keys and entries list dictionary contents", async () => {
+  let runtime: MockGciRuntime;
+  let dictOop = OOP_NIL;
+  let keyListCalls = 0;
+  runtime = new MockGciRuntime({
+    execute(source) {
+      keyListCalls += 1;
+      assert(source.includes(`Object _objectForOop: ${dictOop.toString()}.`), "keys should render the dictionary OOP");
+      assert(source.includes("keysAndValuesDo:"), "keys should ask GemStone for dictionary keys");
+      return runtime.newString("name\ncity\n");
+    },
+  });
+  const session = await Session.connect({ username: "u", password: "p", runtime });
+  const dict = await GsDict.create(session, { name: "Ada", city: "London" });
+  dictOop = dict.oop;
+
+  assertEqual((await dict.keys()).join(","), "name,city");
+  const entries = await dict.entries();
+  assertEqual(entries.name, "Ada");
+  assertEqual(entries.city, "London");
+  assertEqual(keyListCalls, 2);
+
+  await session.logout();
+});
+
 test("GsDict exposes send and inspect helpers", async () => {
   let runtime: MockGciRuntime;
   let inspectCount = 0;

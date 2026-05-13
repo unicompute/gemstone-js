@@ -1,16 +1,32 @@
 {
+  "$schema": "../schemas/codegen-manifest.schema.json",
+  "imports": [
+    {
+      "from": "gemstone-js",
+      "typeNames": ["Session", "TypedOop"]
+    },
+    {
+      "from": "./booking.ts",
+      "typeNames": ["Booking"]
+    }
+  ],
   "functions": [
     {
       "exportedName": "currentBookingStatus",
       "className": "Booking",
       "selector": "currentStatus",
-      "argNames": []
+      "argNames": [],
+      "sessionType": "Session",
+      "returnType": "string"
     },
     {
       "exportedName": "findBookingObject",
       "className": "Booking",
       "selector": "find:",
       "argNames": ["id"],
+      "argTypes": ["string"],
+      "sessionType": "Session",
+      "returnType": "TypedOop<Booking>",
       "returnKind": "object"
     }
   ]

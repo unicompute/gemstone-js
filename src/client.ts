@@ -138,6 +138,10 @@ export class Session implements AsyncDisposable {
     return this.marshalOop(result);
   }
 
+  async performObjectWith<T = unknown>(receiver: Oop, selector: string, ...args: GemStoneArgument[]): Promise<TypedOop<T>> {
+    return this.typedOop<T>(await this.performWith(receiver, selector, ...args));
+  }
+
   async argumentToOop(value: GemStoneArgument): Promise<Oop> {
     if (value instanceof ManagedOop) return value.oop;
     if (value === null) return OOP_NIL;
@@ -497,6 +501,10 @@ export class ManagedOop<T = unknown> implements AsyncDisposable {
     return await this.session.performValueWith(this.oop, selector, ...args) as R;
   }
 
+  async sendValue<R = MarshalledValue>(selector: string, ...args: GemStoneArgument[]): Promise<R> {
+    return this.send<R>(selector, ...args);
+  }
+
   async sendOop(selector: string, ...args: GemStoneArgument[]): Promise<Oop> {
     await this.#ready;
     return this.session.performWith(this.oop, selector, ...args);
@@ -542,6 +550,10 @@ export class GemStoneClassRef<T = unknown> {
 
   async send<R = MarshalledValue>(selector: string, ...args: GemStoneArgument[]): Promise<R> {
     return await this.session.performValueWith(await this.oop(), selector, ...args) as R;
+  }
+
+  async sendValue<R = MarshalledValue>(selector: string, ...args: GemStoneArgument[]): Promise<R> {
+    return this.send<R>(selector, ...args);
   }
 
   async sendOop(selector: string, ...args: GemStoneArgument[]): Promise<Oop> {

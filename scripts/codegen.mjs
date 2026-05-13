@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { readFile, writeFile } from "node:fs/promises";
-import { renderGeneratedModule } from "../src/codegen.ts";
+import { renderGeneratedModule, validateGeneratedModuleOptions } from "../src/codegen.ts";
 
 const { check, help, manifestPath, outputPath, extra } = parseArgs(process.argv.slice(2));
 
@@ -27,6 +27,7 @@ try {
 
 let source;
 try {
+  validateGeneratedModuleOptions(manifest);
   source = renderGeneratedModule(manifest);
 } catch (error) {
   fail(`Cannot render codegen manifest ${manifestPath}: ${errorMessage(error)}`);

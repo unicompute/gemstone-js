@@ -293,14 +293,29 @@ test("ManagedOop.send marshals JavaScript arguments", async () => {
   const managed = session.managedOop(smallintToOop(12));
 
   await managed.sendOop("at:put:", 1, "value");
+  await managed.sendValue("yourself");
 
-  const perform = runtime.calls.findLast((call) => call.method === "perform");
+  const perform = runtime.calls.find((call) => call.method === "perform" && call.args[1] === "at:put:");
   if (!perform) throw new Error("sendOop should call perform");
   const args = perform.args[2] as unknown[];
   assertEqual(args[0], smallintToOop(1));
   assert(runtime.calls.some((call) => call.method === "newString" && call.args[0] === "value"), "sendOop should allocate string arguments");
 
   await managed.release();
+  await session.logout();
+});
+
+test("Session.performObjectWith wraps object results as retained typed handles", async () => {
+  const runtime = new MockGciRuntime();
+  const session = await Session.connect({ username: "u", password: "p", runtime });
+
+  const child = await session.performObjectWith<{ name: string }>(smallintToOop(99), "childNamed:", "primary");
+
+  assertEqual(child.session, session);
+  assert(runtime.calls.some((call) => call.method === "newString" && call.args[0] === "primary"), "performObjectWith should marshal arguments");
+
+  await child.release();
+  assert(runtime.calls.some((call) => call.method === "addOopToExportSet" && call.args[0] === child.oop), "performObjectWith should retain the returned handle");
   await session.logout();
 });
 
@@ -333,6 +348,7 @@ test("Session.classRef exposes explicit class-side sends and typed wrapping", as
   assertEqual(classResolutions.length, 1);
 
   await bookingClass.sendOop("findById:", "B-1");
+  assertEqual(await bookingClass.sendValue("yourself"), classOop);
   const perform = runtime.calls.findLast((call) => call.method === "perform");
   if (!perform) throw new Error("classRef sendOop should call perform");
   assertEqual(perform.args[0], classOop);
@@ -454,6 +470,22 @@ test("PersistentRoot value helpers use session marshalling", async () => {
   if (!dict) throw new Error("PersistentRoot should return a dictionary wrapper");
   assertEqual(await dict.get("name"), "Grace");
   assertEqual(await dict.get("active"), true);
+
+  await session.logout();
+});
+
+test("PersistentRoot.list returns root keys from GemStone helper output", async () => {
+  let runtime: MockGciRuntime;
+  runtime = new MockGciRuntime({
+    execute(source) {
+      assert(source.includes("keysAndValuesDo:"), "list should ask GemStone for root keys");
+      return runtime.newString("Alpha\nBeta\n");
+    },
+  });
+  const session = await Session.connect({ username: "u", password: "p", runtime });
+  const root = new PersistentRoot(session);
+
+  assertEqual((await root.list()).join(","), "Alpha,Beta");
 
   await session.logout();
 });

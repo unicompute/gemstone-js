@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://unicompute.github.io/gemstone-js/schemas/codegen-manifest.schema.json",
+  "title": "gemstone-js codegen manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["functions"],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "banner": {
+      "oneOf": [
+        { "type": "string" },
+        { "const": false }
+      ]
+    },
+    "imports": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/importSpec" }
+    },
+    "functions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/functionSpec" }
+    }
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z_$][A-Za-z0-9_$]*$"
+    },
+    "typeExpression": {
+      "type": "string",
+      "minLength": 1,
+      "not": {
+        "pattern": "[\\r\\n;`]"
+      }
+    },
+    "importSpec": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from"],
+      "anyOf": [
+        { "required": ["defaultName"] },
+        { "required": ["namespaceName"] },
+        { "required": ["names"] },
+        { "required": ["typeNames"] }
+      ],
+      "not": {
+        "required": ["namespaceName", "names"]
+      },
+      "properties": {
+        "from": {
+          "type": "string",
+          "minLength": 1
+        },
+        "defaultName": { "$ref": "#/$defs/identifier" },
+        "namespaceName": { "$ref": "#/$defs/identifier" },
+        "names": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/identifier" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "typeNames": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/identifier" },
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      }
+    },
+    "functionSpec": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["exportedName", "className", "selector", "argNames"],
+      "properties": {
+        "exportedName": { "$ref": "#/$defs/identifier" },
+        "className": {
+          "type": "string",
+          "minLength": 1
+        },
+        "selector": {
+          "type": "string",
+          "minLength": 1
+        },
+        "argNames": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/identifier" },
+          "uniqueItems": true
+        },
+        "argTypes": {
+          "oneOf": [
+            {
+              "type": "array",
+              "items": { "$ref": "#/$defs/typeExpression" }
+            },
+            {
+              "type": "object",
+              "additionalProperties": { "$ref": "#/$defs/typeExpression" }
+            }
+          ]
+        },
+        "sessionType": { "$ref": "#/$defs/typeExpression" },
+        "returnType": { "$ref": "#/$defs/typeExpression" },
+        "returnKind": {
+          "enum": ["value", "oop", "object"]
+        }
+      }
+    }
+  }
+}

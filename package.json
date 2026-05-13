@@ -38,14 +38,17 @@
     "./adapters/hono": {
       "types": "./src/adapters/hono.ts",
       "import": "./src/adapters/hono.ts"
-    }
+    },
+    "./schemas/codegen-manifest.schema.json": "./schemas/codegen-manifest.schema.json"
   },
   "files": [
     "src",
     "docs",
     "examples",
+    "schemas",
     "scripts/check-package.mjs",
     "scripts/codegen.mjs",
+    "scripts/scan-codegen.mjs",
     "LICENSE",
     "README.md"
   ],
@@ -54,7 +57,9 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "build": "tsc -p tsconfig.json --noEmit",
     "pack:check": "node scripts/check-package.mjs",
-    "codegen": "node scripts/codegen.mjs"
+    "codegen": "node scripts/codegen.mjs",
+    "codegen:scan": "node scripts/scan-codegen.mjs",
+    "test:live": "GS_RUN_LIVE=1 node --test tests/live.test.ts"
   },
   "optionalDependencies": {
     "@gemstone-js/native": "0.1.0-alpha.0"

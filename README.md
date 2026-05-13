@@ -56,9 +56,15 @@ native package; the TypeScript package can be tested locally with a mock runtime
   or retained typed object handles. Generated selectors are checked for keyword
   shape and argument arity before source is emitted; manifests also reject
   malformed function entries and duplicate exported wrapper names.
+- Codegen manifests have a published JSON Schema at
+  `schemas/codegen-manifest.schema.json`, can include typed signatures/imports,
+  and can be produced from decorated source with `npm run codegen:scan --`.
 - `npm run codegen -- [--check] <manifest.json> [output.ts]` renders wrapper
   modules from a JSON manifest and can verify checked-in generated files in CI;
   see `examples/codegen.manifest.json`.
+- `Session.performObjectWith()` and `sendValue()` aliases make value, raw OOP,
+  and retained object-returning sends explicit at both session and class-ref
+  layers.
 - `InMemoryMetrics` and `InMemoryTracer` make observability behavior easy to
   assert in tests and examples.
 
@@ -74,6 +80,12 @@ Node 24 can execute the `.ts` tests directly using built-in type stripping.
 The package check uses `npm pack --dry-run` with a disposable cache and verifies
 that the publishable tarball includes docs/examples while excluding tests and
 local build metadata.
+
+Live GemStone checks are opt-in:
+
+```sh
+GS_RUN_LIVE=1 npm run test:live
+```
 
 ## Example
 

@@ -7,6 +7,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 const codegenScript = fileURLToPath(new URL("../scripts/codegen.mjs", import.meta.url));
+const scanScript = fileURLToPath(new URL("../scripts/scan-codegen.mjs", import.meta.url));
 const manifest = fileURLToPath(new URL("../examples/codegen.manifest.json", import.meta.url));
 
 test("codegen CLI writes output and checks generated files", async () => {
@@ -31,6 +32,48 @@ test("codegen CLI writes output and checks generated files", async () => {
         return true;
       },
     );
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("codegen scanner emits manifests from decorated classes", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "gemstone-js-codegen-scan-"));
+  try {
+    const sourcePath = join(dir, "booking.ts");
+    await writeFile(sourcePath, [
+      "import { GemStoneClass, GemStoneSelector, type Session, type TypedOop } from \"gemstone-js\";",
+      "interface Booking {}",
+      "@GemStoneClass(\"Booking\")",
+      "class BookingModel {",
+      "  currentStatus(session: Session): Promise<string> {}",
+      "  @GemStoneSelector(\"find:active:\")",
+      "  static findBooking(session: Session, id: string, active: boolean): Promise<TypedOop<Booking>> {}",
+      "}",
+      "",
+    ].join("\n"));
+
+    const { stdout } = await execNode([scanScript, sourcePath]);
+    const scanned = JSON.parse(stdout);
+
+    assert.equal(scanned.functions.length, 2);
+    assert.deepEqual(scanned.functions[0], {
+      exportedName: "currentStatus",
+      className: "Booking",
+      selector: "currentStatus",
+      argNames: [],
+      sessionType: "Session",
+      returnType: "string",
+    });
+    assert.deepEqual(scanned.functions[1], {
+      exportedName: "findBooking",
+      className: "Booking",
+      selector: "find:active:",
+      argNames: ["id", "active"],
+      argTypes: ["string", "boolean"],
+      sessionType: "Session",
+      returnType: "TypedOop<Booking>",
+    });
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

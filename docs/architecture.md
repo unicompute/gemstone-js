@@ -35,9 +35,15 @@ The first implementation slice follows `../plan.js.txt`:
   `classRef().sendObject()` based on the requested return kind. Selector shape,
   arity, manifest structure, and module export uniqueness are checked before
   source is emitted so manifest mistakes fail locally.
+- Generated modules can include type-only/value imports plus typed session,
+  argument, and return annotations. The JSON Schema in `schemas/` gives editor
+  feedback for hand-written manifests.
 - The `codegen` npm script is a manifest-driven file generator around the same
   renderer, with a `--check` mode for keeping generated wrapper source explicit,
   reviewable, and current in CI.
+- The `codegen:scan` script is a small source scanner for decorated classes. It
+  emits reviewable manifests rather than hiding generated output in a build
+  plugin.
 - `Session.inspect()` asks GemStone for a compact string payload and parses it
   locally, avoiding a dependency on dictionary marshalling for debug metadata.
 - Framework adapters treat failed commit/abort cleanup as a broken session and

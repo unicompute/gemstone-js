@@ -77,6 +77,25 @@ test("GSCollection.iter yields individual objects from each fetched chunk", asyn
   await session.logout();
 });
 
+test("GSCollection index helpers render escaped index paths", async () => {
+  const executeSources: string[] = [];
+  const runtime = new MockGciRuntime({
+    execute(source) {
+      executeSources.push(source);
+      return OOP_NIL;
+    },
+  });
+  const session = await Session.connect({ username: "u", password: "p", runtime });
+  const collection = new GSCollection(session, "Bookings");
+
+  await collection.createEqualityIndexOn("customer's.name");
+  await collection.removeEqualityIndexOn("customer's.name");
+
+  assert(executeSources[0].includes("createEqualityIndexOn: 'customer''s.name'"), "create index should escape path literals");
+  assert(executeSources[1].includes("removeEqualityIndexOn: 'customer''s.name'"), "remove index should escape path literals");
+  await session.logout();
+});
+
 test("GSCollection rejects unsafe query inputs before rendering Smalltalk", async () => {
   const runtime = new MockGciRuntime();
   const session = await Session.connect({ username: "u", password: "p", runtime });

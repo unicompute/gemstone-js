@@ -4,6 +4,14 @@
   "description": "Async TypeScript client for GemStone/S via GCI.",
   "type": "module",
   "license": "MIT",
+  "homepage": "https://github.com/unicompute/gemstone-js#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/unicompute/gemstone-js.git"
+  },
+  "bugs": {
+    "url": "https://github.com/unicompute/gemstone-js/issues"
+  },
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "exports": {

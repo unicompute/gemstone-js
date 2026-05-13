@@ -111,6 +111,52 @@ test("codegen scanner emits manifests from decorated classes", async () => {
   }
 });
 
+test("codegen scanner handles same-line decorators and nested parameter types", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "gemstone-js-codegen-scan-inline-"));
+  try {
+    const sourcePath = join(dir, "inline-booking.ts");
+    await writeFile(sourcePath, [
+      "import { GemStoneClass, GemStoneSelector, type Session } from \"gemstone-js\";",
+      "@GemStoneClass(\"Booking\") class InlineBookingModel {",
+      "  @GemStoneSelector(\"findBy:options:\") static findBy(session: Session, id: string, options: Record<string, boolean>): Promise<string> {}",
+      "  @GemStoneSelector(\"status\") status(session: Session): Promise<string> {}",
+      "}",
+      "",
+    ].join("\n"));
+
+    const { stdout } = await execNode([scanScript, sourcePath]);
+    const scanned = JSON.parse(stdout);
+
+    assert.deepEqual(scanned.imports, [
+      {
+        from: "gemstone-js",
+        typeNames: ["Session"],
+      },
+    ]);
+    assert.deepEqual(scanned.functions, [
+      {
+        exportedName: "findBy",
+        className: "Booking",
+        selector: "findBy:options:",
+        argNames: ["id", "options"],
+        argTypes: ["string", "Record<string, boolean>"],
+        sessionType: "Session",
+        returnType: "string",
+      },
+      {
+        exportedName: "status",
+        className: "Booking",
+        selector: "status",
+        argNames: [],
+        sessionType: "Session",
+        returnType: "string",
+      },
+    ]);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 function execNode(args: string[]): Promise<{ stdout: string; stderr: string }> {
   return new Promise((resolve, reject) => {
     execFile(process.execPath, args, { encoding: "utf8" }, (error, stdout, stderr) => {

@@ -66,7 +66,7 @@ function scanSource(source, sourcePath) {
     const classMatch = lines[index].match(/@GemStoneClass\(\s*(['"])(.*?)\1\s*\)/);
     if (!classMatch) continue;
 
-    let classLine = index + 1;
+    let classLine = index;
     while (classLine < lines.length && !/\bclass\s+[A-Za-z_$][A-Za-z0-9_$]*/.test(lines[classLine])) {
       classLine += 1;
     }
@@ -163,19 +163,22 @@ function collectClassBody(lines, classLine, sourcePath) {
   let sawOpen = false;
   for (let index = classLine; index < lines.length; index += 1) {
     const line = stripLineComment(lines[index]);
+    let bodyLine = "";
     for (const ch of line) {
       if (ch === "{") {
+        if (sawOpen && depth > 0) bodyLine += ch;
         depth += 1;
         sawOpen = true;
       } else if (ch === "}") {
+        if (depth > 1) bodyLine += ch;
         depth -= 1;
+      } else if (sawOpen && depth > 0) {
+        bodyLine += ch;
       }
     }
-    if (sawOpen && index > classLine && depth > 0) {
-      body.push(lines[index]);
-    }
+    if (sawOpen) body.push(bodyLine);
     if (sawOpen && depth === 0) {
-      return { lines: body, startLine: classLine + 2, endLine: index };
+      return { lines: body, startLine: classLine + 1, endLine: index };
     }
   }
   throw new Error(`${sourcePath}:${classLine + 1}: class declaration is missing a closing brace.`);
@@ -185,11 +188,12 @@ function scanClassBody(lines, className, sourcePath, startLine) {
   const functions = [];
   let pendingSelector;
   for (let offset = 0; offset < lines.length; offset += 1) {
-    const line = lines[offset];
+    let line = lines[offset];
     const selectorMatch = line.match(/@GemStoneSelector\(\s*(['"])(.*?)\1\s*\)/);
     if (selectorMatch) {
       pendingSelector = selectorMatch[2];
-      continue;
+      line = line.slice((selectorMatch.index ?? 0) + selectorMatch[0].length);
+      if (!/\S/.test(line)) continue;
     }
 
     const methodMatch = line.match(/^\s*(?:static\s+)?(?:async\s+)?([A-Za-z_$][A-Za-z0-9_$]*)\s*\(([^)]*)\)\s*(?::\s*([^;{]+))?/);
@@ -229,7 +233,7 @@ function scanClassBody(lines, className, sourcePath, startLine) {
 function parseParameters(source) {
   const trimmed = source.trim();
   if (!trimmed) return [];
-  return trimmed.split(",").map((part) => {
+  return splitTopLevelCommas(trimmed).map((part) => {
     const cleaned = part.trim().replace(/=.*$/, "").replace(/^\.\.\./, "");
     const match = cleaned.match(/^([A-Za-z_$][A-Za-z0-9_$]*)(?:\?)?\s*(?::\s*(.+))?$/);
     if (!match) {
@@ -237,6 +241,25 @@ function parseParameters(source) {
     }
     return { name: match[1], type: match[2]?.trim() };
   });
+}
+
+function splitTopLevelCommas(source) {
+  const parts = [];
+  let start = 0;
+  let depth = 0;
+  for (let index = 0; index < source.length; index += 1) {
+    const ch = source[index];
+    if (ch === "<" || ch === "(" || ch === "[" || ch === "{") {
+      depth += 1;
+    } else if (ch === ">" || ch === ")" || ch === "]" || ch === "}") {
+      depth = Math.max(0, depth - 1);
+    } else if (ch === "," && depth === 0) {
+      parts.push(source.slice(start, index));
+      start = index + 1;
+    }
+  }
+  parts.push(source.slice(start));
+  return parts;
 }
 
 function unwrapPromise(type) {

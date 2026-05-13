@@ -1,5 +1,6 @@
-import type { GemStoneArgument, MarshalledValue, Session } from "./client.ts";
+import type { GemStoneArgument, MarshalledValue, Session, TypedOop } from "./client.ts";
 import type { Oop } from "./oop.ts";
+import type { GemStoneInspection } from "./types.ts";
 
 export class GsDict implements AsyncDisposable {
   readonly session: Session;
@@ -51,8 +52,24 @@ export class GsDict implements AsyncDisposable {
     return await this.session.performValueWith(this.oop, selector, ...args) as R;
   }
 
+  async sendValue<R = MarshalledValue>(selector: string, ...args: GemStoneArgument[]): Promise<R> {
+    return this.send<R>(selector, ...args);
+  }
+
   async sendOop(selector: string, ...args: GemStoneArgument[]): Promise<Oop> {
     return this.session.performWith(this.oop, selector, ...args);
+  }
+
+  async sendObject<R = unknown>(selector: string, ...args: GemStoneArgument[]): Promise<TypedOop<R>> {
+    return this.session.typedOop<R>(await this.sendOop(selector, ...args));
+  }
+
+  async inspect(): Promise<GemStoneInspection> {
+    return this.session.inspect(this.oop);
+  }
+
+  async printString(): Promise<string> {
+    return (await this.inspect()).printString;
   }
 
   async [Symbol.asyncDispose](): Promise<void> {}

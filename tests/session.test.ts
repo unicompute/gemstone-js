@@ -532,6 +532,52 @@ test("GsDict wraps StringKeyValueDictionary access", async () => {
   await session.logout();
 });
 
+test("GsDict exposes send and inspect helpers", async () => {
+  let runtime: MockGciRuntime;
+  let inspectCount = 0;
+  let dictOop = OOP_NIL;
+  let childOop = OOP_NIL;
+  runtime = new MockGciRuntime({
+    perform(receiver, selector) {
+      if (selector === "yourself") return receiver;
+      if (selector === "childNamed:") return childOop;
+      return OOP_NIL;
+    },
+    async execute(source) {
+      inspectCount += 1;
+      assert(source.includes(`Object _objectForOop: ${dictOop.toString()}.`), "dict inspect should target the dictionary OOP");
+      return runtime.newString([
+        dictOop.toString(),
+        "StringKeyValueDictionary",
+        "a StringKeyValueDictionary",
+        "--gemstone-js-inspect--",
+        "classHierarchy=StringKeyValueDictionary,Object",
+        "",
+      ].join("\n"));
+    },
+  });
+  dictOop = runtime.allocate();
+  childOop = runtime.allocate();
+  const session = await Session.connect({ username: "u", password: "p", runtime });
+  const dict = new GsDict(session, dictOop);
+
+  assertEqual(await dict.sendValue("yourself"), dictOop);
+  const child = await dict.sendObject<{ name: string }>("childNamed:", "primary");
+  assertEqual(child.oop, childOop);
+  assert(runtime.calls.some((call) => call.method === "newString" && call.args[0] === "primary"), "sendObject should marshal arguments");
+
+  const inspection = await dict.inspect();
+  assertEqual(inspection.oop, dictOop);
+  assertEqual(inspection.class, "StringKeyValueDictionary");
+  assertEqual(inspection.classHierarchy?.join(">"), "StringKeyValueDictionary>Object");
+  assertEqual(await dict.printString(), "a StringKeyValueDictionary");
+  assertEqual(inspectCount, 2);
+
+  await child.release();
+  assert(runtime.calls.some((call) => call.method === "addOopToExportSet" && call.args[0] === childOop), "sendObject should retain the returned handle");
+  await session.logout();
+});
+
 test("Session.dictionary creates a GsDict wrapper", async () => {
   const runtime = new MockGciRuntime();
   const session = await Session.connect({ username: "u", password: "p", runtime });

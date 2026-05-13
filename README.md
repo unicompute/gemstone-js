@@ -64,15 +64,15 @@ native package; the TypeScript package can be tested locally with a mock runtime
   and can be produced from decorated source with `npm run codegen:scan --`.
   The scanner uses the TypeScript parser for decorators, decorator aliases,
   namespace decorators from `gemstone-js`, overload signatures, multiline
-  methods, generics, and aliased typed imports, and infers raw
+  methods, generics, and default, namespace, and aliased typed imports, and infers raw
   OOP/object-returning wrappers from `Oop` and `TypedOop<T>` return
   annotations. Add `--module` to emit generated wrapper source directly from
   decorated classes.
 - `npm run codegen -- [--check] <manifest.json> [output.ts]` renders wrapper
   modules from a JSON manifest and can verify checked-in generated files in CI;
   see `examples/codegen.manifest.json` and `examples/codegen.generated.ts`.
-  Manifest imports support direct `typeNames`, aliased `typeSpecifiers`, and
-  namespace `typeNamespaceName` imports.
+  Manifest imports support direct `typeNames`, default `typeDefaultName`,
+  aliased `typeSpecifiers`, and namespace `typeNamespaceName` imports.
 - `examples/booking.decorators.ts` is a committed scanner fixture; CI verifies
   that it still renders `examples/booking.decorators.generated.ts`.
 - `Session.performObjectWith()` and `sendValue()` aliases make value, raw OOP,

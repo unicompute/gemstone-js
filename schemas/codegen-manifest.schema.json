@@ -87,6 +87,7 @@
         { "required": ["defaultName"] },
         { "required": ["namespaceName"] },
         { "required": ["names"] },
+        { "required": ["typeDefaultName"] },
         { "required": ["typeNamespaceName"] },
         { "required": ["typeNames"] },
         { "required": ["typeSpecifiers"] }
@@ -101,6 +102,7 @@
         },
         "defaultName": { "$ref": "#/$defs/identifier" },
         "namespaceName": { "$ref": "#/$defs/identifier" },
+        "typeDefaultName": { "$ref": "#/$defs/identifier" },
         "typeNamespaceName": { "$ref": "#/$defs/identifier" },
         "names": {
           "type": "array",

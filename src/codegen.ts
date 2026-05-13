@@ -13,6 +13,7 @@ export interface GeneratedImportSpec {
   defaultName?: string;
   namespaceName?: string;
   names?: readonly string[];
+  typeDefaultName?: string;
   typeNamespaceName?: string;
   typeNames?: readonly string[];
   typeSpecifiers?: readonly GeneratedNamedImportSpec[];
@@ -356,6 +357,7 @@ function assertImportSpecs(value: unknown): readonly GeneratedImportSpec[] {
       "defaultName",
       "namespaceName",
       "names",
+      "typeDefaultName",
       "typeNamespaceName",
       "typeNames",
       "typeSpecifiers",
@@ -363,6 +365,7 @@ function assertImportSpecs(value: unknown): readonly GeneratedImportSpec[] {
     assertNonEmptyString(spec.from, "import from");
     if (spec.defaultName !== undefined) assertIdentifier(spec.defaultName, "import defaultName");
     if (spec.namespaceName !== undefined) assertIdentifier(spec.namespaceName, "import namespaceName");
+    if (spec.typeDefaultName !== undefined) assertIdentifier(spec.typeDefaultName, "import typeDefaultName");
     if (spec.typeNamespaceName !== undefined) assertIdentifier(spec.typeNamespaceName, "import typeNamespaceName");
     assertOptionalIdentifierArray(spec.names, "import names");
     assertOptionalIdentifierArray(spec.typeNames, "import typeNames");
@@ -375,6 +378,7 @@ function assertImportSpecs(value: unknown): readonly GeneratedImportSpec[] {
       !spec.defaultName
       && !spec.namespaceName
       && !spec.names?.length
+      && !spec.typeDefaultName
       && !spec.typeNamespaceName
       && !spec.typeNames?.length
       && !spec.typeSpecifiers?.length
@@ -433,6 +437,12 @@ function assertUniqueImportLocals(spec: GeneratedImportSpec): void {
     }
     seen.add(spec.typeNamespaceName);
   }
+  if (spec.typeDefaultName) {
+    if (seen.has(spec.typeDefaultName)) {
+      throw new RangeError(`Generated import entries must contain unique local names: ${spec.typeDefaultName}`);
+    }
+    seen.add(spec.typeDefaultName);
+  }
   for (const name of spec.names ?? []) {
     if (seen.has(name)) throw new RangeError(`Generated import entries must contain unique local names: ${name}`);
     seen.add(name);
@@ -472,6 +482,9 @@ function renderGeneratedImport(spec: GeneratedImportSpec): string {
   const lines: string[] = [];
   if (valueParts.length) {
     lines.push(`import ${valueParts.join(", ")} from ${from};`);
+  }
+  if (spec.typeDefaultName) {
+    lines.push(`import type ${spec.typeDefaultName} from ${from};`);
   }
   if (spec.typeNamespaceName) {
     lines.push(`import type * as ${spec.typeNamespaceName} from ${from};`);

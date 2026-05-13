@@ -96,6 +96,7 @@ function scanImports(source, sourcePath = "source.ts") {
   const sourceFile = ts.createSourceFile(sourcePath, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
   assertNoParseDiagnostics(sourceFile, sourcePath);
   const imports = new Map();
+  scanDefaultImports(sourceFile, imports);
   scanNamespaceImports(sourceFile, imports);
 
   for (const statement of sourceFile.statements) {
@@ -117,6 +118,19 @@ function scanImports(source, sourcePath = "source.ts") {
   }
 
   return imports;
+}
+
+function scanDefaultImports(sourceFile, imports) {
+  for (const statement of sourceFile.statements) {
+    if (!ts.isImportDeclaration(statement)) continue;
+    if (!ts.isStringLiteral(statement.moduleSpecifier)) continue;
+    const name = statement.importClause?.name?.text;
+    if (!name) continue;
+    imports.set(name, {
+      from: statement.moduleSpecifier.text,
+      typeDefaultName: name,
+    });
+  }
 }
 
 function scanNamespaceImports(sourceFile, imports) {
@@ -257,7 +271,9 @@ function collectUsedTypeImports(sourceImports, functions, target) {
   for (const name of collectUsedTypeNames(functions)) {
     const imported = sourceImports.get(name);
     if (imported) {
-      if (imported.typeNamespaceName) {
+      if (imported.typeDefaultName) {
+        addTypeImport(target, imported.from, { typeDefaultName: imported.typeDefaultName });
+      } else if (imported.typeNamespaceName) {
         addTypeImport(target, imported.from, { typeNamespaceName: imported.typeNamespaceName });
       } else {
         addTypeImport(target, imported.from, imported.alias ? { name: imported.name, alias: imported.alias } : imported.name);
@@ -288,9 +304,19 @@ function collectTypeNames(type, names) {
 }
 
 function addTypeImport(target, from, name) {
-  const bucket = target.get(from) ?? { typeNames: new Set(), typeSpecifiers: new Map(), typeNamespaceName: undefined };
+  const bucket = target.get(from) ?? {
+    typeNames: new Set(),
+    typeSpecifiers: new Map(),
+    typeDefaultName: undefined,
+    typeNamespaceName: undefined,
+  };
   if (typeof name === "string") {
     bucket.typeNames.add(name);
+  } else if (name.typeDefaultName) {
+    if (bucket.typeDefaultName && bucket.typeDefaultName !== name.typeDefaultName) {
+      throw new Error(`Cannot merge multiple default type imports from ${from}.`);
+    }
+    bucket.typeDefaultName = name.typeDefaultName;
   } else if (name.typeNamespaceName) {
     if (bucket.typeNamespaceName && bucket.typeNamespaceName !== name.typeNamespaceName) {
       throw new Error(`Cannot merge multiple namespace type imports from ${from}.`);
@@ -305,6 +331,7 @@ function addTypeImport(target, from, name) {
 function renderTypeImports(imports) {
   return Array.from(imports, ([from, bucket]) => ({
     from,
+    ...(bucket.typeDefaultName ? { typeDefaultName: bucket.typeDefaultName } : {}),
     ...(bucket.typeNamespaceName ? { typeNamespaceName: bucket.typeNamespaceName } : {}),
     ...(bucket.typeNames.size > 0 ? { typeNames: Array.from(bucket.typeNames) } : {}),
     ...(bucket.typeSpecifiers.size > 0 ? { typeSpecifiers: Array.from(bucket.typeSpecifiers.values()) } : {}),

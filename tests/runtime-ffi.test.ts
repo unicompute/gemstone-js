@@ -3,8 +3,36 @@ import {
   smallintToOop,
   type Oop,
 } from "../src/index.ts";
+import {
+  cString,
+  oopArray,
+  oopFrom,
+  outOop,
+  readCString,
+  validateFetchCount,
+  validateFetchStart,
+} from "../src/runtime/ffi-buffers.ts";
 
 const registeredTests: Array<() => Promise<void>> = [];
+
+test("shared FFI buffer helpers encode C strings and OOP buffers", () => {
+  const encoded = cString("hello");
+  assertEqual(encoded[encoded.length - 1], 0);
+  assertEqual(readCString(encoded), "hello");
+  assertEqual(readCString(new Uint8Array([65, 0, 66])), "A");
+
+  const args = oopArray([smallintToOop(-1), oop("18446744073709551615")]);
+  assertEqual(args[0], 18446744073709551610n);
+  assertEqual(args[1], 18446744073709551615n);
+  assertEqual(outOop().length, 1);
+  assertEqual(oopFrom("20"), oop(20));
+
+  assertEqual(validateFetchStart(1), 1);
+  assertEqual(validateFetchCount(0), 0);
+  assertThrows(() => validateFetchStart(0), RangeError);
+  assertThrows(() => validateFetchCount(-1), RangeError);
+  assertThrows(() => oopFrom({}), TypeError);
+});
 
 test("Deno runtime marshals pointer-buffer GCI calls", async () => {
   const globals = globalThis as {
@@ -114,7 +142,7 @@ function fakeSymbols(): Record<string, (...args: unknown[]) => unknown> {
     GciInit: () => 1,
     GciPerform(receiver, selector, args, count) {
       assertEqual(receiver, oop(100));
-      assertEqual(readCString(selector), "at:put:");
+      assertEqual(readFakeCString(selector), "at:put:");
       const argBuffer = expectBigUint64Array(args, "perform args");
       assertEqual(count, 2);
       assertEqual(argBuffer[0], smallintToOop(1));
@@ -137,13 +165,13 @@ function fakeSymbols(): Record<string, (...args: unknown[]) => unknown> {
     },
     GciSymDictAt(dict, key, valueOut, assocOut) {
       assertEqual(dict, oop(400));
-      assertEqual(readCString(key), "UserGlobals");
+      assertEqual(readFakeCString(key), "UserGlobals");
       expectBigUint64Array(valueOut, "symDictAt value out buffer")[0] = 700n;
       expectBigUint64Array(assocOut, "symDictAt assoc out buffer")[0] = 701n;
     },
     GciStrKeyValueDictAt(dict, key, valueOut) {
       assertEqual(dict, oop(500));
-      assertEqual(readCString(key), "name");
+      assertEqual(readFakeCString(key), "name");
       expectBigUint64Array(valueOut, "strKeyValueDictAt out buffer")[0] = 800n;
     },
   };
@@ -161,12 +189,8 @@ function fakeBunTypes(): Record<string, string> {
   };
 }
 
-function readCString(value: unknown): string {
-  if (!(value instanceof Uint8Array)) {
-    throw new Error("expected C string buffer");
-  }
-  const end = value.indexOf(0);
-  return new TextDecoder().decode(end === -1 ? value : value.subarray(0, end));
+function readFakeCString(value: unknown): string {
+  return readCString(expectUint8Array(value, "C string buffer"));
 }
 
 function expectBigUint64Array(value: unknown, label: string): BigUint64Array {
@@ -211,6 +235,16 @@ function assertEqual<T>(actual: T, expected: T): void {
   if (actual !== expected) {
     throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
   }
+}
+
+function assertThrows(fn: () => unknown, expected: new (...args: never[]) => Error): void {
+  try {
+    fn();
+  } catch (error) {
+    if (error instanceof expected) return;
+    throw new Error(`expected ${expected.name}, got ${error instanceof Error ? error.name : String(error)}`);
+  }
+  throw new Error(`expected ${expected.name}, got no rejection`);
 }
 
 async function assertRejects(fn: () => Promise<unknown>, expected: new (...args: never[]) => Error): Promise<void> {

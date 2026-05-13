@@ -22,7 +22,8 @@ native package; the TypeScript package can be tested locally with a mock runtime
 - Runtime library discovery follows `libPath`, `GS_LIB_PATH`, `GS_LIB`, then
   `GEMSTONE/lib` for the Deno and Bun FFI adapters.
 - Deno and Bun FFI adapters now marshal pointer-buffer calls for `perform()`,
-  `fetchBytes()`, float conversion, and dictionary lookups.
+  `fetchBytes()`, float conversion, and dictionary lookups through shared typed
+  array helpers.
 - OOP helpers ported from `gemstone-rs/crates/gemstone-gci`.
 - Low-level allocation/fetch helpers: `newOop()`, `fetchClass()`,
   `fetchSize()`, and `fetchBytes()`.

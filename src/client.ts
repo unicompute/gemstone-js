@@ -31,6 +31,7 @@ import {
 } from "./types.ts";
 
 export type MarshalledArray = MarshalledValue[];
+export type MarshalledDictionary = Record<string, MarshalledValue>;
 export type MarshalledValue = bigint | number | boolean | string | null | Oop | MarshalledArray;
 export interface ArrayReadbackOptions {
   maxDepth?: number;
@@ -280,6 +281,14 @@ export class Session implements AsyncDisposable {
       }
       return dict;
     });
+  }
+
+  async dictionaryOopToObject(dict: Oop): Promise<MarshalledDictionary> {
+    return this.dict(dict).entries();
+  }
+
+  async dictionaryValues(value: TypedOop<unknown> | ManagedOop<unknown> | Oop): Promise<MarshalledDictionary> {
+    return this.dictionaryOopToObject(typeof value === "bigint" ? value : value.oop);
   }
 
   async dictionary(value: GemStoneDictionaryArgument = {}): Promise<GsDict> {

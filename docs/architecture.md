@@ -23,6 +23,9 @@ The first implementation slice follows `../plan.js.txt`:
 - `Session.arrayOopToValues()` recursively reads GemStone `Array` instances
   through `size` and `at:` with cycle detection plus optional per-array,
   total-item, and depth limits for callers that need bounded readback.
+- `Session.dictionaryOopToObject()` and `dictionaryValues()` read GemStone
+  `StringKeyValueDictionary` instances through the `GsDict` key-enumeration
+  path, preserving the existing string-key and value-marshalling behavior.
 - `Session.argumentToOop()` handles the common JS-to-GemStone path. Use
   `perform()` for raw OOP arguments; use `performWith()` when you want JS values
   converted into GemStone objects.

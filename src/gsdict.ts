@@ -193,6 +193,10 @@ export class GsDict implements AsyncDisposable {
     return this.pickOop(await this.keys());
   }
 
+  async toObject(): Promise<Record<string, MarshalledValue>> {
+    return this.entries();
+  }
+
   async values(): Promise<MarshalledValue[]> {
     return (await this.items()).map(([, value]) => value);
   }

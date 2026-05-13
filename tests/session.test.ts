@@ -666,10 +666,18 @@ test("Session exposes low-level allocation and fetch helpers", async () => {
 });
 
 test("dictionaryToOop stores and retrieves string-key values", async () => {
-  const runtime = new MockGciRuntime();
+  let runtime: MockGciRuntime;
+  let dict = OOP_NIL;
+  runtime = new MockGciRuntime({
+    execute(source) {
+      assert(source.includes(`Object _objectForOop: ${dict.toString()}.`), "dictionary readback should render the dictionary OOP");
+      assert(source.includes("keysAndValuesDo:"), "dictionary readback should ask GemStone for dictionary keys");
+      return runtime.newString("name\nretries\nenabled\n");
+    },
+  });
   const session = await Session.connect({ username: "u", password: "p", runtime });
 
-  const dict = await session.dictionaryToOop({
+  dict = await session.dictionaryToOop({
     name: "Alice",
     retries: 3,
     enabled: true,
@@ -678,6 +686,13 @@ test("dictionaryToOop stores and retrieves string-key values", async () => {
   assertEqual(await session.strDictGet(dict, "name"), "Alice");
   assertEqual(await session.strDictGet(dict, "retries"), 3n);
   assertEqual(await session.strDictGet(dict, "enabled"), true);
+  const readback = await session.dictionaryOopToObject(dict);
+  assertEqual(readback.name, "Alice");
+  assertEqual(readback.retries, 3n);
+  assertEqual(readback.enabled, true);
+  const wrapped = session.typedOop(dict);
+  assertEqual((await session.dictionaryValues(wrapped)).name, "Alice");
+  await wrapped.release();
   assert(runtime.calls.some((call) => call.method === "strKeyValueDictAtPut"), "dictionaryToOop should write string-key entries");
 
   await session.logout();
@@ -768,6 +783,9 @@ test("GsDict keys and entries list dictionary contents", async () => {
   const rawEntries = await dict.entriesOop();
   assertEqual(await session.marshalOop(rawEntries.name ?? OOP_NIL), "Ada");
   assertEqual(await session.marshalOop(rawEntries.city ?? OOP_NIL), "London");
+  const object = await dict.toObject();
+  assertEqual(object.name, "Ada");
+  assertEqual(object.city, "London");
   const values = await dict.values();
   assertEqual(values.join(","), "Ada,London");
   const rawValues = await dict.valuesOop();
@@ -783,7 +801,7 @@ test("GsDict keys and entries list dictionary contents", async () => {
   assertEqual(await session.marshalOop(rawItems[0][1]), "Ada");
   assertEqual(rawItems[1][0], "city");
   assertEqual(await session.marshalOop(rawItems[1][1]), "London");
-  assertEqual(keyListCalls, 7);
+  assertEqual(keyListCalls, 8);
 
   await session.logout();
 });

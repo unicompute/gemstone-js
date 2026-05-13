@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -18,11 +18,17 @@ try {
 
 const files = pack.files.map((file) => file.path);
 const fileSet = new Set(files);
+const packageJson = JSON.parse(readFileSync("package.json", "utf8"));
+
+if (packageJson.publishConfig?.provenance !== true) {
+  throw new Error("package.json publishConfig.provenance must be true.");
+}
 
 const required = [
   "LICENSE",
   "README.md",
   "docs/architecture.md",
+  "docs/releasing.md",
   "examples/codegen.manifest.json",
   "examples/quickstart.ts",
   "package.json",

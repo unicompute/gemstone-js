@@ -43,7 +43,7 @@ test("codegen scanner emits manifests from decorated classes", async () => {
     const sourcePath = join(dir, "booking.ts");
     await writeFile(sourcePath, [
       "import { GemStoneClass, GemStoneSelector, type Session, type TypedOop } from \"gemstone-js\";",
-      "interface Booking {}",
+      "import type { Booking } from \"./booking-types.ts\";",
       "@GemStoneClass(\"Booking\")",
       "class BookingModel {",
       "  currentStatus(session: Session): Promise<string> {}",
@@ -56,6 +56,16 @@ test("codegen scanner emits manifests from decorated classes", async () => {
     const { stdout } = await execNode([scanScript, sourcePath]);
     const scanned = JSON.parse(stdout);
 
+    assert.deepEqual(scanned.imports, [
+      {
+        from: "gemstone-js",
+        typeNames: ["Session", "TypedOop"],
+      },
+      {
+        from: "./booking-types.ts",
+        typeNames: ["Booking"],
+      },
+    ]);
     assert.equal(scanned.functions.length, 2);
     assert.deepEqual(scanned.functions[0], {
       exportedName: "currentStatus",

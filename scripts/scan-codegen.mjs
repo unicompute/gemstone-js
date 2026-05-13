@@ -16,13 +16,17 @@ if (sourcePaths.length === 0) {
 }
 
 const functions = [];
+const imports = new Map();
 for (const sourcePath of sourcePaths) {
   const source = await readFile(sourcePath, "utf8");
-  functions.push(...scanSource(source, sourcePath));
+  const sourceFunctions = scanSource(source, sourcePath);
+  functions.push(...sourceFunctions);
+  collectUsedTypeImports(scanImports(source), sourceFunctions, imports);
 }
 
 const manifest = {
   $schema: "./schemas/codegen-manifest.schema.json",
+  ...(imports.size > 0 ? { imports: renderTypeImports(imports) } : {}),
   functions,
 };
 validateGeneratedModuleOptions(manifest);
@@ -55,6 +59,81 @@ function scanSource(source, sourcePath) {
     index = body.endLine;
   }
   return functions;
+}
+
+function scanImports(source) {
+  const imports = new Map();
+  const importPattern = /import\s+(type\s+)?([\s\S]*?)\s+from\s*(['"])(.*?)\3\s*;?/g;
+  for (const match of source.matchAll(importPattern)) {
+    const clause = match[2].trim();
+    const from = match[4];
+    const namedMatch = clause.match(/\{([\s\S]*?)\}/);
+    if (!namedMatch) continue;
+    for (const specifier of namedMatch[1].split(",")) {
+      const parsed = parseImportSpecifier(specifier);
+      if (!parsed) continue;
+      if (parsed.importedName !== parsed.localName) continue;
+      imports.set(parsed.localName, { from, name: parsed.importedName });
+    }
+  }
+  return imports;
+}
+
+function parseImportSpecifier(specifier) {
+  let text = stripLineComment(specifier).trim();
+  if (!text) return undefined;
+  if (text.startsWith("type ")) {
+    text = text.slice("type ".length).trim();
+  }
+  const aliasMatch = text.match(/^([A-Za-z_$][A-Za-z0-9_$]*)\s+as\s+([A-Za-z_$][A-Za-z0-9_$]*)$/);
+  if (aliasMatch) {
+    return { importedName: aliasMatch[1], localName: aliasMatch[2] };
+  }
+  if (!/^[A-Za-z_$][A-Za-z0-9_$]*$/.test(text)) return undefined;
+  return { importedName: text, localName: text };
+}
+
+function collectUsedTypeImports(sourceImports, functions, target) {
+  for (const name of collectUsedTypeNames(functions)) {
+    const imported = sourceImports.get(name);
+    if (imported) {
+      addTypeImport(target, imported.from, imported.name);
+    }
+  }
+}
+
+function collectUsedTypeNames(functions) {
+  const names = new Set();
+  for (const fn of functions) {
+    collectTypeNames(fn.sessionType, names);
+    collectTypeNames(fn.returnType, names);
+    if (Array.isArray(fn.argTypes)) {
+      for (const type of fn.argTypes) collectTypeNames(type, names);
+    } else if (fn.argTypes && typeof fn.argTypes === "object") {
+      for (const type of Object.values(fn.argTypes)) collectTypeNames(type, names);
+    }
+  }
+  return names;
+}
+
+function collectTypeNames(type, names) {
+  if (!type) return;
+  for (const match of String(type).matchAll(/\b[A-Za-z_$][A-Za-z0-9_$]*\b/g)) {
+    names.add(match[0]);
+  }
+}
+
+function addTypeImport(target, from, name) {
+  const names = target.get(from) ?? new Set();
+  names.add(name);
+  target.set(from, names);
+}
+
+function renderTypeImports(imports) {
+  return Array.from(imports, ([from, names]) => ({
+    from,
+    typeNames: Array.from(names),
+  }));
 }
 
 function collectClassBody(lines, classLine, sourcePath) {

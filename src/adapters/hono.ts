@@ -12,17 +12,30 @@ export function gemstoneHono(options: HonoGemStoneOptions = {}) {
     c.set?.("gemstoneSession", lease.session);
     try {
       await next();
-      const response = c.res;
-      if (response?.status && response.status >= 400) {
-        await lease.session.abort();
-      } else {
-        await lease.session.commit();
-      }
-      await lease.release({ clean: true });
     } catch (error) {
-      await lease.session.abort().catch(() => {});
-      await lease.release({ clean: true });
+      try {
+        await finalizeLease(lease, false);
+      } catch {
+        // Preserve the application error.
+      }
       throw error;
     }
+
+    const response = c.res;
+    await finalizeLease(lease, !(response?.status && response.status >= 400));
   };
+}
+
+async function finalizeLease(lease: any, commit: boolean): Promise<void> {
+  try {
+    if (commit) {
+      await lease.session.commit();
+    } else {
+      await lease.session.abort();
+    }
+    await lease.release({ clean: true });
+  } catch (error) {
+    await lease.release({ discard: true });
+    throw error;
+  }
 }

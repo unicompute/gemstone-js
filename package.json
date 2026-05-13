@@ -22,6 +22,22 @@
     "./testing": {
       "types": "./src/testing/mock-runtime.ts",
       "import": "./src/testing/mock-runtime.ts"
+    },
+    "./adapters": {
+      "types": "./src/adapters/index.ts",
+      "import": "./src/adapters/index.ts"
+    },
+    "./adapters/express": {
+      "types": "./src/adapters/express.ts",
+      "import": "./src/adapters/express.ts"
+    },
+    "./adapters/fastify": {
+      "types": "./src/adapters/fastify.ts",
+      "import": "./src/adapters/fastify.ts"
+    },
+    "./adapters/hono": {
+      "types": "./src/adapters/hono.ts",
+      "import": "./src/adapters/hono.ts"
     }
   },
   "files": [

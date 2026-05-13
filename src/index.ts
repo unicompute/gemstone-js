@@ -43,6 +43,9 @@ export { PersistentRoot } from "./persistent-root.ts";
 export { GsDict } from "./gsdict.ts";
 export { GSCollection, type ComparisonOp } from "./query.ts";
 export { PooledSession, SessionPool, type PoolConfig } from "./pool.ts";
+export { gemstoneExpress, type ExpressGemStoneOptions } from "./adapters/express.ts";
+export { gemstoneFastify, type FastifyGemStoneOptions } from "./adapters/fastify.ts";
+export { gemstoneHono, type HonoGemStoneOptions } from "./adapters/hono.ts";
 export {
   NULL_METRICS,
   NULL_SPAN,

@@ -30,15 +30,16 @@ native package; the TypeScript package can be tested locally with a mock runtime
   `getDict()`, `setDict()`) built on the session marshalling layer.
 - Session pool release is reset-aware: dirty sessions are aborted before reuse,
   failed resets are discarded, waiters are served with replacement sessions, and
-  close rejects pending acquires.
+  close rejects pending acquires. Explicit validation queries run without
+  needing a separate interval option.
 - Result marshalling now converts GemStone `String` and `Symbol` objects back
   into JavaScript strings via `fetchString()` and class detection. Float OOPs are
   converted when the runtime reports that `GciOopToFlt_` succeeded.
 - `GSCollection.search()` unwraps result arrays into typed handles, and
   `GSCollection.iter()` fetches collection chunks while yielding individual
   objects.
-- Pool, observability hooks, persistent-root, query, codegen, and framework
-  adapter scaffolds.
+- Pool, observability hooks, persistent-root, query, codegen, and Express,
+  Fastify, and Hono adapter scaffolds.
 
 ## Local Smoke Test
 

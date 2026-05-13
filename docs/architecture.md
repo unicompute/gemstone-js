@@ -22,6 +22,8 @@ The first implementation slice follows `../plan.js.txt`:
   primitives. They should stay thin: the session owns marshalling and GCI calls.
 - Query helpers render simple selector paths and unwrap GemStone arrays through
   `size`/`at:` so iterators yield object handles instead of chunk containers.
+- Framework adapters treat failed commit/abort cleanup as a broken session and
+  discard the lease instead of returning it to the pool.
 - `src/runtime/serialized.ts` serializes all session-bound calls and reactivates
   the session id before dispatching into GCI. This is the current safety layer
   before a dedicated native session thread lands.

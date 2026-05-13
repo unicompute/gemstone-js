@@ -62,10 +62,21 @@ export class SessionPool implements AsyncDisposable {
   constructor(config: PoolConfig = {}) {
     const minSize = config.minSize ?? 0;
     const maxSize = config.maxSize ?? 4;
-    if (maxSize < 1) throw new RangeError("SessionPool maxSize must be at least 1.");
-    if (minSize < 0) throw new RangeError("SessionPool minSize must be at least 0.");
+    if (!Number.isSafeInteger(maxSize) || maxSize < 1) throw new RangeError("SessionPool maxSize must be a positive safe integer.");
+    if (!Number.isSafeInteger(minSize) || minSize < 0) throw new RangeError("SessionPool minSize must be a non-negative safe integer.");
     if (minSize > maxSize) throw new RangeError("SessionPool minSize cannot exceed maxSize.");
-    this.config = { ...config, minSize, maxSize };
+    if (config.idleTimeoutMs !== undefined && (!Number.isFinite(config.idleTimeoutMs) || config.idleTimeoutMs < 0)) {
+      throw new RangeError("SessionPool idleTimeoutMs must be a non-negative finite number.");
+    }
+    if (config.acquireTimeoutMs !== undefined && (!Number.isFinite(config.acquireTimeoutMs) || config.acquireTimeoutMs < 0)) {
+      throw new RangeError("SessionPool acquireTimeoutMs must be a non-negative finite number.");
+    }
+    if (config.validationIntervalMs !== undefined && (!Number.isFinite(config.validationIntervalMs) || config.validationIntervalMs < 0)) {
+      throw new RangeError("SessionPool validationIntervalMs must be a non-negative finite number.");
+    }
+    const validationIntervalMs = config.validationIntervalMs ?? (config.validationQuery === undefined ? undefined : 0);
+    const validationQuery = config.validationQuery ?? (validationIntervalMs === undefined ? undefined : "1 + 1");
+    this.config = { ...config, minSize, maxSize, validationIntervalMs, validationQuery };
   }
 
   async warm(count = this.config.minSize): Promise<number> {
@@ -222,7 +233,7 @@ export class SessionPool implements AsyncDisposable {
   }
 
   async #validateIfNeeded(idle: IdleSession): Promise<boolean> {
-    const query = this.config.validationQuery ?? (this.config.validationIntervalMs === undefined ? undefined : "1 + 1");
+    const query = this.config.validationQuery;
     if (!query || this.config.validationIntervalMs === undefined) return true;
     if (Date.now() - idle.validatedAt < this.config.validationIntervalMs) return true;
     try {

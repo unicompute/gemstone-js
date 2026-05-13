@@ -16,24 +16,39 @@ export async function gemstoneFastify(fastify: any, options: FastifyGemStoneOpti
   });
 
   fastify.addHook("onResponse", async (request: any, reply: any) => {
-    const lease = request.gemstoneLease;
-    if (!lease) return;
-    if (reply.statusCode >= 400) {
-      await lease.session.abort();
-    } else {
-      await lease.session.commit();
-    }
-    await lease.release({ clean: true });
+    await finalizeRequestLease(request, reply.statusCode < 400);
   });
 
   fastify.addHook("onError", async (request: any) => {
-    const lease = request.gemstoneLease;
-    if (!lease) return;
-    await lease.session.abort().catch(() => {});
-    await lease.release({ clean: true });
+    try {
+      await finalizeRequestLease(request, false);
+    } catch {
+      // Preserve the application error Fastify is already handling.
+    }
   });
 
   fastify.addHook("onClose", async () => {
     await pool.close();
   });
+}
+
+async function finalizeRequestLease(request: any, commit: boolean): Promise<void> {
+  const lease = request.gemstoneLease;
+  if (!lease) return;
+  request.gemstoneLease = undefined;
+  await finalizeLease(lease, commit);
+}
+
+async function finalizeLease(lease: any, commit: boolean): Promise<void> {
+  try {
+    if (commit) {
+      await lease.session.commit();
+    } else {
+      await lease.session.abort();
+    }
+    await lease.release({ clean: true });
+  } catch (error) {
+    await lease.release({ discard: true });
+    throw error;
+  }
 }

@@ -106,6 +106,36 @@ test("SessionPool discards sessions that fail reset", async () => {
   }
 });
 
+test("SessionPool validates explicit validationQuery without requiring an interval", async () => {
+  const runtime = new MockGciRuntime();
+  setGciRuntimeForTesting(runtime);
+  try {
+    const pool = new SessionPool({
+      username: "u",
+      password: "p",
+      maxSize: 1,
+      validationQuery: "System stoneName",
+    });
+    const lease = await pool.acquire();
+
+    await lease.release({ clean: true });
+
+    assert(runtime.calls.some((call) => call.method === "executeStr" && call.args[0] === "System stoneName"), "explicit validationQuery should run");
+    await pool.close();
+  } finally {
+    setGciRuntimeForTesting(undefined);
+  }
+});
+
+test("SessionPool validates numeric configuration", () => {
+  assertThrows(() => new SessionPool({ maxSize: 0 }));
+  assertThrows(() => new SessionPool({ minSize: -1 }));
+  assertThrows(() => new SessionPool({ minSize: 2, maxSize: 1 }));
+  assertThrows(() => new SessionPool({ idleTimeoutMs: -1 }));
+  assertThrows(() => new SessionPool({ acquireTimeoutMs: Number.POSITIVE_INFINITY }));
+  assertThrows(() => new SessionPool({ validationIntervalMs: -1 }));
+});
+
 test("default Session.connect asks the runtime factory for each session", async () => {
   const runtimes: MockGciRuntime[] = [];
   setGciRuntimeFactoryForTesting(() => {
@@ -371,6 +401,15 @@ function assertEqual<T>(actual: T, expected: T): void {
   if (actual !== expected) {
     throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
   }
+}
+
+function assertThrows(fn: () => unknown): void {
+  try {
+    fn();
+  } catch {
+    return;
+  }
+  throw new Error("expected function to throw");
 }
 
 async function assertRejects(fn: () => Promise<unknown>, expected: new (...args: never[]) => Error): Promise<void> {

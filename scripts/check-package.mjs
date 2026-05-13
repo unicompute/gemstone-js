@@ -29,6 +29,10 @@ const required = [
   "src/client.ts",
   "src/runtime/node.ts",
   "src/testing/mock-runtime.ts",
+  "src/adapters/index.ts",
+  "src/adapters/express.ts",
+  "src/adapters/fastify.ts",
+  "src/adapters/hono.ts",
   "src/native-module.d.ts",
 ];
 

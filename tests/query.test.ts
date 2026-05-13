@@ -85,9 +85,11 @@ test("GSCollection all and page helpers unwrap collection arrays", async () => {
   const runtime = new MockGciRuntime({
     execute(source) {
       executeSources.push(source);
+      if (source.includes("collection at: 2")) return second;
       if (source.includes("collection first")) return first;
       if (source.includes("collection last")) return third;
-      return arraysBySource.get(source) ?? arraysBySource.get("page") ?? OOP_NIL;
+      if (source.includes("collection copyFrom: 2 to: (3 min: collection size)")) return pageArray;
+      return arraysBySource.get(source) ?? OOP_NIL;
     },
     perform(receiver, selector, args) {
       return performArray(arrays, receiver, selector, args);
@@ -96,7 +98,6 @@ test("GSCollection all and page helpers unwrap collection arrays", async () => {
   arrays.set(allArray, [first, second, third]);
   arrays.set(pageArray, [second, third]);
   arraysBySource.set("Bookings asArray", allArray);
-  arraysBySource.set("page", pageArray);
 
   const session = await Session.connect({ username: "u", password: "p", runtime });
   const collection = new GSCollection<{ name: string }>(session, "Bookings");
@@ -118,6 +119,14 @@ test("GSCollection all and page helpers unwrap collection arrays", async () => {
   assertEqual(pageRaw.join(","), [second, third].join(","));
   assertEqual((await collection.pageOop(1, 0)).length, 0);
 
+  const secondItem = await collection.at(2);
+  if (!secondItem) throw new Error("at should return a typed handle for an existing index");
+  assertEqual(secondItem.oop, second);
+  await secondItem.release();
+
+  assertEqual(await collection.itemAtOop(2), second);
+  assertEqual(await collection.atOop(9), null);
+
   const firstItem = await collection.firstItem();
   if (!firstItem) throw new Error("firstItem should return the first collection handle");
   assertEqual(firstItem.oop, first);
@@ -136,9 +145,10 @@ test("GSCollection all and page helpers unwrap collection arrays", async () => {
   assertEqual(executeSources[1], "Bookings asArray");
   assert(executeSources[2].includes("collection copyFrom: 2 to: (3 min: collection size)"), "page should render bounded copy");
   assert(executeSources[3].includes("collection copyFrom: 2 to: (3 min: collection size)"), "pageOop should reuse bounded copy");
-  assert(executeSources[4].includes("collection first"), "firstItem should render a first lookup");
-  assert(executeSources[6].includes("collection last"), "lastItem should render a last lookup");
-  assertEqual(executeSources.length, 8);
+  assert(executeSources[4].includes("collection at: 2"), "at should render a bounded indexed lookup");
+  assert(executeSources[7].includes("collection first"), "firstItem should render a first lookup");
+  assert(executeSources[9].includes("collection last"), "lastItem should render a last lookup");
+  assertEqual(executeSources.length, 11);
   await session.logout();
 });
 
@@ -392,6 +402,7 @@ test("GSCollection rejects unsafe query inputs before rendering Smalltalk", asyn
   await assertRejects(() => collection.limit("customer.name", "=", "Ada", -1), RangeError);
   await assertRejects(() => collection.page(0, 1), RangeError);
   await assertRejects(() => collection.page(1, -1), RangeError);
+  await assertRejects(() => collection.at(0), RangeError);
   await assertRejects(async () => {
     for await (const _item of collection.iter(0)) {
       throw new Error("iterator should not yield");

@@ -173,6 +173,23 @@ export class GSCollection<T = unknown> {
     return result === OOP_NIL ? [] : this.#arrayOops(result);
   }
 
+  async at(index: number): Promise<TypedOop<T> | null> {
+    const result = await this.atOop(index);
+    return result === null ? null : this.session.typedOop<T>(result);
+  }
+
+  async atOop(index: number): Promise<Oop | null> {
+    return this.#atOop(index);
+  }
+
+  async itemAt(index: number): Promise<TypedOop<T> | null> {
+    return this.at(index);
+  }
+
+  async itemAtOop(index: number): Promise<Oop | null> {
+    return this.atOop(index);
+  }
+
   async firstItem(): Promise<TypedOop<T> | null> {
     const result = await this.firstItemOop();
     return result === null ? null : this.session.typedOop<T>(result);
@@ -289,6 +306,19 @@ export class GSCollection<T = unknown> {
         ifFalse: [collection copyFrom: ${start} to: (${end} min: collection size)]
     `;
     return this.session.execute(source);
+  }
+
+  async #atOop(index: number): Promise<Oop | null> {
+    index = normalizeItemIndex(index);
+    const source = `
+      | collection |
+      collection := ${this.name} asArray.
+      ${index} > collection size
+        ifTrue: [nil]
+        ifFalse: [collection at: ${index}]
+    `;
+    const result = await this.session.execute(source);
+    return result === OOP_NIL ? null : result;
   }
 
   async #edgeItemOop(selector: "first" | "last"): Promise<Oop | null> {
@@ -446,6 +476,13 @@ function normalizePageStart(value: number): number {
 function normalizePageCount(value: number): number {
   if (!Number.isSafeInteger(value) || value < 0) {
     throw new RangeError("GSCollection page count must be a non-negative safe integer.");
+  }
+  return value;
+}
+
+function normalizeItemIndex(value: number): number {
+  if (!Number.isSafeInteger(value) || value < 1) {
+    throw new RangeError("GSCollection item index must be a positive safe integer.");
   }
   return value;
 }

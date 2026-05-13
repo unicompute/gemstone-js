@@ -12,6 +12,12 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
   const objectClass = session.classRef("Object");
   const objectClassOop = await objectClass.oop();
   assert.equal(await objectClass.sendOop("yourself"), objectClassOop);
+  const executedObject = await session.executeObject("Object new");
+  assert.equal(executedObject.session, session);
+  await executedObject.release();
+  const executedManaged = await session.executeManaged("Object new");
+  assert.equal(executedManaged.session, session);
+  await executedManaged.release();
   assert.equal(await session.performValueWith(smallintToOop(7), "yourself"), 7n);
 
   const stringOop = await session.newString("gemstone-js live");
@@ -37,6 +43,15 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
   assert.notEqual(liveArrayFirst, null);
   await liveArrayFirst?.release();
   assert.equal(await session.arrayLastValue(array), true);
+  const liveArrayPageValues = await session.arrayPageValue(array, 1, 2);
+  assert.equal(liveArrayPageValues[0], "gemstone-js live");
+  assert.equal(liveArrayPageValues[1], nestedArray.oop);
+  assert.equal((await session.arrayPageOop(array, 2, 10))[0], nestedArray.oop);
+  const liveArrayPageObjects = await session.arrayPageObjects(array, 1, 2);
+  assert.equal(liveArrayPageObjects.length, 2);
+  await Promise.all(liveArrayPageObjects.map((item) => item.release()));
+  assert.deepEqual(await session.arrayTakeValue(array, 1), ["gemstone-js live"]);
+  assert.equal((await session.arrayTakeOop(array, 2))[1], nestedArray.oop);
   assert.equal((await session.arrayPickValue(array, [1]))[1], "gemstone-js live");
   assert.equal((await session.arrayPickOop(array, [2]))[2], nestedArray.oop);
   await session.arrayAtPut(array, 3, false);

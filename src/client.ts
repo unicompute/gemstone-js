@@ -139,6 +139,22 @@ export class Session implements AsyncDisposable {
     return this.marshalOop(result);
   }
 
+  async executeObject<T = unknown>(source: string): Promise<TypedOop<T>> {
+    return this.typedOop<T>(await this.execute(source));
+  }
+
+  async evalObject<T = unknown>(source: string): Promise<TypedOop<T>> {
+    return this.executeObject<T>(source);
+  }
+
+  async executeManaged(source: string): Promise<ManagedOop> {
+    return this.managedOop(await this.execute(source));
+  }
+
+  async evalManaged(source: string): Promise<ManagedOop> {
+    return this.executeManaged(source);
+  }
+
   async perform(receiver: Oop, selector: string, ...args: Oop[]): Promise<Oop> {
     return this.#observe("perform", { selector, argc: args.length }, async () => {
       const result = await this.runtime.perform(receiver, selector, args);
@@ -326,6 +342,89 @@ export class Session implements AsyncDisposable {
   ): Promise<TypedOop<T> | null> {
     const item = await this.arrayLastOop(value);
     return item === null ? null : this.typedOop<T>(item);
+  }
+
+  async arrayPage(
+    value: TypedOop<unknown[]> | ManagedOop<unknown[]> | Oop,
+    start: number,
+    count: number,
+  ): Promise<MarshalledValue[]> {
+    const result: MarshalledValue[] = [];
+    for (const item of await this.arrayPageOop(value, start, count)) {
+      result.push(await this.marshalOop(item));
+    }
+    return result;
+  }
+
+  async arrayPageValue(
+    value: TypedOop<unknown[]> | ManagedOop<unknown[]> | Oop,
+    start: number,
+    count: number,
+  ): Promise<MarshalledValue[]> {
+    return this.arrayPage(value, start, count);
+  }
+
+  async arrayPageOop(
+    value: TypedOop<unknown[]> | ManagedOop<unknown[]> | Oop,
+    start: number,
+    count: number,
+  ): Promise<Oop[]> {
+    const normalizedStart = validateArrayIndex(start);
+    const normalizedCount = validateArrayPageCount(count);
+    if (normalizedCount === 0) return [];
+    const size = await this.arraySize(value);
+    if (normalizedStart > size) return [];
+    const maxEnd = normalizedCount > Number.MAX_SAFE_INTEGER - normalizedStart + 1
+      ? Number.MAX_SAFE_INTEGER
+      : normalizedStart + normalizedCount - 1;
+    const end = Math.min(size, maxEnd);
+    const result: Oop[] = [];
+    for (let index = normalizedStart; index <= end; index += 1) {
+      result.push(await this.arrayAtOop(value, index));
+    }
+    return result;
+  }
+
+  async arrayPageObjects<T = unknown>(
+    value: TypedOop<unknown[]> | ManagedOop<unknown[]> | Oop,
+    start: number,
+    count: number,
+  ): Promise<TypedOop<T>[]> {
+    const result: TypedOop<T>[] = [];
+    try {
+      for (const item of await this.arrayPageOop(value, start, count)) {
+        result.push(this.typedOop<T>(item));
+      }
+      return result;
+    } catch (error) {
+      await releaseNullableHandles(result);
+      throw error;
+    }
+  }
+
+  async arrayTake(
+    value: TypedOop<unknown[]> | ManagedOop<unknown[]> | Oop,
+    count: number,
+  ): Promise<MarshalledValue[]> {
+    return this.arrayPage(value, 1, count);
+  }
+
+  async arrayTakeValue(
+    value: TypedOop<unknown[]> | ManagedOop<unknown[]> | Oop,
+    count: number,
+  ): Promise<MarshalledValue[]> {
+    return this.arrayTake(value, count);
+  }
+
+  async arrayTakeOop(value: TypedOop<unknown[]> | ManagedOop<unknown[]> | Oop, count: number): Promise<Oop[]> {
+    return this.arrayPageOop(value, 1, count);
+  }
+
+  async arrayTakeObjects<T = unknown>(
+    value: TypedOop<unknown[]> | ManagedOop<unknown[]> | Oop,
+    count: number,
+  ): Promise<TypedOop<T>[]> {
+    return this.arrayPageObjects<T>(value, 1, count);
   }
 
   async arrayPick(value: TypedOop<unknown[]> | ManagedOop<unknown[]> | Oop, indexes: readonly number[]): Promise<Record<number, MarshalledValue>> {
@@ -1523,6 +1622,13 @@ function normalizeOptionalLimit(value: number | undefined, field: string, minimu
 function validateArrayIndex(value: number): number {
   if (!Number.isSafeInteger(value) || value < 1) {
     throw new RangeError("GemStone Array index must be a positive safe integer.");
+  }
+  return value;
+}
+
+function validateArrayPageCount(value: number): number {
+  if (!Number.isSafeInteger(value) || value < 0) {
+    throw new RangeError("GemStone Array page count must be a non-negative safe integer.");
   }
   return value;
 }

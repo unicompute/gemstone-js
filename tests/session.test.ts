@@ -26,8 +26,33 @@ test("Session.connect logs in through the runtime and executes source", async ()
 
   assertEqual(session.sessionId, 1);
   assertEqual(await session.execute("1 + 1"), smallintToOop(2));
+  const executedObject = await session.executeObject("Object new");
+  assertEqual(executedObject.session, session);
+  await executedObject.release();
+  const evalObject = await session.evalObject("Object new");
+  assertEqual(evalObject.session, session);
+  await evalObject.release();
+  const executedManaged = await session.executeManaged("Object new");
+  assertEqual(executedManaged.session, session);
+  await executedManaged.release();
+  const evalManaged = await session.evalManaged("Object new");
+  assertEqual(evalManaged.session, session);
+  await evalManaged.release();
+  assert(runtime.calls.some((call) => call.method === "addOopToExportSet"), "object execute helpers should retain returned handles");
   assert(runtime.calls.some((call) => call.method === "setNet"), "connect should call setNet");
   assert(runtime.calls.some((call) => call.method === "loginEx"), "connect should call loginEx");
+
+  await session.logout();
+});
+
+test("PersistentRoot static constructors mirror named GemStone dictionaries", async () => {
+  const runtime = new MockGciRuntime();
+  const session = await Session.connect({ username: "u", password: "p", runtime });
+
+  assertEqual(PersistentRoot.userGlobals(session).rootName, "UserGlobals");
+  assertEqual(PersistentRoot.globals(session).rootName, "Globals");
+  assertEqual(PersistentRoot.published(session).rootName, "Published");
+  assertEqual(PersistentRoot.sessionMethods(session).rootName, "SessionMethods");
 
   await session.logout();
 });
@@ -455,6 +480,28 @@ test("arrayOopToValues converts GemStone Arrays back to JavaScript values", asyn
   const lastObject = await session.arrayLastObject(array);
   assertEqual(lastObject?.oop, nested);
   await lastObject?.release();
+  const pageValues = await session.arrayPageValue(array, 2, 2);
+  assertEqual(pageValues[0], 2n);
+  assertEqual(pageValues[1], null);
+  const pageAliasValues = await session.arrayPage(array, 1, 1);
+  assertEqual(pageAliasValues[0], "Ada");
+  const pageOops = await session.arrayPageOop(array, 3, 10);
+  assertEqual(pageOops.length, 2);
+  assertEqual(pageOops[0], OOP_NIL);
+  assertEqual(pageOops[1], nested);
+  const pageObjects = await session.arrayPageObjects(array, 1, 2);
+  assertEqual(pageObjects.length, 2);
+  assertEqual(pageObjects[0].oop, name);
+  assertEqual(pageObjects[1].oop, smallintToOop(2));
+  await Promise.all(pageObjects.map((item) => item.release()));
+  assertEqual((await session.arrayTakeValue(array, 2))[1], 2n);
+  assertEqual((await session.arrayTake(array, 1))[0], "Ada");
+  assertEqual((await session.arrayTakeOop(array, 2))[0], name);
+  const takenObjects = await session.arrayTakeObjects(array, 1);
+  assertEqual(takenObjects[0].oop, name);
+  await Promise.all(takenObjects.map((item) => item.release()));
+  assertEqual((await session.arrayPageOop(array, 9, 2)).length, 0);
+  assertEqual((await session.arrayPageOop(array, 1, 0)).length, 0);
   const emptyArray = runtime.allocate();
   arrays.set(emptyArray, []);
   assertEqual(await session.arrayFirstValue(emptyArray), null);
@@ -496,6 +543,8 @@ test("arrayOopToValues converts GemStone Arrays back to JavaScript values", asyn
   await objectHandle.release();
   await assertRejects(() => session.arrayAtValue(array, 0), RangeError);
   await assertRejects(() => session.arrayAtPut(array, 1.5, "bad"), RangeError);
+  await assertRejects(() => session.arrayPageOop(array, 0, 1), RangeError);
+  await assertRejects(() => session.arrayPageOop(array, 1, -1), RangeError);
   await assertRejects(() => session.arraySetAll(array, { 0: "bad" }), RangeError);
 
   arrays.set(array, [name, smallintToOop(2), OOP_NIL, nested]);

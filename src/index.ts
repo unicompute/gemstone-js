@@ -7,6 +7,7 @@ export {
   type ArrayOopReadbackOptions,
   type ArrayReadbackOptions,
   type GemStoneArrayArgument,
+  type GemStoneArrayIndexMap,
   type GemStoneArgument,
   type GemStoneDictionaryArgument,
   type MarshalledArray,

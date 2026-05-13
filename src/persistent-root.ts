@@ -15,6 +15,22 @@ export class PersistentRoot {
   readonly rootName: string;
   #rootOop: Promise<Oop> | undefined;
 
+  static userGlobals(session: Session): PersistentRoot {
+    return new PersistentRoot(session, "UserGlobals");
+  }
+
+  static globals(session: Session): PersistentRoot {
+    return new PersistentRoot(session, "Globals");
+  }
+
+  static published(session: Session): PersistentRoot {
+    return new PersistentRoot(session, "Published");
+  }
+
+  static sessionMethods(session: Session): PersistentRoot {
+    return new PersistentRoot(session, "SessionMethods");
+  }
+
   constructor(session: Session, rootName = "UserGlobals") {
     this.session = session;
     this.rootName = validateGemStoneGlobalName(rootName, "persistent root name");

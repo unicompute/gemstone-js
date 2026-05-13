@@ -11,8 +11,8 @@ native package; the TypeScript package can be tested locally with a mock runtime
 ## Current Status
 
 - Async-first API: `Session.connect()`, `execute()`, `perform()`,
-  `withTransaction()` with sync or async callbacks, and `AsyncDisposable`
-  support.
+  typed/managed execute helpers, `withTransaction()` with sync or async
+  callbacks, and `AsyncDisposable` support.
 - High-level argument marshalling through `performWith()` and
   `ManagedOop.send()`: strings become GemStone strings, numbers become
   SmallIntegers or Floats, bigints become SmallIntegers, booleans/null become
@@ -36,8 +36,8 @@ native package; the TypeScript package can be tested locally with a mock runtime
   `arrayOopToOops()`/`arrayOops()`, retained object
   `arrayOopToObjects()`/`arrayObjects()`, direct array
   `arraySize()`/`arrayIsEmpty()`/`arrayAt*()`/`arrayFirst*()`/`arrayLast*()`
-  plus batch `arrayPick*()`/`arraySetAll*()` helpers, and retained `array()`
-  wrappers.
+  plus bounded `arrayPage*()`/`arrayTake*()`, batch `arrayPick*()`/`arraySetAll*()`
+  helpers, and retained `array()` wrappers.
   Array value readback accepts optional `maxDepth`
   and `maxItems`/`maxTotalItems` bounds to guard recursive or unexpectedly
   large arrays; raw OOP readback accepts a `maxItems` bound.
@@ -87,7 +87,9 @@ native package; the TypeScript package can be tested locally with a mock runtime
   object/dictionary `pickObject()`/`pickDict()`, `entries()`, raw
   `entriesOop()`, `values()`, raw `valuesOop()`, `items()`, raw `itemsOop()`,
   `size()`/`isEmpty()`, and required raw/value/object/dictionary access plus
-  `requireAll*()` bulk variants built on the session marshalling layer.
+  `requireAll*()` bulk variants built on the session marshalling layer. Static
+  constructors expose `UserGlobals`, `Globals`, `Published`, and
+  `SessionMethods` roots using the same names as gemstone-py.
 - Session pool release is reset-aware: dirty sessions are aborted before reuse,
   failed resets are discarded, waiters are served with replacement sessions, and
   close rejects pending acquires. Explicit validation queries run without
@@ -177,7 +179,7 @@ GS_RUN_LIVE=1 npm run test:live
 ```
 
 The live smoke covers connect, execute, class-side sends, `performWith()`,
-string, float, nested array marshalling/value/raw readback, dictionary readback, global
+string, float, nested array marshalling/value/raw/page readback, dictionary readback, global
 lookup/enumeration/nullable object/bulk required/raw set/removal helpers,
 `GsDict` metadata, value/raw enumeration, replace/clear, nullable
 object/dictionary pick, bulk required-read, and bulk removal helpers, and
@@ -202,6 +204,9 @@ console.log(oop);
 ```
 
 ## Runtime Notes
+
+The current comparison with `gemstone-py` is tracked in
+`docs/gemstone-py-parity.md`.
 
 Node uses `@gemstone-js/native`, which is scaffolded in `../gemstone-js-native`
 and is intended to expose napi-rs bindings over the shared `gemstone-gci` Rust

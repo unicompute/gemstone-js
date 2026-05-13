@@ -17,6 +17,9 @@ The first implementation slice follows `../plan.js.txt`:
 - `src/client.ts` owns the public async `Session` API. This lets the native
   implementation move blocking GCI calls to a dedicated session thread later
   without changing user code.
+- `Session.executeObject()`/`evalObject()` and
+  `executeManaged()`/`evalManaged()` mirror gemstone-py's typed/managed execute
+  helpers while keeping raw `execute()` and value-marshalling `eval()` explicit.
 - `Session.marshalOop()` mirrors the Python binding's marshalling order:
   immediate values, float conversion, string/symbol class detection, then raw
   OOP fallback.
@@ -29,9 +32,9 @@ The first implementation slice follows `../plan.js.txt`:
   `arrayOopToObjects()` is the direct retained-handle counterpart for callers
   that already have a raw Array OOP.
 - `Session.arraySize()`, `arrayAt*()`, nullable `arrayFirst*()`/`arrayLast*()`,
-  batch `arrayPick*()`/`arraySetAll*()`, and single-index `arraySet*()` expose
-  direct one-based GemStone `Array` metadata and indexed element access without
-  materializing whole arrays.
+  bounded `arrayPage*()`/`arrayTake*()`, batch `arrayPick*()`/`arraySetAll*()`,
+  and single-index `arraySet*()` expose direct one-based GemStone `Array`
+  metadata and indexed element access without materializing whole arrays.
 - `Session.dictionaryOopToObject()` and `dictionaryValues()` read GemStone
   `StringKeyValueDictionary` instances through the `GsDict` key-enumeration
   path, preserving the existing string-key and value-marshalling behavior.
@@ -53,7 +56,9 @@ The first implementation slice follows `../plan.js.txt`:
   dictionary helpers including batch dictionary setters, send helpers,
   dictionary metadata, dictionary/root enumeration, replace/clear lifecycle
   helpers for owned string-key dictionaries, global/root size helpers, and
-  required global/root accessors.
+  required global/root accessors. `PersistentRoot.userGlobals()`,
+  `globals()`, `published()`, and `sessionMethods()` mirror the named
+  SymbolDictionary constructors in gemstone-py.
 - Source-rendered helper names and class-ref names share one validation policy.
   Collection names, class names, persistent-root names, persistent-root entries,
   and direct global names must be simple GemStone global-style identifiers;

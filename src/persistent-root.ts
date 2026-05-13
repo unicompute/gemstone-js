@@ -51,6 +51,19 @@ export class PersistentRoot {
     await this.session.runtime.symDictAtPut(root, name, oop);
   }
 
+  async remove(name: string): Promise<boolean> {
+    const root = await this.#root();
+    const key = await this.session.newSymbol(name);
+    const exists = await this.session.performValue(root, "includesKey:", key);
+    if (!toBoolean(exists, "SymbolDictionary includesKey:")) return false;
+    await this.session.perform(root, "removeKey:", key);
+    return true;
+  }
+
+  async delete(name: string): Promise<boolean> {
+    return this.remove(name);
+  }
+
   async setValue(name: string, value: GemStoneArgument): Promise<void> {
     if (this.rootName === "UserGlobals") {
       await this.session.globalSet(name, value);
@@ -121,4 +134,9 @@ export class PersistentRoot {
   #missingEntry(name: string): Error {
     return new Error(`Persistent root ${this.rootName} has no entry named ${name}.`);
   }
+}
+
+function toBoolean(value: MarshalledValue, operation: string): boolean {
+  if (typeof value === "boolean") return value;
+  throw new TypeError(`${operation} must answer a boolean, got ${String(value)}.`);
 }

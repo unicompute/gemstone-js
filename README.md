@@ -34,12 +34,13 @@ native package; the TypeScript package can be tested locally with a mock runtime
 - Dictionary/global helpers: `dictionaryToOop()`, `strDictGet()`,
   `strDictSet()`, `globalGet()`, and `globalSet()`.
 - `GsDict` wraps GemStone `StringKeyValueDictionary` objects with `get()`,
-  `getObject()`, `set()`, `has()`, `size()`, `isEmpty()`, `keys()`,
-  `entries()`, `pick()`, required raw/value/object accessors, explicit send
-  helpers, and inspection helpers.
+  `getObject()`, `set()`, `remove()`/`delete()`, `has()`, `size()`,
+  `isEmpty()`, `keys()`, `entries()`, `pick()`, required raw/value/object
+  accessors, explicit send helpers, and inspection helpers.
 - `PersistentRoot` now has value helpers (`getValue()`, `setValue()`,
-  `getDict()`, `setDict()`), `has()`, `keys()`, `pick()`, `entries()`, and
-  required raw/value/dictionary access built on the session marshalling layer.
+  `getDict()`, `setDict()`), `remove()`/`delete()`, `has()`, `keys()`, `pick()`,
+  `entries()`, and required raw/value/dictionary access built on the session
+  marshalling layer.
 - Session pool release is reset-aware: dirty sessions are aborted before reuse,
   failed resets are discarded, waiters are served with replacement sessions, and
   close rejects pending acquires. Explicit validation queries run without
@@ -113,8 +114,9 @@ GS_RUN_LIVE=1 npm run test:live
 ```
 
 The live smoke covers connect, execute, class-side sends, `performWith()`,
-string and float marshalling, `GsDict` metadata/enumeration/required reads, and
-`PersistentRoot` value, dictionary, key, pick, and required-value helpers.
+string and float marshalling, `GsDict` metadata/enumeration/required/removal
+helpers, and `PersistentRoot` value, dictionary, key, pick, required-value, and
+removal helpers.
 
 ## Example
 

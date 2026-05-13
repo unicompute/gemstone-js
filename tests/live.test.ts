@@ -28,6 +28,9 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
   assert.deepEqual(new Set(await dict.keys()), new Set(["status", "count"]));
   assert.equal((await dict.entries()).status, "ready");
   assert.equal(await dict.requireValue("status"), "ready");
+  assert.equal(await dict.remove("count"), true);
+  assert.equal(await dict.has("count"), false);
+  assert.equal(await dict.delete("missing"), false);
 
   const object = await objectClass.sendObject("new");
   assert.equal(object.session, session);
@@ -44,6 +47,10 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
   assert.equal((await root.keys()).includes(key), true);
   assert.deepEqual(await root.pick([key, `${key}_Missing`]), { [key]: "ok", [`${key}_Missing`]: null });
   assert.equal(await (await root.requireDict(dictKey)).requireValue("status"), "stored");
+  assert.equal(await root.remove(key), true);
+  assert.equal(await root.has(key), false);
+  assert.equal(await root.delete(dictKey), true);
+  assert.equal(await root.delete(`${key}_Missing`), false);
 
   await session.abort();
 });

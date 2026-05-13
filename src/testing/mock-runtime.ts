@@ -43,7 +43,7 @@ export class MockGciRuntime implements GciRuntime {
 
   constructor(options: MockGciRuntimeOptions = {}) {
     this.#execute = options.execute ?? defaultExecute;
-    this.#perform = options.perform ?? defaultPerform;
+    this.#perform = options.perform ?? ((receiver, selector, args) => this.#defaultPerform(receiver, selector, args));
     this.#abortResult = options.abortResult ?? true;
     this.#commitResult = options.commitResult ?? true;
     this.#lastError = options.error ?? null;
@@ -243,6 +243,49 @@ export class MockGciRuntime implements GciRuntime {
     this.symbols.set(name, next);
     return next;
   }
+
+  #defaultPerform(receiver: Oop, selector: string, args: Oop[]): Oop {
+    if (selector === "yourself") return receiver;
+    if (selector === "size") return smallintToOop(this.#dictionarySize(receiver));
+    if (selector === "includesKey:" && args.length === 1) {
+      return this.#hasDictionaryKey(receiver, args[0]) ? OOP_TRUE : OOP_FALSE;
+    }
+    if (selector === "removeKey:" && args.length === 1) {
+      return this.#removeDictionaryKey(receiver, args[0]) ?? OOP_NIL;
+    }
+    return 0x3000n as Oop;
+  }
+
+  #dictionarySize(receiver: Oop): number {
+    const prefix = `${receiver}:`;
+    const stringKeys = [...this.strKeyDict.keys()].filter((key) => key.startsWith(prefix));
+    const symbolKeys = [...this.symDict.keys()].filter((key) => key.startsWith(prefix));
+    return stringKeys.length + symbolKeys.length;
+  }
+
+  #hasDictionaryKey(receiver: Oop, key: Oop): boolean {
+    const lookupKey = this.#dictionaryLookupKey(receiver, key);
+    return this.strKeyDict.has(lookupKey) || this.symDict.has(lookupKey);
+  }
+
+  #removeDictionaryKey(receiver: Oop, key: Oop): Oop | undefined {
+    const lookupKey = this.#dictionaryLookupKey(receiver, key);
+    const stringValue = this.strKeyDict.get(lookupKey);
+    if (stringValue !== undefined) {
+      this.strKeyDict.delete(lookupKey);
+      return stringValue;
+    }
+    const symbolValue = this.symDict.get(lookupKey);
+    if (symbolValue !== undefined) {
+      this.symDict.delete(lookupKey);
+      return symbolValue;
+    }
+    return undefined;
+  }
+
+  #dictionaryLookupKey(receiver: Oop, key: Oop): string {
+    return `${receiver}:${this.stringValues.get(key) ?? key.toString()}`;
+  }
 }
 
 function defaultExecute(source: string, _receiver: Oop): Oop {
@@ -253,10 +296,4 @@ function defaultExecute(source: string, _receiver: Oop): Oop {
   if (/^-?\d+$/.test(normalized)) return smallintToOop(BigInt(normalized));
   if (normalized === "1 + 1" || normalized === "1+1") return smallintToOop(2);
   return 0x2000n as Oop;
-}
-
-function defaultPerform(_receiver: Oop, selector: string, _args: Oop[]): Oop {
-  if (selector === "yourself") return _receiver;
-  if (selector === "size") return smallintToOop(0);
-  return 0x3000n as Oop;
 }

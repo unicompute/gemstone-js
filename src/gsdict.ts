@@ -41,6 +41,18 @@ export class GsDict implements AsyncDisposable {
     return this;
   }
 
+  async remove(key: string): Promise<boolean> {
+    const keyOop = await this.session.newString(key);
+    const exists = await this.session.performValue(this.oop, "includesKey:", keyOop);
+    if (!toBoolean(exists, "StringKeyValueDictionary includesKey:")) return false;
+    await this.session.perform(this.oop, "removeKey:", keyOop);
+    return true;
+  }
+
+  async delete(key: string): Promise<boolean> {
+    return this.remove(key);
+  }
+
   async has(key: string): Promise<boolean> {
     return await this.getOop(key) !== null;
   }
@@ -131,4 +143,9 @@ function toSafeSize(value: MarshalledValue): number {
   }
   if (typeof value === "number" && Number.isSafeInteger(value) && value >= 0) return value;
   throw new TypeError(`GemStone dictionary size must be a non-negative integer, got ${String(value)}.`);
+}
+
+function toBoolean(value: MarshalledValue, operation: string): boolean {
+  if (typeof value === "boolean") return value;
+  throw new TypeError(`${operation} must answer a boolean, got ${String(value)}.`);
 }

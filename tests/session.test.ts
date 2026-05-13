@@ -545,6 +545,9 @@ test("GsDict wraps StringKeyValueDictionary access", async () => {
   assertEqual(await dict.get("city"), "London");
   assertEqual(await dict.has("missing"), false);
   assertEqual((await dict.pick(["name", "city"])).city, "London");
+  assertEqual(await dict.remove("city"), true);
+  assertEqual(await dict.has("city"), false);
+  assertEqual(await dict.delete("missing"), false);
 
   await session.logout();
 });
@@ -716,6 +719,9 @@ test("PersistentRoot required helpers expose raw, value, and dictionary entries"
   assertEqual(await root.requireValue("RootStatus"), "ready");
   assertEqual(await root.requireOop("RootDict"), savedDict.oop);
   assertEqual(await (await root.requireDict("RootDict")).get("name"), "Ada");
+  assertEqual(await root.remove("RootStatus"), true);
+  assertEqual(await root.has("RootStatus"), false);
+  assertEqual(await root.delete("MissingRootEntry"), false);
 
   const required = await root.require("RootDict");
   assertEqual(required.oop, savedDict.oop);

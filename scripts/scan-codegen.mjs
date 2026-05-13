@@ -1,8 +1,13 @@
 #!/usr/bin/env node
 import { readFile, writeFile } from "node:fs/promises";
-import { inferGeneratedReturnKind, inferSelector, validateGeneratedModuleOptions } from "../src/codegen.ts";
+import {
+  inferGeneratedReturnKind,
+  inferSelector,
+  renderGeneratedModule,
+  validateGeneratedModuleOptions,
+} from "../src/codegen.ts";
 
-const { help, outputPath, sourcePaths, extra } = parseArgs(process.argv.slice(2));
+const { check, format, help, outputPath, sourcePaths, extra } = parseArgs(process.argv.slice(2));
 
 if (help) {
   printUsage(process.stdout);
@@ -13,6 +18,9 @@ if (extra.length > 0) {
 }
 if (sourcePaths.length === 0) {
   fail("Missing TypeScript source path.", true);
+}
+if (check && !outputPath) {
+  fail("--check requires --out.", true);
 }
 
 const functions = [];
@@ -30,9 +38,22 @@ const manifest = {
   functions,
 };
 validateGeneratedModuleOptions(manifest);
-const rendered = `${JSON.stringify(manifest, null, 2)}\n`;
+const rendered = format === "module"
+  ? renderGeneratedModule(manifest)
+  : `${JSON.stringify(manifest, null, 2)}\n`;
 
-if (outputPath) {
+if (check) {
+  let existing;
+  try {
+    existing = await readFile(outputPath, "utf8");
+  } catch (error) {
+    fail(`Cannot read generated output ${outputPath}: ${errorMessage(error)}`);
+  }
+  if (existing !== rendered) {
+    fail(`Generated ${format} output is out of date: ${outputPath}`);
+  }
+  process.stdout.write(`Generated ${format} output is up to date: ${outputPath}\n`);
+} else if (outputPath) {
   await writeFile(outputPath, rendered);
 } else {
   process.stdout.write(rendered);
@@ -239,11 +260,19 @@ function stripLineComment(line) {
 function parseArgs(args) {
   const sourcePaths = [];
   let outputPath;
+  let check = false;
+  let format = "manifest";
   let help = false;
   const extra = [];
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
-    if (arg === "-h" || arg === "--help") {
+    if (arg === "--check") {
+      check = true;
+    } else if (arg === "--manifest") {
+      format = "manifest";
+    } else if (arg === "--module") {
+      format = "module";
+    } else if (arg === "-h" || arg === "--help") {
       help = true;
     } else if (arg === "--out") {
       outputPath = args[index + 1];
@@ -255,14 +284,16 @@ function parseArgs(args) {
       sourcePaths.push(arg);
     }
   }
-  return { help, outputPath, sourcePaths, extra };
+  return { check, format, help, outputPath, sourcePaths, extra };
 }
 
 function printUsage(stream) {
   stream.write([
-    "Usage: npm run codegen:scan -- [--out manifest.json] <source.ts> [more.ts...]",
+    "Usage: npm run codegen:scan -- [--module|--manifest] [--out output] [--check] <source.ts> [more.ts...]",
     "",
-    "Scans @GemStoneClass and @GemStoneSelector decorators and emits a codegen manifest.",
+    "Scans @GemStoneClass and @GemStoneSelector decorators and emits a codegen manifest by default.",
+    "--module emits generated wrapper source directly.",
+    "--check compares --out with scanned output and exits non-zero if stale.",
     "Multi-argument methods require @GemStoneSelector because selector inference is ambiguous.",
     "",
   ].join("\n"));
@@ -272,4 +303,8 @@ function fail(message, showUsage = false) {
   process.stderr.write(`${message}\n`);
   if (showUsage) printUsage(process.stderr);
   process.exit(1);
+}
+
+function errorMessage(error) {
+  return error instanceof Error ? error.message : String(error);
 }

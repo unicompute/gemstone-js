@@ -96,6 +96,16 @@ test("codegen scanner emits manifests from decorated classes", async () => {
       returnType: "Oop",
       returnKind: "oop",
     });
+
+    const moduleOutput = await execNode([scanScript, "--module", sourcePath]);
+    assert.match(moduleOutput.stdout, /import type \{ Session, TypedOop, Oop \} from "gemstone-js";/);
+    assert.match(moduleOutput.stdout, /sendObject\("find:active:", id, active\)/);
+    assert.match(moduleOutput.stdout, /performWith\(receiver, "rawBooking:", id\)/);
+
+    const outputPath = join(dir, "booking.generated.ts");
+    await execNode([scanScript, "--module", "--out", outputPath, sourcePath]);
+    const check = await execNode([scanScript, "--module", "--out", outputPath, "--check", sourcePath]);
+    assert.match(check.stdout, /Generated module output is up to date/);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

@@ -42,8 +42,9 @@ The first implementation slice follows `../plan.js.txt`:
   renderer, with a `--check` mode for keeping generated wrapper source explicit,
   reviewable, and current in CI.
 - The `codegen:scan` script is a small source scanner for decorated classes. It
-  emits reviewable manifests rather than hiding generated output in a build
-  plugin.
+  emits reviewable manifests by default and can emit generated wrapper modules
+  directly with `--module`; either mode can be checked against a committed file
+  with `--check --out`.
 - `Session.inspect()` asks GemStone for a compact string payload and parses it
   locally, avoiding a dependency on dictionary marshalling for debug metadata.
 - Framework adapters treat failed commit/abort cleanup as a broken session and

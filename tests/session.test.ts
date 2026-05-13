@@ -626,6 +626,7 @@ test("Session.classRef exposes explicit class-side sends and typed wrapping", as
   await allocated.release();
 
   assertThrows(() => session.classRef("   "));
+  assertThrows(() => session.classRef("Booking; System abortTransaction"));
   await session.logout();
 });
 
@@ -692,9 +693,15 @@ test("GsDict wraps StringKeyValueDictionary access", async () => {
   await dict.setAllOop({ object });
 
   assertEqual(await dict.get("name"), "Ada");
+  assertEqual(await dict.getValue("name"), "Ada");
   assertEqual(await dict.get("city"), "London");
   assertEqual(await dict.get("enabled"), true);
   assertEqual(await dict.getOop("object"), object);
+  assertEqual(await dict.requireValue("name"), "Ada");
+  assertEqual(await dict.requireOop("object"), object);
+  const required = await dict.require<{ status: string }>("object");
+  assertEqual(required.oop, object);
+  await required.release();
   assertEqual(await dict.has("missing"), false);
   assertEqual((await dict.pick(["name", "city"])).city, "London");
   assertEqual((await dict.pickOop(["object", "missing"])).object, object);
@@ -871,6 +878,7 @@ test("globalSet and globalGet round-trip through UserGlobals", async () => {
 
   assertEqual(await session.globalHas("JsBridgeValue"), true);
   assertEqual(await session.globalGet("JsBridgeValue"), "ready");
+  assertEqual(await session.globalGetValue("JsBridgeValue"), "ready");
   assertEqual(await session.globalRequireValue("JsBridgeValue"), "ready");
   assertEqual(await session.globalRequireOop("JsBridgeObject"), object);
   assertEqual((await session.globalKeys()).join(","), "JsBridgeValue,JsBridgeObject");
@@ -908,6 +916,9 @@ test("globalSet and globalGet round-trip through UserGlobals", async () => {
   const requiredObject = await session.globalRequireObject<{ status: string }>("JsBridgeObject");
   assertEqual(requiredObject.oop, object);
   await requiredObject.release();
+  const requiredAlias = await session.globalRequire<{ status: string }>("JsBridgeObject");
+  assertEqual(requiredAlias.oop, object);
+  await requiredAlias.release();
   assert(runtime.calls.some((call) => call.method === "symDictAtObjPut"), "globalSet should write a symbol-keyed global");
   assertEqual(await session.globalRemove("JsBridgeValue"), true);
   assertEqual(await session.globalRemove("JsBridgeObject"), true);

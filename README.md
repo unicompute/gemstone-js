@@ -20,7 +20,9 @@ native package; the TypeScript package can be tested locally with a mock runtime
   `StringKeyValueDictionary`, and managed handles pass their retained OOP.
 - `Session.classRef()` gives an explicit typed class handle for class-side
   sends, object-returning sends, allocation, and wrapping returned OOPs without
-  hiding async remote calls behind JavaScript property access.
+  hiding async remote calls behind JavaScript property access. Class names use
+  the same simple GemStone global-name validation policy as source-rendered
+  helpers.
 - Runtime adapters: Node (`@gemstone-js/native`), Deno FFI starter, Bun FFI
   starter, and a mock runtime for tests.
 - Runtime library discovery follows `libPath`, `GS_LIB_PATH`, `GS_LIB`, then
@@ -35,18 +37,20 @@ native package; the TypeScript package can be tested locally with a mock runtime
   `maxItems`/`maxTotalItems` bounds to guard recursive or unexpectedly large
   arrays.
 - Dictionary/global helpers: `dictionaryToOop()`, `strDictGet()`,
-  `strDictSet()`, `globalGet()`, `globalGetObject()`, `globalHas()`,
-  `globalKeys()`, `globalPick()`, raw `globalPickOop()`, `globalEntries()`,
-  raw `globalEntriesOop()`, `globalValues()`, `globalItems()`, raw
+  `strDictSet()`, `globalGet()`/`globalGetValue()`, `globalGetObject()`,
+  `globalHas()`, `globalKeys()`, `globalPick()`, raw `globalPickOop()`,
+  `globalEntries()`, raw `globalEntriesOop()`, `globalValues()`, `globalItems()`, raw
   `globalValuesOop()`/`globalItemsOop()`, `globalSet()`/`globalSetAll()`, raw
-  `globalSetOop()`/`globalSetAllOop()`, required global accessors, and
-  `globalRemove()`/`globalDelete()`.
-- `GsDict` wraps GemStone `StringKeyValueDictionary` objects with `get()`,
+  `globalSetOop()`/`globalSetAllOop()`, required global accessors including
+  object alias `globalRequire()`, and `globalRemove()`/`globalDelete()`.
+- `GsDict` wraps GemStone `StringKeyValueDictionary` objects with
+  `get()`/`getValue()`,
   `getObject()`, `set()`/`setAll()`, raw `setOop()`/`setAllOop()`,
   `remove()`/`delete()`, `has()`, `size()`, `isEmpty()`, `keys()`,
   `values()`, raw `valuesOop()`, `items()`, raw `itemsOop()`, `entries()`,
   raw `entriesOop()`, `pick()`, raw `pickOop()`, required raw/value/object
-  accessors, explicit send helpers, and inspection helpers.
+  accessors plus object alias `require()`, explicit send helpers, and
+  inspection helpers.
 - `PersistentRoot` now has value helpers (`getValue()`, `setValue()`,
   `setAllValue()`, `getDict()`, `setDict()`), raw `setAll()`,
   `getObject()`, `remove()`/`delete()`, `has()`, `keys()`, `pick()`,

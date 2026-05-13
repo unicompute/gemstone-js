@@ -316,6 +316,10 @@ export class Session implements AsyncDisposable {
     return this.marshalOop(value);
   }
 
+  async globalGetValue(name: string): Promise<MarshalledValue> {
+    return this.globalGet(name);
+  }
+
   async globalGetOop(name: string): Promise<Oop | null> {
     const keyName = validateGemStoneGlobalName(name, "global name");
     return this.#observe("global_get", { name: keyName }, async () => {
@@ -406,6 +410,10 @@ export class Session implements AsyncDisposable {
 
   async globalRequireObject<T = unknown>(name: string): Promise<TypedOop<T>> {
     return this.typedOop<T>(await this.globalRequireOop(name));
+  }
+
+  async globalRequire<T = unknown>(name: string): Promise<TypedOop<T>> {
+    return this.globalRequireObject<T>(name);
   }
 
   async globalSet(name: string, value: GemStoneArgument): Promise<void> {
@@ -808,11 +816,8 @@ export class GemStoneClassRef<T = unknown> {
   #oop: Promise<Oop> | undefined;
 
   constructor(session: Session, name: string) {
-    if (!name.trim()) {
-      throw new RangeError("GemStone class name must not be empty.");
-    }
     this.session = session;
-    this.name = name;
+    this.name = validateGemStoneGlobalName(name, "class name");
   }
 
   async oop(): Promise<Oop> {

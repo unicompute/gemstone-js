@@ -13,6 +13,7 @@ Allowed names match:
 This policy applies to:
 
 - `GSCollection` collection names.
+- `Session.classRef()` class names.
 - `PersistentRoot` root names.
 - `PersistentRoot` entry names.
 - `Session.global*()` global names.

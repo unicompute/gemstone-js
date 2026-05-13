@@ -22,6 +22,10 @@ export class GsDict implements AsyncDisposable {
     return this.session.strDictGet(this.oop, key);
   }
 
+  async getValue(key: string): Promise<MarshalledValue> {
+    return this.get(key);
+  }
+
   async getOop(key: string): Promise<Oop | null> {
     return this.session.strDictGetOop(this.oop, key);
   }
@@ -152,6 +156,10 @@ export class GsDict implements AsyncDisposable {
 
   async requireObject<T = unknown>(key: string): Promise<TypedOop<T>> {
     return this.session.typedOop<T>(await this.requireOop(key));
+  }
+
+  async require<T = unknown>(key: string): Promise<TypedOop<T>> {
+    return this.requireObject<T>(key);
   }
 
   async send<R = MarshalledValue>(selector: string, ...args: GemStoneArgument[]): Promise<R> {

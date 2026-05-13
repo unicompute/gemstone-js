@@ -62,6 +62,22 @@ export class GSCollection<T = unknown> {
     return result === OOP_NIL ? [] : this.#arrayOops(result);
   }
 
+  async first(path: string, op: ComparisonOp, value: string | number | bigint | boolean): Promise<TypedOop<T> | null> {
+    const result = await this.firstOop(path, op, value);
+    return result === null ? null : this.session.typedOop<T>(result);
+  }
+
+  async firstOop(path: string, op: ComparisonOp, value: string | number | bigint | boolean): Promise<Oop | null> {
+    const predicate = await this.#predicate(path, op, value);
+    const source = `
+      | collection |
+      collection := ${this.name}.
+      collection detect: [:each | ${predicate}] ifNone: [nil]
+    `;
+    const result = await this.session.execute(source);
+    return result === OOP_NIL ? null : result;
+  }
+
   async count(path: string, op: ComparisonOp, value: string | number | bigint | boolean): Promise<number> {
     const predicate = await this.#predicate(path, op, value);
     const source = `

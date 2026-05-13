@@ -87,6 +87,10 @@ export class PersistentRoot {
     return new TypedOop<T>(this.session, await this.requireOop(name));
   }
 
+  async requireObject<T = unknown>(name: string): Promise<TypedOop<T>> {
+    return this.require<T>(name);
+  }
+
   async requireOop(name: string): Promise<Oop> {
     const value = await this.getOop(name);
     if (value === null) throw this.#missingEntry(name);

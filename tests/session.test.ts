@@ -539,10 +539,14 @@ test("GsDict wraps StringKeyValueDictionary access", async () => {
   const session = await Session.connect({ username: "u", password: "p", runtime });
 
   const dict = await GsDict.create(session, { name: "Ada" });
-  await dict.set("city", "London");
+  const object = runtime.allocate();
+  await dict.setAll({ city: "London", enabled: true });
+  await dict.setAllOop({ object });
 
   assertEqual(await dict.get("name"), "Ada");
   assertEqual(await dict.get("city"), "London");
+  assertEqual(await dict.get("enabled"), true);
+  assertEqual(await dict.getOop("object"), object);
   assertEqual(await dict.has("missing"), false);
   assertEqual((await dict.pick(["name", "city"])).city, "London");
   assertEqual(await dict.remove("city"), true);
@@ -710,15 +714,20 @@ test("PersistentRoot required helpers expose raw, value, and dictionary entries"
   const runtime = new MockGciRuntime();
   const session = await Session.connect({ username: "u", password: "p", runtime });
   const root = new PersistentRoot(session);
+  const object = runtime.allocate();
 
   await root.setValue("RootStatus", "ready");
   const savedDict = await root.setDict("RootDict", { name: "Ada" });
+  await root.set("RootObject", object);
 
   assertEqual(await root.has("RootStatus"), true);
   assertEqual(await root.has("MissingRootEntry"), false);
   assertEqual(await root.requireValue("RootStatus"), "ready");
   assertEqual(await root.requireOop("RootDict"), savedDict.oop);
   assertEqual(await (await root.requireDict("RootDict")).get("name"), "Ada");
+  const requiredObject = await root.requireObject<{ status: string }>("RootObject");
+  assertEqual(requiredObject.oop, object);
+  await requiredObject.release();
   assertEqual(await root.remove("RootStatus"), true);
   assertEqual(await root.has("RootStatus"), false);
   assertEqual(await root.delete("MissingRootEntry"), false);

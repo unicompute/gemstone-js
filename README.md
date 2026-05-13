@@ -34,13 +34,14 @@ native package; the TypeScript package can be tested locally with a mock runtime
 - Dictionary/global helpers: `dictionaryToOop()`, `strDictGet()`,
   `strDictSet()`, `globalGet()`, and `globalSet()`.
 - `GsDict` wraps GemStone `StringKeyValueDictionary` objects with `get()`,
-  `getObject()`, `set()`, `remove()`/`delete()`, `has()`, `size()`,
-  `isEmpty()`, `keys()`, `entries()`, `pick()`, required raw/value/object
-  accessors, explicit send helpers, and inspection helpers.
+  `getObject()`, `set()`/`setAll()`, raw `setOop()`/`setAllOop()`,
+  `remove()`/`delete()`, `has()`, `size()`, `isEmpty()`, `keys()`,
+  `entries()`, `pick()`, required raw/value/object accessors, explicit send
+  helpers, and inspection helpers.
 - `PersistentRoot` now has value helpers (`getValue()`, `setValue()`,
   `getDict()`, `setDict()`), `remove()`/`delete()`, `has()`, `keys()`, `pick()`,
-  `entries()`, and required raw/value/dictionary access built on the session
-  marshalling layer.
+  `entries()`, and required raw/value/object/dictionary access built on the
+  session marshalling layer.
 - Session pool release is reset-aware: dirty sessions are aborted before reuse,
   failed resets are discarded, waiters are served with replacement sessions, and
   close rejects pending acquires. Explicit validation queries run without
@@ -55,11 +56,12 @@ native package; the TypeScript package can be tested locally with a mock runtime
   hierarchy, slot, and indexed-field metadata for quick debugging of raw object
   handles.
 - `GSCollection.search()` unwraps result arrays into typed handles,
-  `GSCollection.searchOop()` returns raw handles, `size()`/`isEmpty()` expose
-  collection metadata, `count()`/`exists()` answer predicate matches without
-  fetching handles, and `GSCollection.iter()` fetches collection chunks while
-  yielding individual objects. Equality-index helpers are available through both
-  explicit
+  `GSCollection.searchOop()` returns raw handles, `first()`/`firstOop()` return
+  nullable first matches without materializing result arrays, `size()`/`isEmpty()`
+  expose collection metadata, `count()`/`exists()` answer predicate matches
+  without fetching handles, and `GSCollection.iter()` fetches collection chunks
+  while yielding individual objects. Equality-index helpers are available through
+  both explicit
   `createEqualityIndexOn()`/`removeEqualityIndexOn()` and higher-level
   `createIndex()`/`removeIndex()` calls. Source-rendering helpers validate
   collection and persistent-root global names before emitting Smalltalk.

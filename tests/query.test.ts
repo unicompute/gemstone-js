@@ -71,6 +71,35 @@ test("GSCollection.searchOop unwraps result arrays without retaining handles", a
   await session.logout();
 });
 
+test("GSCollection first helpers return nullable first matches without array fetches", async () => {
+  let first = OOP_NIL;
+  const executeResults = [first, OOP_NIL];
+  const executeSources: string[] = [];
+  const runtime = new MockGciRuntime({
+    execute(source) {
+      executeSources.push(source);
+      return executeResults.shift() ?? OOP_NIL;
+    },
+  });
+  first = runtime.allocate();
+  executeResults[0] = first;
+  const session = await Session.connect({ username: "u", password: "p", runtime });
+  const collection = new GSCollection<{ name: string }>(session, "Bookings");
+
+  const found = await collection.first("customer.name", "=", "Ada's booking");
+  if (!found) throw new Error("first should return a typed handle for a matching object");
+  assertEqual(found.oop, first);
+  await found.release();
+
+  const missing = await collection.firstOop("status", "=", "missing");
+  assertEqual(missing, null);
+
+  assert(executeSources[0].includes("collection detect: [:each | (each customer name = 'Ada''s booking')] ifNone: [nil]"), "first should render a detect query");
+  assert(executeSources[1].includes("collection detect: [:each | (each status = 'missing')] ifNone: [nil]"), "firstOop should reuse the detect query");
+  assert(!runtime.calls.some((call) => call.method === "perform" && call.args[1] === "at:"), "first helpers should not fetch result arrays");
+  await session.logout();
+});
+
 test("GSCollection count and exists render validated predicates without fetching handles", async () => {
   const executeSources: string[] = [];
   const counts = [3, 0];

@@ -115,7 +115,8 @@
         "typeSpecifiers": {
           "type": "array",
           "items": { "$ref": "#/$defs/namedImportSpecifier" },
-          "minItems": 1
+          "minItems": 1,
+          "uniqueItems": true
         }
       }
     },

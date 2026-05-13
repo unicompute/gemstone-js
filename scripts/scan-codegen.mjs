@@ -112,6 +112,7 @@ function scanDecoratorNames(sourceFile) {
   const names = {
     GemStoneClass: new Set(["GemStoneClass"]),
     GemStoneSelector: new Set(["GemStoneSelector"]),
+    namespaces: new Set(),
   };
 
   for (const statement of sourceFile.statements) {
@@ -119,7 +120,12 @@ function scanDecoratorNames(sourceFile) {
     if (!ts.isStringLiteral(statement.moduleSpecifier)) continue;
     if (statement.moduleSpecifier.text !== "gemstone-js") continue;
     const namedBindings = statement.importClause?.namedBindings;
-    if (!namedBindings || !ts.isNamedImports(namedBindings)) continue;
+    if (!namedBindings) continue;
+    if (ts.isNamespaceImport(namedBindings)) {
+      names.namespaces.add(namedBindings.name.text);
+      continue;
+    }
+    if (!ts.isNamedImports(namedBindings)) continue;
     for (const specifier of namedBindings.elements) {
       const importedName = specifier.propertyName?.text ?? specifier.name.text;
       if (importedName === "GemStoneClass" || importedName === "GemStoneSelector") {
@@ -181,13 +187,7 @@ function decoratorStringArg(node, decoratorName, sourceFile, sourcePath, decorat
   for (const decorator of decorators) {
     const expression = decorator.expression;
     if (!ts.isCallExpression(expression)) continue;
-    const callee = expression.expression;
-    const name = ts.isIdentifier(callee)
-      ? callee.text
-      : ts.isPropertyAccessExpression(callee)
-        ? callee.name.text
-        : undefined;
-    if (!name || !acceptedNames.has(name)) continue;
+    if (!isGemStoneDecoratorCall(expression.expression, decoratorName, acceptedNames, decoratorNames.namespaces)) continue;
     const [firstArg] = expression.arguments;
     if (firstArg && (ts.isStringLiteral(firstArg) || ts.isNoSubstitutionTemplateLiteral(firstArg))) {
       return firstArg.text;
@@ -195,6 +195,15 @@ function decoratorStringArg(node, decoratorName, sourceFile, sourcePath, decorat
     throw new Error(`${sourcePath}:${lineNumber(sourceFile, decorator)}: @${decoratorName} requires a string literal.`);
   }
   return undefined;
+}
+
+function isGemStoneDecoratorCall(callee, decoratorName, acceptedNames, namespaces) {
+  if (ts.isIdentifier(callee)) {
+    return acceptedNames.has(callee.text);
+  }
+  if (!ts.isPropertyAccessExpression(callee)) return false;
+  if (callee.name.text !== decoratorName) return false;
+  return ts.isIdentifier(callee.expression) && namespaces.has(callee.expression.text);
 }
 
 function parseParameters(parameters, sourceFile, sourcePath) {

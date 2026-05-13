@@ -213,6 +213,44 @@ test("codegen scanner resolves decorator/type aliases and skips overload signatu
   }
 });
 
+test("codegen scanner recognizes gemstone-js namespace decorators only", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "gemstone-js-codegen-scan-namespace-"));
+  try {
+    const sourcePath = join(dir, "namespace-booking.ts");
+    await writeFile(sourcePath, [
+      "import * as Gem from \"gemstone-js\";",
+      "import type { Session } from \"gemstone-js\";",
+      "const Other = Gem;",
+      "@Other.GemStoneClass(\"Ignored\")",
+      "class IgnoredBookingModel {",
+      "  ignored(session: Session): Promise<string> { throw new Error(\"ignored\"); }",
+      "}",
+      "@Gem.GemStoneClass(\"Booking\")",
+      "class NamespaceBookingModel {",
+      "  @Gem.GemStoneSelector(\"status\")",
+      "  status(session: Session): Promise<string> { throw new Error(\"scanner fixture only\"); }",
+      "}",
+      "",
+    ].join("\n"));
+
+    const { stdout } = await execNode([scanScript, sourcePath]);
+    const scanned = JSON.parse(stdout);
+
+    assert.deepEqual(scanned.functions, [
+      {
+        exportedName: "status",
+        className: "Booking",
+        selector: "status",
+        argNames: [],
+        sessionType: "Session",
+        returnType: "string",
+      },
+    ]);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 test("codegen scanner checks committed decorated-source wrapper output", async () => {
   const check = await execNode([
     scanScript,

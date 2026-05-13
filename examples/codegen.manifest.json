@@ -7,7 +7,12 @@
     },
     {
       "from": "./booking.ts",
-      "typeNames": ["Booking"]
+      "typeSpecifiers": [
+        {
+          "name": "Booking",
+          "alias": "BookingRecord"
+        }
+      ]
     }
   ],
   "functions": [
@@ -26,7 +31,7 @@
       "argNames": ["id"],
       "argTypes": ["string"],
       "sessionType": "Session",
-      "returnType": "TypedOop<Booking>",
+      "returnType": "TypedOop<BookingRecord>",
       "returnKind": "object"
     }
   ]

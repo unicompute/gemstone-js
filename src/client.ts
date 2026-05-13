@@ -24,6 +24,7 @@ import { validateGemStoneGlobalName } from "./smalltalk-source.ts";
 import {
   GemStoneConfigurationError,
   GemStoneError,
+  type GemStoneClassDescription,
   type GemStoneInspection,
   type GciRuntime,
   type ResolvedSessionConfig,
@@ -1286,6 +1287,48 @@ export class Session implements AsyncDisposable {
     });
   }
 
+  async printString(value: Oop): Promise<string> {
+    return (await this.inspect(value)).printString;
+  }
+
+  async describeClass(name: string): Promise<GemStoneClassDescription> {
+    const className = validateGemStoneGlobalName(name, "class name");
+    const source = `
+      | cls |
+      cls := ${className}.
+      String streamContents: [:stream |
+        stream nextPutAll: 'name='; nextPutAll: cls name asString; lf.
+        stream nextPutAll: 'oop='; nextPutAll: cls asOop asString; lf.
+        stream nextPutAll: 'instanceCount='.
+        [stream nextPutAll: cls allInstances size asString] on: Exception do: [:ex | stream nextPutAll: ''].
+        stream lf.
+        [
+          | current |
+          current := cls superclass.
+          [current notNil] whileTrue: [
+            stream nextPutAll: 'superclass='; nextPutAll: current name asString; lf.
+            current := current superclass]
+        ] on: Exception do: [:ex | ].
+        [
+          cls allInstVarNames do: [:each |
+            stream nextPutAll: 'instVar='; nextPutAll: each asString; lf]
+        ] on: Exception do: [:ex | ].
+        [
+          cls class allInstVarNames do: [:each |
+            stream nextPutAll: 'classInstVar='; nextPutAll: each asString; lf]
+        ] on: Exception do: [:ex | ]]
+    `;
+    return this.#observe("describe_class", { class: className }, async () => {
+      const result = await this.runtime.executeStr(source, OOP_NIL);
+      await this.#checkResult(result);
+      const rendered = await this.marshalOop(result);
+      if (typeof rendered !== "string") {
+        throw new GemStoneError("GemStone class description helper returned a non-string result.");
+      }
+      return parseClassDescriptionPayload(rendered, className);
+    });
+  }
+
   async booleanOop(value: boolean): Promise<Oop> {
     return value ? OOP_TRUE : OOP_FALSE;
   }
@@ -1530,6 +1573,10 @@ export class GemStoneClassRef<T = unknown> {
     return this.wrap(await this.session.newOop(await this.oop()));
   }
 
+  async describe(): Promise<GemStoneClassDescription> {
+    return this.session.describeClass(this.name);
+  }
+
   wrap(value: Oop): TypedOop<T> {
     return this.session.typedOop<T>(value);
   }
@@ -1755,4 +1802,38 @@ function splitOnce(value: string, separator: string): [string, string] {
   const index = value.indexOf(separator);
   if (index === -1) return [value, ""];
   return [value.slice(0, index), value.slice(index + separator.length)];
+}
+
+function parseClassDescriptionPayload(payload: string, fallbackName: string): GemStoneClassDescription {
+  const description: GemStoneClassDescription = {
+    name: fallbackName,
+    superclasses: [],
+    instVarNames: [],
+    classInstVarNames: [],
+  };
+  for (const line of payload.replace(/\r\n/g, "\n").split("\n")) {
+    if (!line) continue;
+    const separator = line.indexOf("=");
+    if (separator === -1) continue;
+    const key = line.slice(0, separator);
+    const value = line.slice(separator + 1);
+    if (key === "name" && value) {
+      description.name = value;
+    } else if (key === "oop" && value) {
+      try {
+        description.oop = oop(value);
+      } catch {
+        throw new GemStoneError(`GemStone class description helper returned an invalid class OOP: ${value}`);
+      }
+    } else if (key === "instanceCount") {
+      description.instanceCount = parseOptionalNonNegativeInteger(value);
+    } else if (key === "superclass" && value) {
+      description.superclasses.push(value);
+    } else if (key === "instVar" && value) {
+      description.instVarNames.push(value);
+    } else if (key === "classInstVar" && value) {
+      description.classInstVarNames.push(value);
+    }
+  }
+  return description;
 }

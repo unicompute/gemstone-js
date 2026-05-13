@@ -51,6 +51,7 @@ const required = [
   "LICENSE",
   "README.md",
   "docs/architecture.md",
+  "docs/gemstone-py-parity.md",
   "docs/naming.md",
   "docs/releasing.md",
   "examples/booking.decorators.generated.ts",

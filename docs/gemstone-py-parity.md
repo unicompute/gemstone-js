@@ -15,6 +15,7 @@ keeping a JavaScript-first async API.
   replace, clear, nested dictionary, raw OOP, and object-handle variants.
 - Collection helpers for search, first/find, count/exists, bounded pages,
   iteration, mutation, and equality indexes.
+- Object inspection, direct print-string helpers, and class descriptions.
 - Observability hooks, framework adapters, code generation, package verification,
   and opt-in live smoke coverage.
 
@@ -37,6 +38,6 @@ keeping a JavaScript-first async API.
   `RcQueue`.
 - Migration helpers, object-log parsing, bootstrap commands, and benchmark
   baseline tooling.
-- Recursive object dump and class-description CLI helpers.
+- Recursive object dump CLI helpers.
 - The `gemstone-py` VS Code workbench. A JavaScript extension should wait until
   the package API and native release flow settle further.

@@ -89,10 +89,11 @@ The first implementation slice follows `../plan.js.txt`:
   emits reviewable manifests by default and can emit generated wrapper modules
   directly with `--module`; either mode can be checked against a committed file
   with `--check --out`.
-- `Session.inspect()` asks GemStone for a compact string payload and parses it
-  locally, avoiding a dependency on dictionary marshalling for debug metadata.
-  `ManagedOop.inspect()` and `printString()` expose the same debug path from
-  retained handles after export-set retain has completed.
+- `Session.inspect()` and `describeClass()` ask GemStone for compact string
+  payloads and parse them locally, avoiding a dependency on dictionary
+  marshalling for debug metadata. `Session.printString()`,
+  `GemStoneClassRef.describe()`, and retained handle `inspect()`/`printString()`
+  expose the same debug path from raw handles, class refs, and retained handles.
 - Framework adapters treat failed commit/abort cleanup as a broken session and
   discard the lease instead of returning it to the pool.
 - `SessionPool.warm()` targets total pool capacity and `stats()` includes

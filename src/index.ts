@@ -102,6 +102,7 @@ export {
   GemStoneError,
   type GciErrorInfo,
   type GciRuntime,
+  type GemStoneClassDescription,
   type GemStoneIndexedFieldInspection,
   type GemStoneInspection,
   type GemStoneSlotInspection,

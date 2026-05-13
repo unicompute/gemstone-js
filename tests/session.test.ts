@@ -777,6 +777,44 @@ test("GemStoneClassRef.sendObject wraps class-side object results", async () => 
   await session.logout();
 });
 
+test("describeClass returns class hierarchy and instance variable metadata", async () => {
+  let runtime: MockGciRuntime;
+  const classOop = 0x5a00n as Oop;
+  let describeCount = 0;
+  runtime = new MockGciRuntime({
+    async execute(source) {
+      describeCount += 1;
+      assert(source.includes("cls := Booking."), "describeClass should render the validated class name");
+      assert(source.includes("allInstances size"), "describeClass should include an instance count probe");
+      return runtime.newString([
+        "name=Booking",
+        `oop=${classOop.toString()}`,
+        "instanceCount=12",
+        "superclass=Object",
+        "instVar=id",
+        "instVar=status",
+        "classInstVar=DefaultStatus",
+        "",
+      ].join("\n"));
+    },
+  });
+  const session = await Session.connect({ username: "u", password: "p", runtime });
+
+  const description = await session.describeClass("Booking");
+  assertEqual(description.name, "Booking");
+  assertEqual(description.oop, classOop);
+  assertEqual(description.instanceCount, 12);
+  assertEqual(description.superclasses.join(">"), "Object");
+  assertEqual(description.instVarNames.join(","), "id,status");
+  assertEqual(description.classInstVarNames.join(","), "DefaultStatus");
+
+  const classDescription = await session.classRef("Booking").describe();
+  assertEqual(classDescription.name, "Booking");
+  assertEqual(describeCount, 2);
+  await assertRejects(() => session.describeClass("Booking; System abortTransaction"), RangeError);
+  await session.logout();
+});
+
 test("Session exposes low-level allocation and fetch helpers", async () => {
   const runtime = new MockGciRuntime();
   const session = await Session.connect({ username: "u", password: "p", runtime });
@@ -1598,6 +1636,7 @@ test("inspect returns typed class and printString metadata", async () => {
   assertEqual(inspection.slots?.[0]?.value, "42");
   assertEqual(inspection.indexedFields?.[0]?.index, 1);
   assertEqual(inspection.indexedFields?.[0]?.value, "item");
+  assertEqual(await session.printString(smallintToOop(7)), "7\nagain");
 
   await session.logout();
 });

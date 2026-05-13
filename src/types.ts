@@ -112,6 +112,15 @@ export interface GemStoneInspection {
   indexedFields?: GemStoneIndexedFieldInspection[];
 }
 
+export interface GemStoneClassDescription {
+  name: string;
+  oop?: Oop;
+  superclasses: string[];
+  instVarNames: string[];
+  classInstVarNames: string[];
+  instanceCount?: number;
+}
+
 export interface GciRuntime {
   readonly name: RuntimeName;
   init(libPath?: string): Promise<number | void>;

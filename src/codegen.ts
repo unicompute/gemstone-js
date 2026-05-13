@@ -96,6 +96,8 @@ export async function sendGenerated(
   returnKind: GeneratedReturnKind = "value",
 ): Promise<MarshalledValue | Oop | TypedOop<unknown>> {
   const kind = assertReturnKind(returnKind);
+  className = assertNonEmptyString(className, "className");
+  selector = assertNonEmptyString(selector, "selector");
   if (kind === "object") {
     return session.classRef(className).sendObject(selector, ...args);
   }
@@ -108,16 +110,19 @@ export async function sendGenerated(
 
 export function renderGeneratedFunction(options: RenderGeneratedFunctionOptions): string {
   const exportedName = assertIdentifier(options.exportedName, "exportedName");
+  const className = assertNonEmptyString(options.className, "className");
+  const selector = assertNonEmptyString(options.selector, "selector");
   const argNames = options.argNames.map((arg) => assertIdentifier(arg, "argName"));
   const returnKind = assertReturnKind(options.returnKind ?? "value");
   assertUniqueArgNames(argNames);
+  assertSelectorArity(selector, argNames);
   const params = ["session", ...argNames].join(", ");
   const forwardedArgs = argNames.length ? `, ${argNames.join(", ")}` : "";
 
   if (returnKind === "object") {
     return [
       `export async function ${exportedName}(${params}) {`,
-      `  return session.classRef(${JSON.stringify(options.className)}).sendObject(${JSON.stringify(options.selector)}${forwardedArgs});`,
+      `  return session.classRef(${JSON.stringify(className)}).sendObject(${JSON.stringify(selector)}${forwardedArgs});`,
       `}`,
       "",
     ].join("\n");
@@ -126,8 +131,8 @@ export function renderGeneratedFunction(options: RenderGeneratedFunctionOptions)
   const method = returnKind === "oop" ? "performWith" : "performValueWith";
   return [
     `export async function ${exportedName}(${params}) {`,
-    `  const receiver = await session.resolveSymbol(${JSON.stringify(options.className)});`,
-    `  return session.${method}(receiver, ${JSON.stringify(options.selector)}${forwardedArgs});`,
+    `  const receiver = await session.resolveSymbol(${JSON.stringify(className)});`,
+    `  return session.${method}(receiver, ${JSON.stringify(selector)}${forwardedArgs});`,
     `}`,
     "",
   ].join("\n");
@@ -152,6 +157,13 @@ function assertReturnKind(value: unknown): GeneratedReturnKind {
   throw new RangeError(`Generated return kind must be "value", "oop", or "object": ${String(value)}`);
 }
 
+function assertNonEmptyString(value: string, field: string): string {
+  if (value.trim() === "") {
+    throw new RangeError(`Generated ${field} must not be empty.`);
+  }
+  return value;
+}
+
 function assertIdentifier(value: string, field: string): string {
   if (!/^[A-Za-z_$][A-Za-z0-9_$]*$/.test(value) || RESERVED_JS_WORDS.has(value)) {
     throw new RangeError(`Generated ${field} must be a valid JavaScript identifier: ${value}`);
@@ -168,6 +180,25 @@ function assertUniqueArgNames(argNames: readonly string[]): void {
     seen.add(name);
   }
 }
+
+function assertSelectorArity(selector: string, argNames: readonly string[]): void {
+  const expected = selectorArity(selector);
+  if (argNames.length !== expected) {
+    throw new RangeError(
+      `Generated selector ${selector} expects ${expected} argument${expected === 1 ? "" : "s"}, ` +
+        `but ${argNames.length} argument name${argNames.length === 1 ? " was" : "s were"} provided.`,
+    );
+  }
+}
+
+function selectorArity(selector: string): number {
+  if (selector.includes(":")) {
+    return selector.split(":").length - 1;
+  }
+  return BINARY_SELECTOR_PATTERN.test(selector) ? 1 : 0;
+}
+
+const BINARY_SELECTOR_PATTERN = /^[!%&*+,\-/<=>?@\\~|]+$/;
 
 const RESERVED_JS_WORDS = new Set([
   "await",

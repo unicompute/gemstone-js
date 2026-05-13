@@ -32,7 +32,8 @@ The first implementation slice follows `../plan.js.txt`:
   `size`/`at:` so iterators yield object handles instead of chunk containers.
 - Codegen helpers validate generated JavaScript identifiers and emit wrappers
   that choose between `performValueWith()`, `performWith()`, or
-  `classRef().sendObject()` based on the requested return kind.
+  `classRef().sendObject()` based on the requested return kind. Selector arity
+  is checked before source is emitted so manifest mistakes fail locally.
 - The `codegen` npm script is a manifest-driven file generator around the same
   renderer, with a `--check` mode for keeping generated wrapper source explicit,
   reviewable, and current in CI.

@@ -116,6 +116,22 @@ test("renderGeneratedFunction emits raw-OOP and object-returning wrappers", () =
   ].join("\n"));
 });
 
+test("renderGeneratedFunction allows binary selectors with one argument", () => {
+  assertEqual(renderGeneratedFunction({
+    exportedName: "addBooking",
+    className: "BookingCounter",
+    selector: "+",
+    argNames: ["other"],
+    returnKind: "oop",
+  }), [
+    "export async function addBooking(session, other) {",
+    "  const receiver = await session.resolveSymbol(\"BookingCounter\");",
+    "  return session.performWith(receiver, \"+\", other);",
+    "}",
+    "",
+  ].join("\n"));
+});
+
 test("renderGeneratedModule emits stable multi-wrapper source", () => {
   assertEqual(renderGeneratedModule({
     functions: [
@@ -194,6 +210,42 @@ test("renderGeneratedFunction rejects unsafe JavaScript identifiers", () => {
     selector: "find:",
     argNames: ["id"],
     returnKind: "record" as never,
+  }));
+  assertThrows(() => renderGeneratedFunction({
+    exportedName: "findBooking",
+    className: "",
+    selector: "find:",
+    argNames: ["id"],
+  }));
+  assertThrows(() => renderGeneratedFunction({
+    exportedName: "findBooking",
+    className: "Booking",
+    selector: "",
+    argNames: [],
+  }));
+  assertThrows(() => renderGeneratedFunction({
+    exportedName: "findBooking",
+    className: "Booking",
+    selector: "find:",
+    argNames: [],
+  }));
+  assertThrows(() => renderGeneratedFunction({
+    exportedName: "findBooking",
+    className: "Booking",
+    selector: "find:active:",
+    argNames: ["id"],
+  }));
+  assertThrows(() => renderGeneratedFunction({
+    exportedName: "currentStatus",
+    className: "Booking",
+    selector: "currentStatus",
+    argNames: ["id"],
+  }));
+  assertThrows(() => renderGeneratedFunction({
+    exportedName: "addBooking",
+    className: "BookingCounter",
+    selector: "+",
+    argNames: [],
   }));
 });
 

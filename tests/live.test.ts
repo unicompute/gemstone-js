@@ -24,6 +24,17 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
   const array = await session.array(["gemstone-js live", nestedArray, true]);
   assert.equal(await array.sendValue("size"), 3n);
   assert.deepEqual(await session.arrayValues(array), ["gemstone-js live", [2n, false], true]);
+  assert.equal(await session.arraySize(array), 3);
+  assert.equal(await session.arrayIsEmpty(array), false);
+  assert.equal(await session.arrayAtValue(array, 1), "gemstone-js live");
+  assert.equal(await session.arrayAtOop(array, 2), nestedArray.oop);
+  const liveArrayNested = await session.arrayAtObject(array, 2);
+  assert.equal(liveArrayNested.oop, nestedArray.oop);
+  await liveArrayNested.release();
+  await session.arrayAtPut(array, 3, false);
+  assert.equal(await session.arrayAtValue(array, 3), false);
+  await session.arraySetOop(array, 2, nestedArray);
+  assert.equal(await session.arrayAtOop(array, 2), nestedArray.oop);
   assert.equal((await session.arrayOops(array)).length, 3);
   const objectForArray = await objectClass.sendObject("new");
   const objectArray = await session.array([objectForArray]);

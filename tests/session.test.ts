@@ -419,6 +419,11 @@ test("arrayOopToValues converts GemStone Arrays back to JavaScript values", asyn
         const index = Number(oopToSmallint(args[0]));
         return values[index - 1] ?? OOP_NIL;
       }
+      if (selector === "at:put:") {
+        const index = Number(oopToSmallint(args[0]));
+        values[index - 1] = args[1];
+        return args[1];
+      }
       return OOP_NIL;
     },
   });
@@ -432,6 +437,29 @@ test("arrayOopToValues converts GemStone Arrays back to JavaScript values", asyn
   arrays.set(nested, [smallintToOop(3), OOP_FALSE]);
   arrays.set(array, [name, smallintToOop(2), OOP_NIL, nested]);
 
+  assertEqual(await session.arraySize(array), 4);
+  assertEqual(await session.arrayIsEmpty(array), false);
+  assertEqual(await session.arrayAtValue(array, 1), "Ada");
+  assertEqual(await session.arrayAt(array, 2), 2n);
+  assertEqual(await session.arrayAtOop(array, 4), nested);
+  const directObject = await session.arrayAtObject(array, 4);
+  assertEqual(directObject.oop, nested);
+  await directObject.release();
+  await session.arrayAtPut(array, 2, "Bea");
+  assertEqual(await session.arrayAtValue(array, 2), "Bea");
+  await session.arraySetValue(array, 3, false);
+  assertEqual(await session.arrayAtValue(array, 3), false);
+  const object = runtime.allocate();
+  const objectHandle = session.typedOop(object);
+  await session.arrayAtPutOop(array, 4, object);
+  assertEqual(await session.arrayAtOop(array, 4), object);
+  await session.arraySetObject(array, 1, objectHandle);
+  assertEqual(await session.arrayAtOop(array, 1), object);
+  await objectHandle.release();
+  await assertRejects(() => session.arrayAtValue(array, 0), RangeError);
+  await assertRejects(() => session.arrayAtPut(array, 1.5, "bad"), RangeError);
+
+  arrays.set(array, [name, smallintToOop(2), OOP_NIL, nested]);
   const values = await session.arrayOopToValues(array);
   assertEqual(values[0], "Ada");
   assertEqual(values[1], 2n);

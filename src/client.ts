@@ -259,6 +259,97 @@ export class Session implements AsyncDisposable {
     return this.typedOop<T[]>(await this.arrayToOop(values));
   }
 
+  async arraySize(value: TypedOop<unknown[]> | ManagedOop<unknown[]> | Oop): Promise<number> {
+    return toSafeCollectionSize(await this.performValue(rawHandleOop(value), "size"), "GemStone Array");
+  }
+
+  async arrayIsEmpty(value: TypedOop<unknown[]> | ManagedOop<unknown[]> | Oop): Promise<boolean> {
+    return await this.arraySize(value) === 0;
+  }
+
+  async arrayAtOop(value: TypedOop<unknown[]> | ManagedOop<unknown[]> | Oop, index: number): Promise<Oop> {
+    return this.perform(rawHandleOop(value), "at:", smallintToOop(validateArrayIndex(index)));
+  }
+
+  async arrayAt(value: TypedOop<unknown[]> | ManagedOop<unknown[]> | Oop, index: number): Promise<MarshalledValue> {
+    return this.marshalOop(await this.arrayAtOop(value, index));
+  }
+
+  async arrayAtValue(value: TypedOop<unknown[]> | ManagedOop<unknown[]> | Oop, index: number): Promise<MarshalledValue> {
+    return this.arrayAt(value, index);
+  }
+
+  async arrayAtObject<T = unknown>(
+    value: TypedOop<unknown[]> | ManagedOop<unknown[]> | Oop,
+    index: number,
+  ): Promise<TypedOop<T>> {
+    return this.typedOop<T>(await this.arrayAtOop(value, index));
+  }
+
+  async arrayAtPut(
+    value: TypedOop<unknown[]> | ManagedOop<unknown[]> | Oop,
+    index: number,
+    item: GemStoneArgument,
+  ): Promise<void> {
+    await this.perform(rawHandleOop(value), "at:put:", smallintToOop(validateArrayIndex(index)), await this.argumentToOop(item));
+  }
+
+  async arraySet(
+    value: TypedOop<unknown[]> | ManagedOop<unknown[]> | Oop,
+    index: number,
+    item: GemStoneArgument,
+  ): Promise<void> {
+    await this.arrayAtPut(value, index, item);
+  }
+
+  async arrayAtPutValue(
+    value: TypedOop<unknown[]> | ManagedOop<unknown[]> | Oop,
+    index: number,
+    item: GemStoneArgument,
+  ): Promise<void> {
+    await this.arrayAtPut(value, index, item);
+  }
+
+  async arraySetValue(
+    value: TypedOop<unknown[]> | ManagedOop<unknown[]> | Oop,
+    index: number,
+    item: GemStoneArgument,
+  ): Promise<void> {
+    await this.arrayAtPut(value, index, item);
+  }
+
+  async arrayAtPutOop<T = unknown>(
+    value: TypedOop<unknown[]> | ManagedOop<unknown[]> | Oop,
+    index: number,
+    item: OopHandle<T>,
+  ): Promise<void> {
+    await this.perform(rawHandleOop(value), "at:put:", smallintToOop(validateArrayIndex(index)), rawHandleOop(item));
+  }
+
+  async arraySetOop<T = unknown>(
+    value: TypedOop<unknown[]> | ManagedOop<unknown[]> | Oop,
+    index: number,
+    item: OopHandle<T>,
+  ): Promise<void> {
+    await this.arrayAtPutOop(value, index, item);
+  }
+
+  async arrayAtPutObject<T = unknown>(
+    value: TypedOop<unknown[]> | ManagedOop<unknown[]> | Oop,
+    index: number,
+    item: OopHandle<T>,
+  ): Promise<void> {
+    await this.arrayAtPutOop(value, index, item);
+  }
+
+  async arraySetObject<T = unknown>(
+    value: TypedOop<unknown[]> | ManagedOop<unknown[]> | Oop,
+    index: number,
+    item: OopHandle<T>,
+  ): Promise<void> {
+    await this.arrayAtPutOop(value, index, item);
+  }
+
   async arrayOopToValues(array: Oop, options: ArrayReadbackOptions = {}): Promise<MarshalledValue[]> {
     return this.#arrayOopToValues(
       array,
@@ -1315,6 +1406,13 @@ function normalizeOptionalLimit(value: number | undefined, field: string, minimu
   if (value === undefined) return Number.POSITIVE_INFINITY;
   if (!Number.isSafeInteger(value) || value < minimum) {
     throw new RangeError(`${field} must be a safe integer >= ${minimum}.`);
+  }
+  return value;
+}
+
+function validateArrayIndex(value: number): number {
+  if (!Number.isSafeInteger(value) || value < 1) {
+    throw new RangeError("GemStone Array index must be a positive safe integer.");
   }
   return value;
 }

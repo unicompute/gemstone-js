@@ -28,6 +28,9 @@ The first implementation slice follows `../plan.js.txt`:
   with a `maxItems` bound for callers that need handles instead of values.
   `arrayOopToObjects()` is the direct retained-handle counterpart for callers
   that already have a raw Array OOP.
+- `Session.arraySize()`, `arrayAt*()`, and `arraySet*()` expose direct
+  one-based GemStone `Array` metadata and indexed element access without
+  materializing whole arrays.
 - `Session.dictionaryOopToObject()` and `dictionaryValues()` read GemStone
   `StringKeyValueDictionary` instances through the `GsDict` key-enumeration
   path, preserving the existing string-key and value-marshalling behavior.

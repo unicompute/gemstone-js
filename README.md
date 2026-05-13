@@ -36,8 +36,8 @@ native package; the TypeScript package can be tested locally with a mock runtime
   `getObject()`, `set()`, `has()`, `keys()`, `entries()`, `pick()`, required
   raw/value/object accessors, explicit send helpers, and inspection helpers.
 - `PersistentRoot` now has value helpers (`getValue()`, `setValue()`,
-  `getDict()`, `setDict()`), `has()`, and required raw/value/dictionary access
-  built on the session marshalling layer.
+  `getDict()`, `setDict()`), `has()`, `pick()`, `entries()`, and required
+  raw/value/dictionary access built on the session marshalling layer.
 - Session pool release is reset-aware: dirty sessions are aborted before reuse,
   failed resets are discarded, waiters are served with replacement sessions, and
   close rejects pending acquires. Explicit validation queries run without

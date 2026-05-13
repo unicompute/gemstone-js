@@ -689,6 +689,35 @@ test("PersistentRoot required helpers expose raw, value, and dictionary entries"
   await session.logout();
 });
 
+test("PersistentRoot pick and entries read root values by listed names", async () => {
+  let runtime: MockGciRuntime;
+  let listCalls = 0;
+  runtime = new MockGciRuntime({
+    execute(source) {
+      listCalls += 1;
+      assert(source.includes("dict := UserGlobals."), "entries should list the validated root global");
+      assert(source.includes("keysAndValuesDo:"), "entries should ask GemStone for root keys");
+      return runtime.newString("RootStatus\nRootEnabled\n");
+    },
+  });
+  const session = await Session.connect({ username: "u", password: "p", runtime });
+  const root = new PersistentRoot(session);
+
+  await root.setValue("RootStatus", "ready");
+  await root.setValue("RootEnabled", true);
+
+  const picked = await root.pick(["RootStatus", "MissingRootEntry"]);
+  assertEqual(picked.RootStatus, "ready");
+  assertEqual(picked.MissingRootEntry, null);
+
+  const entries = await root.entries();
+  assertEqual(entries.RootStatus, "ready");
+  assertEqual(entries.RootEnabled, true);
+  assertEqual(listCalls, 1);
+
+  await session.logout();
+});
+
 test("PersistentRoot.list returns root keys from GemStone helper output", async () => {
   let runtime: MockGciRuntime;
   runtime = new MockGciRuntime({

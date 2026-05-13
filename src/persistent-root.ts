@@ -33,6 +33,14 @@ export class PersistentRoot {
     return oop === null ? null : this.session.marshalOop(oop);
   }
 
+  async pick(names: readonly string[]): Promise<Record<string, MarshalledValue>> {
+    const result: Record<string, MarshalledValue> = {};
+    for (const name of names) {
+      result[name] = await this.getValue(name);
+    }
+    return result;
+  }
+
   async has(name: string): Promise<boolean> {
     return await this.getOop(name) !== null;
   }
@@ -78,6 +86,10 @@ export class PersistentRoot {
 
   async requireDict(name: string): Promise<GsDict> {
     return new GsDict(this.session, await this.requireOop(name));
+  }
+
+  async entries(): Promise<Record<string, MarshalledValue>> {
+    return this.pick(await this.list());
   }
 
   async list(): Promise<string[]> {

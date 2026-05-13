@@ -378,7 +378,39 @@ export class Session implements AsyncDisposable {
       String streamContents: [:stream |
         stream nextPutAll: (obj asOop asString); lf.
         stream nextPutAll: (obj class name asString); lf.
-        stream nextPutAll: obj printString]
+        stream nextPutAll: obj printString; lf.
+        stream nextPutAll: '--gemstone-js-inspect--'; lf.
+        stream nextPutAll: 'classOop='; nextPutAll: (obj class asOop asString); lf.
+        stream nextPutAll: 'size='.
+        [stream nextPutAll: (obj basicSize asString)] on: Exception do: [:ex | stream nextPutAll: ''].
+        stream lf.
+        stream nextPutAll: 'byteSize='.
+        [stream nextPutAll: (obj size asString)] on: Exception do: [:ex | stream nextPutAll: ''].
+        stream lf.
+        stream nextPutAll: 'classHierarchy='.
+        [
+          | first |
+          first := true.
+          obj class withAllSuperclasses do: [:each |
+            first ifFalse: [stream nextPut: $,].
+            stream nextPutAll: each name asString.
+            first := false]
+        ] on: Exception do: [:ex | stream nextPutAll: obj class name asString].
+        stream lf.
+        [
+          | names |
+          names := obj class allInstVarNames.
+          1 to: names size do: [:index |
+            stream nextPutAll: 'slot='; nextPutAll: (names at: index) asString; nextPutAll: '	'.
+            [stream nextPutAll: ((obj instVarAt: index) printString)] on: Exception do: [:ex | stream nextPutAll: '<error>'].
+            stream lf]
+        ] on: Exception do: [:ex | ].
+        [
+          1 to: obj basicSize do: [:index |
+            stream nextPutAll: 'indexed='; nextPutAll: index asString; nextPutAll: '	'.
+            [stream nextPutAll: ((obj basicAt: index) printString)] on: Exception do: [:ex | stream nextPutAll: '<error>'].
+            stream lf]
+        ] on: Exception do: [:ex | ]]
     `;
     return this.#observe("inspect", { oop: value.toString() }, async () => {
       const result = await this.runtime.executeStr(source, OOP_NIL);
@@ -646,9 +678,71 @@ function parseInspectionPayload(payload: string): GemStoneInspection {
   } catch {
     throw new GemStoneError(`GemStone inspect helper returned an invalid OOP: ${oopText}`);
   }
-  return {
+  const className = normalized.slice(firstBreak + 1, secondBreak);
+  const metadataMarker = "\n--gemstone-js-inspect--\n";
+  const markerIndex = normalized.indexOf(metadataMarker, secondBreak + 1);
+  if (markerIndex === -1) {
+    return {
+      oop: inspectedOop,
+      class: className,
+      printString: normalized.slice(secondBreak + 1),
+    };
+  }
+
+  const inspection: GemStoneInspection = {
     oop: inspectedOop,
-    class: normalized.slice(firstBreak + 1, secondBreak),
-    printString: normalized.slice(secondBreak + 1),
+    class: className,
+    printString: normalized.slice(secondBreak + 1, markerIndex),
   };
+  for (const line of normalized.slice(markerIndex + metadataMarker.length).split("\n")) {
+    if (!line) continue;
+    const separator = line.indexOf("=");
+    if (separator === -1) continue;
+    const key = line.slice(0, separator);
+    const value = line.slice(separator + 1);
+    if (key === "classOop" && value) {
+      try {
+        inspection.classOop = oop(value);
+      } catch {
+        throw new GemStoneError(`GemStone inspect helper returned an invalid class OOP: ${value}`);
+      }
+    } else if (key === "size") {
+      inspection.size = parseOptionalNonNegativeInteger(value);
+    } else if (key === "byteSize") {
+      inspection.byteSize = parseOptionalNonNegativeInteger(value);
+    } else if (key === "classHierarchy" && value) {
+      inspection.classHierarchy = value.split(",").map((item) => item.trim()).filter(Boolean);
+    } else if (key === "slot") {
+      const [name, slotValue] = splitOnce(value, "\t");
+      if (name) {
+        inspection.slots ??= [];
+        inspection.slots.push({ name, value: slotValue });
+      }
+    } else if (key === "indexed") {
+      const [indexText, fieldValue] = splitOnce(value, "\t");
+      const index = parseOptionalNonNegativeInteger(indexText);
+      if (index !== undefined) {
+        inspection.indexedFields ??= [];
+        inspection.indexedFields.push({ index, value: fieldValue });
+      }
+    }
+  }
+  return {
+    ...inspection,
+    slots: inspection.slots ?? [],
+    indexedFields: inspection.indexedFields ?? [],
+  };
+}
+
+function parseOptionalNonNegativeInteger(value: string): number | undefined {
+  if (!value) return undefined;
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed < 0) return undefined;
+  return parsed;
+}
+
+function splitOnce(value: string, separator: string): [string, string] {
+  const index = value.indexOf(separator);
+  if (index === -1) return [value, ""];
+  return [value.slice(0, index), value.slice(index + separator.length)];
 }

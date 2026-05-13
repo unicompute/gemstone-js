@@ -9,6 +9,8 @@ import test from "node:test";
 const codegenScript = fileURLToPath(new URL("../scripts/codegen.mjs", import.meta.url));
 const scanScript = fileURLToPath(new URL("../scripts/scan-codegen.mjs", import.meta.url));
 const manifest = fileURLToPath(new URL("../examples/codegen.manifest.json", import.meta.url));
+const decoratorSource = fileURLToPath(new URL("../examples/booking.decorators.ts", import.meta.url));
+const decoratorGenerated = fileURLToPath(new URL("../examples/booking.decorators.generated.ts", import.meta.url));
 
 test("codegen CLI writes output and checks generated files", async () => {
   const dir = await mkdtemp(join(tmpdir(), "gemstone-js-codegen-"));
@@ -155,6 +157,18 @@ test("codegen scanner handles same-line decorators and nested parameter types", 
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
+});
+
+test("codegen scanner checks committed decorated-source wrapper output", async () => {
+  const check = await execNode([
+    scanScript,
+    "--module",
+    "--check",
+    "--out",
+    decoratorGenerated,
+    decoratorSource,
+  ]);
+  assert.match(check.stdout, /Generated module output is up to date/);
 });
 
 function execNode(args: string[]): Promise<{ stdout: string; stderr: string }> {

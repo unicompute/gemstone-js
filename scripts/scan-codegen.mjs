@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { readFile, writeFile } from "node:fs/promises";
+import ts from "typescript";
 import {
   inferGeneratedReturnKind,
   inferSelector,
@@ -60,58 +61,114 @@ if (check) {
 }
 
 function scanSource(source, sourcePath) {
-  const lines = source.split(/\r?\n/);
+  const sourceFile = ts.createSourceFile(sourcePath, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
   const functions = [];
-  for (let index = 0; index < lines.length; index += 1) {
-    const classMatch = lines[index].match(/@GemStoneClass\(\s*(['"])(.*?)\1\s*\)/);
-    if (!classMatch) continue;
 
-    let classLine = index;
-    while (classLine < lines.length && !/\bclass\s+[A-Za-z_$][A-Za-z0-9_$]*/.test(lines[classLine])) {
-      classLine += 1;
+  function visit(node) {
+    if (ts.isClassDeclaration(node)) {
+      const className = decoratorStringArg(node, "GemStoneClass", sourceFile, sourcePath);
+      if (className) {
+        for (const member of node.members) {
+          const entry = scanMethod(member, className, sourceFile, sourcePath);
+          if (entry) functions.push(entry);
+        }
+      }
     }
-    if (classLine >= lines.length) {
-      throw new Error(`${sourcePath}:${index + 1}: @GemStoneClass must precede a class declaration.`);
-    }
-
-    const className = classMatch[2];
-    const body = collectClassBody(lines, classLine, sourcePath);
-    functions.push(...scanClassBody(body.lines, className, sourcePath, body.startLine));
-    index = body.endLine;
+    ts.forEachChild(node, visit);
   }
+
+  visit(sourceFile);
   return functions;
 }
 
-function scanImports(source) {
+function scanImports(source, sourcePath = "source.ts") {
+  const sourceFile = ts.createSourceFile(sourcePath, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
   const imports = new Map();
-  const importPattern = /import\s+(type\s+)?([\s\S]*?)\s+from\s*(['"])(.*?)\3\s*;?/g;
-  for (const match of source.matchAll(importPattern)) {
-    const clause = match[2].trim();
-    const from = match[4];
-    const namedMatch = clause.match(/\{([\s\S]*?)\}/);
-    if (!namedMatch) continue;
-    for (const specifier of namedMatch[1].split(",")) {
-      const parsed = parseImportSpecifier(specifier);
-      if (!parsed) continue;
-      if (parsed.importedName !== parsed.localName) continue;
-      imports.set(parsed.localName, { from, name: parsed.importedName });
+
+  for (const statement of sourceFile.statements) {
+    if (!ts.isImportDeclaration(statement)) continue;
+    if (!ts.isStringLiteral(statement.moduleSpecifier)) continue;
+    const namedBindings = statement.importClause?.namedBindings;
+    if (!namedBindings || !ts.isNamedImports(namedBindings)) continue;
+    const from = statement.moduleSpecifier.text;
+
+    for (const specifier of namedBindings.elements) {
+      if (specifier.propertyName) continue;
+      const name = specifier.name.text;
+      imports.set(name, { from, name });
     }
   }
+
   return imports;
 }
 
-function parseImportSpecifier(specifier) {
-  let text = stripLineComment(specifier).trim();
-  if (!text) return undefined;
-  if (text.startsWith("type ")) {
-    text = text.slice("type ".length).trim();
+function scanMethod(member, className, sourceFile, sourcePath) {
+  if (!ts.isMethodDeclaration(member)) return undefined;
+  if (!ts.isIdentifier(member.name)) return undefined;
+
+  const methodName = member.name.text;
+  const parameters = parseParameters(member.parameters, sourceFile, sourcePath);
+  const session = parameters[0]?.name === "session" ? parameters.shift() : undefined;
+  const line = lineNumber(sourceFile, member.name);
+  const selector = decoratorStringArg(member, "GemStoneSelector", sourceFile, sourcePath)
+    ?? inferSelectorForSource(methodName, parameters.length, sourcePath, line);
+  const returnType = unwrapPromise(member.type?.getText(sourceFile).trim());
+
+  const entry = {
+    exportedName: methodName,
+    className,
+    selector,
+    argNames: parameters.map((param) => param.name),
+  };
+  if (parameters.length > 0 && parameters.every((param) => param.type)) {
+    entry.argTypes = parameters.map((param) => param.type);
   }
-  const aliasMatch = text.match(/^([A-Za-z_$][A-Za-z0-9_$]*)\s+as\s+([A-Za-z_$][A-Za-z0-9_$]*)$/);
-  if (aliasMatch) {
-    return { importedName: aliasMatch[1], localName: aliasMatch[2] };
+  if (session?.type) {
+    entry.sessionType = session.type;
   }
-  if (!/^[A-Za-z_$][A-Za-z0-9_$]*$/.test(text)) return undefined;
-  return { importedName: text, localName: text };
+  if (returnType) {
+    entry.returnType = returnType;
+    const returnKind = inferGeneratedReturnKind(returnType);
+    if (returnKind !== "value") {
+      entry.returnKind = returnKind;
+    }
+  }
+  return entry;
+}
+
+function decoratorStringArg(node, decoratorName, sourceFile, sourcePath) {
+  const decorators = ts.canHaveDecorators(node) ? ts.getDecorators(node) ?? [] : [];
+  for (const decorator of decorators) {
+    const expression = decorator.expression;
+    if (!ts.isCallExpression(expression)) continue;
+    const callee = expression.expression;
+    const name = ts.isIdentifier(callee)
+      ? callee.text
+      : ts.isPropertyAccessExpression(callee)
+        ? callee.name.text
+        : undefined;
+    if (name !== decoratorName) continue;
+    const [firstArg] = expression.arguments;
+    if (firstArg && (ts.isStringLiteral(firstArg) || ts.isNoSubstitutionTemplateLiteral(firstArg))) {
+      return firstArg.text;
+    }
+    throw new Error(`${sourcePath}:${lineNumber(sourceFile, decorator)}: @${decoratorName} requires a string literal.`);
+  }
+  return undefined;
+}
+
+function parseParameters(parameters, sourceFile, sourcePath) {
+  return parameters.map((parameter) => {
+    if (!ts.isIdentifier(parameter.name)) {
+      throw new Error(
+        `${sourcePath}:${lineNumber(sourceFile, parameter)}: Unsupported method parameter syntax: ${parameter.getText(sourceFile)}`,
+      );
+    }
+    return {
+      name: parameter.name.text,
+      type: parameter.type?.getText(sourceFile).trim(),
+    };
+  });
 }
 
 function collectUsedTypeImports(sourceImports, functions, target) {
@@ -157,111 +214,6 @@ function renderTypeImports(imports) {
   }));
 }
 
-function collectClassBody(lines, classLine, sourcePath) {
-  const body = [];
-  let depth = 0;
-  let sawOpen = false;
-  for (let index = classLine; index < lines.length; index += 1) {
-    const line = stripLineComment(lines[index]);
-    let bodyLine = "";
-    for (const ch of line) {
-      if (ch === "{") {
-        if (sawOpen && depth > 0) bodyLine += ch;
-        depth += 1;
-        sawOpen = true;
-      } else if (ch === "}") {
-        if (depth > 1) bodyLine += ch;
-        depth -= 1;
-      } else if (sawOpen && depth > 0) {
-        bodyLine += ch;
-      }
-    }
-    if (sawOpen) body.push(bodyLine);
-    if (sawOpen && depth === 0) {
-      return { lines: body, startLine: classLine + 1, endLine: index };
-    }
-  }
-  throw new Error(`${sourcePath}:${classLine + 1}: class declaration is missing a closing brace.`);
-}
-
-function scanClassBody(lines, className, sourcePath, startLine) {
-  const functions = [];
-  let pendingSelector;
-  for (let offset = 0; offset < lines.length; offset += 1) {
-    let line = lines[offset];
-    const selectorMatch = line.match(/@GemStoneSelector\(\s*(['"])(.*?)\1\s*\)/);
-    if (selectorMatch) {
-      pendingSelector = selectorMatch[2];
-      line = line.slice((selectorMatch.index ?? 0) + selectorMatch[0].length);
-      if (!/\S/.test(line)) continue;
-    }
-
-    const methodMatch = line.match(/^\s*(?:(?:public|protected|private|static|async|override|abstract)\s+)*([A-Za-z_$][A-Za-z0-9_$]*)\s*\(([^)]*)\)\s*(?::\s*([^;{]+))?/);
-    if (!methodMatch || methodMatch[1] === "constructor") continue;
-
-    const methodName = methodMatch[1];
-    const parameters = parseParameters(methodMatch[2]);
-    const session = parameters[0]?.name === "session" ? parameters.shift() : undefined;
-    const selector = pendingSelector ?? inferSelectorForSource(methodName, parameters.length, sourcePath, startLine + offset);
-    pendingSelector = undefined;
-    const returnType = unwrapPromise(methodMatch[3]?.trim());
-
-    const entry = {
-      exportedName: methodName,
-      className,
-      selector,
-      argNames: parameters.map((param) => param.name),
-    };
-    if (parameters.length > 0 && parameters.every((param) => param.type)) {
-      entry.argTypes = parameters.map((param) => param.type);
-    }
-    if (session?.type) {
-      entry.sessionType = session.type;
-    }
-    if (returnType) {
-      entry.returnType = returnType;
-      const returnKind = inferGeneratedReturnKind(returnType);
-      if (returnKind !== "value") {
-        entry.returnKind = returnKind;
-      }
-    }
-    functions.push(entry);
-  }
-  return functions;
-}
-
-function parseParameters(source) {
-  const trimmed = source.trim();
-  if (!trimmed) return [];
-  return splitTopLevelCommas(trimmed).map((part) => {
-    const cleaned = part.trim().replace(/=.*$/, "").replace(/^\.\.\./, "");
-    const match = cleaned.match(/^([A-Za-z_$][A-Za-z0-9_$]*)(?:\?)?\s*(?::\s*(.+))?$/);
-    if (!match) {
-      throw new Error(`Unsupported method parameter syntax: ${part.trim()}`);
-    }
-    return { name: match[1], type: match[2]?.trim() };
-  });
-}
-
-function splitTopLevelCommas(source) {
-  const parts = [];
-  let start = 0;
-  let depth = 0;
-  for (let index = 0; index < source.length; index += 1) {
-    const ch = source[index];
-    if (ch === "<" || ch === "(" || ch === "[" || ch === "{") {
-      depth += 1;
-    } else if (ch === ">" || ch === ")" || ch === "]" || ch === "}") {
-      depth = Math.max(0, depth - 1);
-    } else if (ch === "," && depth === 0) {
-      parts.push(source.slice(start, index));
-      start = index + 1;
-    }
-  }
-  parts.push(source.slice(start));
-  return parts;
-}
-
 function unwrapPromise(type) {
   if (!type) return undefined;
   const match = type.match(/^Promise\s*<(.+)>$/);
@@ -276,8 +228,8 @@ function inferSelectorForSource(methodName, arity, sourcePath, lineNumber) {
   }
 }
 
-function stripLineComment(line) {
-  return line.replace(/\/\/.*$/, "");
+function lineNumber(sourceFile, node) {
+  return sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1;
 }
 
 function parseArgs(args) {

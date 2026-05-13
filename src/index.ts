@@ -50,7 +50,7 @@ export {
 } from "./codegen.ts";
 export { PersistentRoot } from "./persistent-root.ts";
 export { GsDict } from "./gsdict.ts";
-export { GSCollection, type ComparisonOp } from "./query.ts";
+export { GSCollection, type ComparisonOp, type GSCollectionIndexKind, type GSCollectionIndexOptions } from "./query.ts";
 export { PooledSession, SessionPool, type PoolConfig } from "./pool.ts";
 export { gemstoneExpress, type ExpressGemStoneOptions } from "./adapters/express.ts";
 export { gemstoneFastify, type FastifyGemStoneOptions } from "./adapters/fastify.ts";
@@ -88,7 +88,9 @@ export {
   GemStoneError,
   type GciErrorInfo,
   type GciRuntime,
+  type GemStoneIndexedFieldInspection,
   type GemStoneInspection,
+  type GemStoneSlotInspection,
   type LoginOptions,
   type PoolStats,
   type ResolvedSessionConfig,

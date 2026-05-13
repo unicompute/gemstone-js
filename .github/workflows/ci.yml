@@ -21,6 +21,7 @@ jobs:
       - run: npm install --omit=optional
       - run: npm run typecheck
       - run: npm run codegen:check
+      - run: npm run codegen:scan:check
       - run: npm test
       - run: npm run pack:check
       - run: npm pack --json

@@ -2,6 +2,11 @@ import { Session, TypedOop, type MarshalledValue } from "./client.ts";
 import { OOP_NIL, smallintToOop, type Oop } from "./oop.ts";
 
 export type ComparisonOp = "=" | "==" | "!=" | "~=" | "<" | "<=" | ">" | ">=";
+export type GSCollectionIndexKind = "equality";
+
+export interface GSCollectionIndexOptions {
+  kind?: GSCollectionIndexKind;
+}
 
 export class GSCollection<T = unknown> {
   readonly session: Session;
@@ -18,6 +23,24 @@ export class GSCollection<T = unknown> {
 
   async removeEqualityIndexOn(path: string): Promise<void> {
     await this.session.execute(`${this.name} removeEqualityIndexOn: '${escapeSmalltalk(path)}'`);
+  }
+
+  async createIndexOn(path: string, options: GSCollectionIndexOptions = {}): Promise<void> {
+    const selectors = selectorsForIndexKind(options.kind ?? "equality");
+    await this.session.execute(`${this.name} ${selectors.create} '${escapeSmalltalk(path)}'`);
+  }
+
+  async removeIndexOn(path: string, options: GSCollectionIndexOptions = {}): Promise<void> {
+    const selectors = selectorsForIndexKind(options.kind ?? "equality");
+    await this.session.execute(`${this.name} ${selectors.remove} '${escapeSmalltalk(path)}'`);
+  }
+
+  async createIndex(path: string, options: GSCollectionIndexOptions = {}): Promise<void> {
+    await this.createIndexOn(path, options);
+  }
+
+  async removeIndex(path: string, options: GSCollectionIndexOptions = {}): Promise<void> {
+    await this.removeIndexOn(path, options);
   }
 
   async search(path: string, op: ComparisonOp, value: string | number | bigint | boolean): Promise<TypedOop<T>[]> {
@@ -101,6 +124,16 @@ function smalltalkOp(op: ComparisonOp): string {
   if (op === "==" || op === "=") return "=";
   if (op === "!=") return "~=";
   return op;
+}
+
+function selectorsForIndexKind(kind: GSCollectionIndexKind): { create: string; remove: string } {
+  if (kind === "equality") {
+    return {
+      create: "createEqualityIndexOn:",
+      remove: "removeEqualityIndexOn:",
+    };
+  }
+  throw new RangeError(`Unsupported GemStone index kind: ${String(kind)}`);
 }
 
 function escapeSmalltalk(value: string): string {

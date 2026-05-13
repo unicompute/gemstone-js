@@ -44,11 +44,14 @@ native package; the TypeScript package can be tested locally with a mock runtime
 - Result marshalling now converts GemStone `String` and `Symbol` objects back
   into JavaScript strings via `fetchString()` and class detection. Float OOPs are
   converted when the runtime reports that `GciOopToFlt_` succeeded.
-- `Session.inspect()` returns typed `oop`, `class`, and `printString` metadata
-  for quick debugging of raw object handles.
+- `Session.inspect()` returns typed `oop`, `class`, `classOop`, `printString`,
+  size/byte-size, class hierarchy, slot, and indexed-field metadata for quick
+  debugging of raw object handles.
 - `GSCollection.search()` unwraps result arrays into typed handles, and
   `GSCollection.iter()` fetches collection chunks while yielding individual
-  objects.
+  objects. Equality-index helpers are available through both explicit
+  `createEqualityIndexOn()`/`removeEqualityIndexOn()` and higher-level
+  `createIndex()`/`removeIndex()` calls.
 - Pool, observability hooks, persistent-root, query, codegen, and Express,
   Fastify, and Hono adapter scaffolds.
 - Codegen helpers render wrappers that share the same JavaScript argument
@@ -59,12 +62,15 @@ native package; the TypeScript package can be tested locally with a mock runtime
 - Codegen manifests have a published JSON Schema at
   `schemas/codegen-manifest.schema.json`, can include typed signatures/imports,
   and can be produced from decorated source with `npm run codegen:scan --`.
-  The scanner preserves used type imports and infers raw OOP/object-returning
-  wrappers from `Oop` and `TypedOop<T>` return annotations. Add `--module` to
-  emit generated wrapper source directly from decorated classes.
+  The scanner uses the TypeScript parser for decorators, multiline methods,
+  generics, and typed imports, and infers raw OOP/object-returning wrappers from
+  `Oop` and `TypedOop<T>` return annotations. Add `--module` to emit generated
+  wrapper source directly from decorated classes.
 - `npm run codegen -- [--check] <manifest.json> [output.ts]` renders wrapper
   modules from a JSON manifest and can verify checked-in generated files in CI;
   see `examples/codegen.manifest.json` and `examples/codegen.generated.ts`.
+- `examples/booking.decorators.ts` is a committed scanner fixture; CI verifies
+  that it still renders `examples/booking.decorators.generated.ts`.
 - `Session.performObjectWith()` and `sendValue()` aliases make value, raw OOP,
   and retained object-returning sends explicit at both session and class-ref
   layers.
@@ -76,6 +82,7 @@ native package; the TypeScript package can be tested locally with a mock runtime
 ```sh
 npm test
 npm run typecheck
+npm run codegen:scan:check
 npm run pack:check
 ```
 

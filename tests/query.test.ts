@@ -90,9 +90,13 @@ test("GSCollection index helpers render escaped index paths", async () => {
 
   await collection.createEqualityIndexOn("customer's.name");
   await collection.removeEqualityIndexOn("customer's.name");
+  await collection.createIndexOn("status", { kind: "equality" });
+  await collection.removeIndex("status");
 
   assert(executeSources[0].includes("createEqualityIndexOn: 'customer''s.name'"), "create index should escape path literals");
   assert(executeSources[1].includes("removeEqualityIndexOn: 'customer''s.name'"), "remove index should escape path literals");
+  assert(executeSources[2].includes("createEqualityIndexOn: 'status'"), "generic create index should use equality selector");
+  assert(executeSources[3].includes("removeEqualityIndexOn: 'status'"), "generic remove index should use equality selector");
   await session.logout();
 });
 

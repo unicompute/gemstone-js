@@ -90,10 +90,26 @@ export interface SymDictLookup {
   assoc: Oop;
 }
 
+export interface GemStoneSlotInspection {
+  name: string;
+  value: string;
+}
+
+export interface GemStoneIndexedFieldInspection {
+  index: number;
+  value: string;
+}
+
 export interface GemStoneInspection {
   oop: Oop;
   class: string;
+  classOop?: Oop;
   printString: string;
+  size?: number;
+  byteSize?: number;
+  classHierarchy?: string[];
+  slots?: GemStoneSlotInspection[];
+  indexedFields?: GemStoneIndexedFieldInspection[];
 }
 
 export interface GciRuntime {

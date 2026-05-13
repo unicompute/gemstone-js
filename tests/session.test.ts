@@ -517,10 +517,24 @@ test("marshalOop converts float OOPs when the runtime supports it", async () => 
 
 test("inspect returns typed class and printString metadata", async () => {
   let runtime: MockGciRuntime;
+  const classOop = smallintToOop(99);
   runtime = new MockGciRuntime({
     async execute(source) {
       assert(source.includes("Object _objectForOop:"), "inspect should use the GemStone object lookup helper");
-      return runtime.newString(`${smallintToOop(7).toString()}\nSmallInteger\n7\nagain`);
+      return runtime.newString([
+        smallintToOop(7).toString(),
+        "SmallInteger",
+        "7",
+        "again",
+        "--gemstone-js-inspect--",
+        `classOop=${classOop.toString()}`,
+        "size=0",
+        "byteSize=1",
+        "classHierarchy=SmallInteger,Integer,Number,Object",
+        "slot=value\t42",
+        "indexed=1\titem",
+        "",
+      ].join("\n"));
     },
   });
   const session = await Session.connect({ username: "u", password: "p", runtime });
@@ -530,6 +544,14 @@ test("inspect returns typed class and printString metadata", async () => {
   assertEqual(inspection.oop, smallintToOop(7));
   assertEqual(inspection.class, "SmallInteger");
   assertEqual(inspection.printString, "7\nagain");
+  assertEqual(inspection.classOop, classOop);
+  assertEqual(inspection.size, 0);
+  assertEqual(inspection.byteSize, 1);
+  assertEqual(inspection.classHierarchy?.join(">"), "SmallInteger>Integer>Number>Object");
+  assertEqual(inspection.slots?.[0]?.name, "value");
+  assertEqual(inspection.slots?.[0]?.value, "42");
+  assertEqual(inspection.indexedFields?.[0]?.index, 1);
+  assertEqual(inspection.indexedFields?.[0]?.value, "item");
 
   await session.logout();
 });

@@ -41,9 +41,14 @@ native package; the TypeScript package can be tested locally with a mock runtime
 
 ```sh
 npm test
+npm run typecheck
+npm run pack:check
 ```
 
 Node 24 can execute the `.ts` tests directly using built-in type stripping.
+The package check uses `npm pack --dry-run` with a disposable cache and verifies
+that the publishable tarball includes docs/examples while excluding tests and
+local build metadata.
 
 ## Example
 

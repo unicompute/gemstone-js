@@ -18,6 +18,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
-      - run: npm install
+      - run: npm install --omit=optional
       - run: npm run typecheck
       - run: npm test
+      - run: npm run pack:check

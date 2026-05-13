@@ -1,15 +1,41 @@
 declare module "@gemstone-js/native" {
+  export interface LoginOptions {
+    username: string;
+    password: string;
+    flags?: number;
+    haltOnError?: boolean;
+  }
+
+  export interface GciErrorInfo {
+    number: number;
+    fatal: boolean;
+    message: string;
+    reason?: string;
+  }
+
+  export interface SymDictLookup {
+    value: string;
+    assoc: string;
+  }
+
+  export function smallintToOop(value: number): string;
+  export function oopToSmallint(value: string): number;
+  export function isSmallintOop(value: string): boolean;
+  export function boolToOop(value: boolean): string;
+  export function charToOopString(value: string): string;
+  export function oopToCharString(value: string): string | null;
+
   export class Gci {
     constructor(libPath?: string);
     init(libPath?: string): number;
     libraryPath(): string;
     encrypt(password: string): string;
     setNet(stoneName: string, hostUsername: string, encryptedHostPassword: string, gemService: string): void;
-    loginEx(options: Record<string, unknown>): number;
+    loginEx(options: LoginOptions): number;
     logout(): number;
     commit(): boolean;
     abort(): boolean;
-    err(): Record<string, unknown> | null;
+    err(): GciErrorInfo | null;
     executeStr(source: string, receiver?: string): string;
     perform(receiver: string, selector: string, args?: string[]): string;
     newString(value: string): string;
@@ -25,7 +51,7 @@ declare module "@gemstone-js/native" {
     inTransaction(): boolean;
     fltToOop(value: number): string;
     oopToFlt(oop: string): number;
-    symDictAt(dict: string, key: string): { value: string; assoc: string };
+    symDictAt(dict: string, key: string): SymDictLookup;
     symDictAtPut(dict: string, key: string, value: string): void;
     symDictAtObjPut(dict: string, key: string, value: string): void;
     strKeyValueDictAt(dict: string, key: string): string;

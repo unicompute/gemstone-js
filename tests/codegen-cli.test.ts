@@ -223,6 +223,47 @@ test("codegen scanner unwraps Promise return types from TypeScript AST nodes", a
   }
 });
 
+test("codegen scanner ignores imported names that only appear inside literal types", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "gemstone-js-codegen-scan-literals-"));
+  try {
+    const sourcePath = join(dir, "literal-types.ts");
+    await writeFile(sourcePath, [
+      "import { GemStoneClass, GemStoneSelector, type Session } from \"gemstone-js\";",
+      "import type { paid } from \"./states.ts\";",
+      "@GemStoneClass(\"Booking\")",
+      "class LiteralBookingModel {",
+      "  @GemStoneSelector(\"status\")",
+      "  static status(session: Session): Promise<\"paid\"> {",
+      "    throw new Error(\"scanner fixture only\");",
+      "  }",
+      "}",
+      "",
+    ].join("\n"));
+
+    const { stdout } = await execNode([scanScript, sourcePath]);
+    const scanned = JSON.parse(stdout);
+
+    assert.deepEqual(scanned.imports, [
+      {
+        from: "gemstone-js",
+        typeNames: ["Session"],
+      },
+    ]);
+    assert.deepEqual(scanned.functions, [
+      {
+        exportedName: "status",
+        className: "Booking",
+        selector: "status",
+        argNames: [],
+        sessionType: "Session",
+        returnType: "\"paid\"",
+      },
+    ]);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 test("codegen scanner resolves decorator/type aliases and skips overload signatures", async () => {
   const dir = await mkdtemp(join(tmpdir(), "gemstone-js-codegen-scan-alias-"));
   try {

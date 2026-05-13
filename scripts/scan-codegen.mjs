@@ -37,9 +37,9 @@ async function main(args) {
   const imports = new Map();
   for (const sourcePath of sourcePaths) {
     const source = await readFile(sourcePath, "utf8");
-    const sourceFunctions = scanSource(source, sourcePath);
-    functions.push(...sourceFunctions);
-    collectUsedTypeImports(scanImports(source, sourcePath), sourceFunctions, imports);
+    const scanned = scanSource(source, sourcePath);
+    functions.push(...scanned.functions);
+    collectUsedTypeImports(scanImports(source, sourcePath), scanned.usedTypeNames, imports);
   }
 
   const manifest = {
@@ -75,6 +75,7 @@ function scanSource(source, sourcePath) {
   assertNoParseDiagnostics(sourceFile, sourcePath);
   const decoratorNames = scanDecoratorNames(sourceFile);
   const functions = [];
+  const usedTypeNames = new Set();
 
   function visit(node) {
     if (ts.isClassDeclaration(node)) {
@@ -82,7 +83,7 @@ function scanSource(source, sourcePath) {
       if (className) {
         const implementedMethods = collectImplementedMethodNames(node);
         for (const member of node.members) {
-          const entry = scanMethod(member, className, sourceFile, sourcePath, decoratorNames, implementedMethods);
+          const entry = scanMethod(member, className, sourceFile, sourcePath, decoratorNames, implementedMethods, usedTypeNames);
           if (entry) functions.push(entry);
         }
       }
@@ -91,7 +92,7 @@ function scanSource(source, sourcePath) {
   }
 
   visit(sourceFile);
-  return functions;
+  return { functions, usedTypeNames };
 }
 
 function scanImports(source, sourcePath = "source.ts") {
@@ -195,7 +196,7 @@ function collectImplementedMethodNames(classNode) {
   return names;
 }
 
-function scanMethod(member, className, sourceFile, sourcePath, decoratorNames, implementedMethods) {
+function scanMethod(member, className, sourceFile, sourcePath, decoratorNames, implementedMethods, usedTypeNames) {
   if (!ts.isMethodDeclaration(member)) return undefined;
   if (!ts.isIdentifier(member.name)) return undefined;
   if (!member.body && implementedMethods.has(member.name.text)) return undefined;
@@ -206,7 +207,14 @@ function scanMethod(member, className, sourceFile, sourcePath, decoratorNames, i
   const line = lineNumber(sourceFile, member.name);
   const selector = decoratorStringArg(member, "GemStoneSelector", sourceFile, sourcePath, decoratorNames)
     ?? inferSelectorForSource(methodName, parameters.length, sourcePath, line);
-  const returnType = unwrapPromiseReturnType(member.type, sourceFile);
+  const returnTypeNode = unwrapPromiseReturnTypeNode(member.type);
+  const returnType = returnTypeNode ? typeText(returnTypeNode, sourceFile) : undefined;
+
+  collectTypeNodeNames(session?.typeNode, usedTypeNames);
+  for (const parameter of parameters) {
+    collectTypeNodeNames(parameter.typeNode, usedTypeNames);
+  }
+  collectTypeNodeNames(returnTypeNode, usedTypeNames);
 
   const entry = {
     exportedName: methodName,
@@ -265,12 +273,13 @@ function parseParameters(parameters, sourceFile, sourcePath) {
     return {
       name: parameter.name.text,
       type: parameter.type ? typeText(parameter.type, sourceFile) : undefined,
+      typeNode: parameter.type,
     };
   });
 }
 
-function collectUsedTypeImports(sourceImports, functions, target) {
-  for (const name of collectUsedTypeNames(functions)) {
+function collectUsedTypeImports(sourceImports, usedTypeNames, target) {
+  for (const name of usedTypeNames) {
     const imported = sourceImports.get(name);
     if (imported) {
       if (imported.typeDefaultName) {
@@ -281,27 +290,6 @@ function collectUsedTypeImports(sourceImports, functions, target) {
         addTypeImport(target, imported.from, imported.alias ? { name: imported.name, alias: imported.alias } : imported.name);
       }
     }
-  }
-}
-
-function collectUsedTypeNames(functions) {
-  const names = new Set();
-  for (const fn of functions) {
-    collectTypeNames(fn.sessionType, names);
-    collectTypeNames(fn.returnType, names);
-    if (Array.isArray(fn.argTypes)) {
-      for (const type of fn.argTypes) collectTypeNames(type, names);
-    } else if (fn.argTypes && typeof fn.argTypes === "object") {
-      for (const type of Object.values(fn.argTypes)) collectTypeNames(type, names);
-    }
-  }
-  return names;
-}
-
-function collectTypeNames(type, names) {
-  if (!type) return;
-  for (const match of String(type).matchAll(/\b[A-Za-z_$][A-Za-z0-9_$]*\b/g)) {
-    names.add(match[0]);
   }
 }
 
@@ -340,10 +328,9 @@ function renderTypeImports(imports) {
   }));
 }
 
-function unwrapPromiseReturnType(typeNode, sourceFile) {
+function unwrapPromiseReturnTypeNode(typeNode) {
   if (!typeNode) return undefined;
-  const unwrapped = promiseTypeArgument(typeNode) ?? typeNode;
-  return typeText(unwrapped, sourceFile);
+  return promiseTypeArgument(typeNode) ?? typeNode;
 }
 
 function promiseTypeArgument(typeNode) {
@@ -365,6 +352,49 @@ function isPromiseTypeName(typeName) {
     && typeName.left.text === "globalThis"
     && typeName.right.text === "Promise"
   );
+}
+
+function collectTypeNodeNames(typeNode, names) {
+  if (!typeNode) return;
+  visitTypeNode(typeNode);
+
+  function visitTypeNode(node) {
+    if (ts.isTypeReferenceNode(node)) {
+      addEntityNameRoot(node.typeName, names);
+      for (const arg of node.typeArguments ?? []) {
+        visitTypeNode(arg);
+      }
+      return;
+    }
+    if (ts.isExpressionWithTypeArguments(node)) {
+      if (ts.isIdentifier(node.expression) || ts.isPropertyAccessExpression(node.expression)) {
+        addExpressionRoot(node.expression, names);
+      }
+      for (const arg of node.typeArguments ?? []) {
+        visitTypeNode(arg);
+      }
+      return;
+    }
+    ts.forEachChild(node, visitTypeNode);
+  }
+}
+
+function addEntityNameRoot(name, names) {
+  if (ts.isIdentifier(name)) {
+    names.add(name.text);
+    return;
+  }
+  addEntityNameRoot(name.left, names);
+}
+
+function addExpressionRoot(expression, names) {
+  if (ts.isIdentifier(expression)) {
+    names.add(expression.text);
+    return;
+  }
+  if (ts.isPropertyAccessExpression(expression)) {
+    addExpressionRoot(expression.expression, names);
+  }
 }
 
 function typeText(typeNode, sourceFile) {

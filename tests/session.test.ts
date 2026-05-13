@@ -304,6 +304,22 @@ test("ManagedOop.send marshals JavaScript arguments", async () => {
   await session.logout();
 });
 
+test("ManagedOop.sendObject wraps object results as retained typed handles", async () => {
+  const runtime = new MockGciRuntime();
+  const session = await Session.connect({ username: "u", password: "p", runtime });
+  const managed = session.managedOop(runtime.allocate());
+
+  const child = await managed.sendObject<{ name: string }>("childNamed:", "primary");
+
+  assertEqual(child.session, session);
+  assert(runtime.calls.some((call) => call.method === "newString" && call.args[0] === "primary"), "sendObject should marshal arguments");
+
+  await child.release();
+  assert(runtime.calls.some((call) => call.method === "addOopToExportSet" && call.args[0] === child.oop), "sendObject should retain the returned handle");
+  await managed.release();
+  await session.logout();
+});
+
 test("Session.classRef exposes explicit class-side sends and typed wrapping", async () => {
   const runtime = new MockGciRuntime();
   const session = await Session.connect({ username: "u", password: "p", runtime });
@@ -332,6 +348,21 @@ test("Session.classRef exposes explicit class-side sends and typed wrapping", as
   await allocated.release();
 
   assertThrows(() => session.classRef("   "));
+  await session.logout();
+});
+
+test("GemStoneClassRef.sendObject wraps class-side object results", async () => {
+  const runtime = new MockGciRuntime();
+  const session = await Session.connect({ username: "u", password: "p", runtime });
+  const bookingClass = session.classRef<{ status: string }>("Booking");
+
+  const found = await bookingClass.sendObject("findById:", "B-2");
+
+  assertEqual(found.session, session);
+  assert(runtime.calls.some((call) => call.method === "newString" && call.args[0] === "B-2"), "classRef sendObject should marshal arguments");
+
+  await found.release();
+  assert(runtime.calls.some((call) => call.method === "addOopToExportSet" && call.args[0] === found.oop), "classRef sendObject should retain the returned handle");
   await session.logout();
 });
 

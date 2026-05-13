@@ -502,6 +502,10 @@ export class ManagedOop<T = unknown> implements AsyncDisposable {
     return this.session.performWith(this.oop, selector, ...args);
   }
 
+  async sendObject<R = unknown>(selector: string, ...args: GemStoneArgument[]): Promise<TypedOop<R>> {
+    return this.session.typedOop<R>(await this.sendOop(selector, ...args));
+  }
+
   async release(): Promise<void> {
     if (this.#released) return;
     this.#released = true;
@@ -542,6 +546,10 @@ export class GemStoneClassRef<T = unknown> {
 
   async sendOop(selector: string, ...args: GemStoneArgument[]): Promise<Oop> {
     return this.session.performWith(await this.oop(), selector, ...args);
+  }
+
+  async sendObject<R = T>(selector: string, ...args: GemStoneArgument[]): Promise<TypedOop<R>> {
+    return this.session.typedOop<R>(await this.sendOop(selector, ...args));
   }
 
   async new(): Promise<TypedOop<T>> {

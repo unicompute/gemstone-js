@@ -44,7 +44,8 @@ native package; the TypeScript package can be tested locally with a mock runtime
   `globalSet()`/`globalSetValue()` and `globalSetAll()`/`globalSetAllValue()`, raw
   `globalSetOop()`/`globalSetAllOop()`, required global accessors including
   object alias `globalRequire()`, dictionary helpers `globalGetDict()`,
-  `globalSetDict()`, `globalRequireDict()`, and `globalRemove()`/`globalDelete()`.
+  `globalSetDict()`/`globalSetAllDict()`, `globalRequireDict()`, and
+  `globalRemove()`/`globalDelete()`.
 - `GsDict` wraps GemStone `StringKeyValueDictionary` objects with
   `get()`/`getValue()`,
   `getObject()`, `set()`/`setValue()` and `setAll()`/`setAllValue()`, raw
@@ -53,10 +54,10 @@ native package; the TypeScript package can be tested locally with a mock runtime
   `values()`, raw `valuesOop()`, `items()`, raw `itemsOop()`, `entries()`,
   raw `entriesOop()`, `pick()`, raw `pickOop()`, required raw/value/object
   accessors plus object alias `require()`, nested dictionary helpers
-  `getDict()`/`setDict()`/`requireDict()`, explicit send helpers, and inspection
-  helpers.
+  `getDict()`/`setDict()`/`setAllDict()`/`requireDict()`, explicit send
+  helpers, and inspection helpers.
 - `PersistentRoot` now has value helpers (`getValue()`, `setValue()`,
-  `setAllValue()`, `getDict()`, `setDict()`), raw `setAll()`,
+  `setAllValue()`, `getDict()`, `setDict()`/`setAllDict()`), raw `setAll()`,
   `getObject()`, `remove()`/`delete()`, `has()`, `keys()`, `pick()`,
   raw `pickOop()`, `entries()`, raw `entriesOop()`, `values()`, raw
   `valuesOop()`, `items()`, raw `itemsOop()`, and required

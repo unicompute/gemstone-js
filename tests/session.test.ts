@@ -692,7 +692,7 @@ test("GsDict wraps StringKeyValueDictionary access", async () => {
   await dict.setAll({ city: "London", enabled: true });
   await dict.setValue("role", "Engineer");
   await dict.setAllValue({ zone: "A1" });
-  const nested = await dict.setDict("nested", { status: "child" });
+  const nested = (await dict.setAllDict({ nested: { status: "child" } })).nested;
   await dict.setAllOop({ object });
 
   assertEqual(await dict.get("name"), "Ada");
@@ -884,7 +884,7 @@ test("globalSet and globalGet round-trip through UserGlobals", async () => {
   await session.globalSetAllValue({ JsBridgeValue: "ready" });
   await session.globalSetValue("JsBridgeExtraValue", "extra-ready");
   await session.globalSetAllOop({ JsBridgeObject: object });
-  const storedDict = await session.globalSetDict("JsBridgeDict", { status: "nested" });
+  const storedDict = (await session.globalSetAllDict({ JsBridgeDict: { status: "nested" } })).JsBridgeDict;
 
   assertEqual(await session.globalHas("JsBridgeValue"), true);
   assertEqual(await session.globalGet("JsBridgeValue"), "ready");
@@ -981,7 +981,7 @@ test("PersistentRoot required helpers expose raw, value, and dictionary entries"
   const object = runtime.allocate();
 
   await root.setValue("RootStatus", "ready");
-  const savedDict = await root.setDict("RootDict", { name: "Ada" });
+  const savedDict = (await root.setAllDict({ RootDict: { name: "Ada" } })).RootDict;
   await root.setAll({ RootObject: object });
 
   assertEqual(await root.has("RootStatus"), true);

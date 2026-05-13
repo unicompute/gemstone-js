@@ -454,6 +454,14 @@ export class Session implements AsyncDisposable {
     return dict;
   }
 
+  async globalSetAllDict(values: Record<string, GemStoneDictionaryArgument>): Promise<Record<string, GsDict>> {
+    const result: Record<string, GsDict> = {};
+    for (const [name, value] of Object.entries(values)) {
+      result[name] = await this.globalSetDict(name, value);
+    }
+    return result;
+  }
+
   async globalSetOop<T = unknown>(name: string, value: TypedOop<T> | ManagedOop<T> | Oop): Promise<void> {
     const keyName = validateGemStoneGlobalName(name, "global name");
     await this.#observe("global_set_oop", { name: keyName }, async () => {

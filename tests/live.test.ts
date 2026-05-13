@@ -43,7 +43,7 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
   ))));
   assert.equal(dictItemsOop.get("status"), "ready");
   assert.equal(await dict.requireValue("status"), "ready");
-  await dict.setDict("nested", { status: "child" });
+  await dict.setAllDict({ nested: { status: "child" } });
   const nestedDict = await dict.getDict("nested");
   if (!nestedDict) throw new Error("GsDict.getDict should return the live nested dictionary.");
   assert.equal(await nestedDict.requireValue("status"), "child");
@@ -69,7 +69,7 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
   await session.globalSetAllValue({ [globalKey]: "global", [globalExtraKey]: "global-extra" });
   await session.globalSetValue(globalValueKey, "global-value");
   await session.globalSetAllOop({ [globalObjectKey]: object });
-  await session.globalSetDict(globalDictKey, { status: "global-dict" });
+  await session.globalSetAllDict({ [globalDictKey]: { status: "global-dict" } });
   assert.equal(await session.globalHas(globalKey), true);
   assert.equal(await session.globalGet(globalKey), "global");
   assert.equal(await session.globalGetValue(globalValueKey), "global-value");
@@ -107,7 +107,7 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
   assert.equal(await session.globalHas(globalKey), false);
   assert.equal(await session.globalDelete(globalKey), false);
   await root.setAllValue({ [key]: "ok", [extraKey]: "extra" });
-  await root.setDict(dictKey, { status: "stored" });
+  await root.setAllDict({ [dictKey]: { status: "stored" } });
   assert.equal(await root.getValue(key), "ok");
   assert.equal(await root.getValue(extraKey), "extra");
   assert.equal(await root.has(key), true);

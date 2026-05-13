@@ -1,5 +1,12 @@
 import { GsDict } from "./gsdict.ts";
-import { ManagedOop, Session, TypedOop, type GemStoneArgument, type MarshalledValue } from "./client.ts";
+import {
+  ManagedOop,
+  Session,
+  TypedOop,
+  type GemStoneArgument,
+  type GemStoneDictionaryArgument,
+  type MarshalledValue,
+} from "./client.ts";
 import { OOP_ILLEGAL, OOP_NIL, isIllegal, type Oop } from "./oop.ts";
 import { validateGemStoneGlobalName } from "./smalltalk-source.ts";
 
@@ -107,10 +114,18 @@ export class PersistentRoot {
     return oop === null ? null : new GsDict(this.session, oop);
   }
 
-  async setDict(name: string, value: Record<string, GemStoneArgument>): Promise<GsDict> {
+  async setDict(name: string, value: GemStoneDictionaryArgument): Promise<GsDict> {
     const dict = await this.session.dictionary(value);
     await this.set(name, dict.oop);
     return dict;
+  }
+
+  async setAllDict(values: Record<string, GemStoneDictionaryArgument>): Promise<Record<string, GsDict>> {
+    const result: Record<string, GsDict> = {};
+    for (const [name, value] of Object.entries(values)) {
+      result[name] = await this.setDict(name, value);
+    }
+    return result;
   }
 
   async require<T = unknown>(name: string): Promise<TypedOop<T>> {

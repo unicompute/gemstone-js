@@ -13,11 +13,23 @@ declare module "@gemstone-js/native" {
     reason?: string;
   }
 
+  export interface GemStoneNativeError extends Error {
+    code: "GEMSTONE_GCI_ERROR";
+    operation: string;
+    nativeCode?: string;
+    gciNumber?: number;
+    fatal?: boolean;
+    gciMessage?: string;
+    reason?: string;
+    info?: GciErrorInfo;
+  }
+
   export interface SymDictLookup {
     value: string;
     assoc: string;
   }
 
+  export function isGemStoneNativeError(error: unknown): error is GemStoneNativeError;
   export function smallintToOop(value: number): string;
   export function oopToSmallint(value: string): number;
   export function isSmallintOop(value: string): boolean;

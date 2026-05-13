@@ -3,6 +3,7 @@ import {
   smallintToOop,
   type Oop,
 } from "../src/index.ts";
+import type { GemStoneNativeError } from "@gemstone-js/native";
 import {
   cString,
   oopArray,
@@ -14,6 +15,8 @@ import {
 } from "../src/runtime/ffi-buffers.ts";
 
 const registeredTests: Array<() => Promise<void>> = [];
+
+type NativeErrorGuard = typeof import("@gemstone-js/native").isGemStoneNativeError;
 
 test("shared FFI buffer helpers encode C strings and OOP buffers", () => {
   const encoded = cString("hello");
@@ -32,6 +35,21 @@ test("shared FFI buffer helpers encode C strings and OOP buffers", () => {
   assertThrows(() => validateFetchStart(0), RangeError);
   assertThrows(() => validateFetchCount(-1), RangeError);
   assertThrows(() => oopFrom({}), TypeError);
+});
+
+test("ambient native module exposes the mapped error type guard", () => {
+  const guard: NativeErrorGuard = (error: unknown): error is GemStoneNativeError => (
+    Boolean(error && typeof error === "object" && (error as { code?: unknown }).code === "GEMSTONE_GCI_ERROR")
+  );
+  const value: unknown = {
+    code: "GEMSTONE_GCI_ERROR",
+    operation: "init",
+    gciNumber: 404,
+  };
+
+  assert(guard(value), "native mapped error guard should narrow the error shape");
+  assertEqual(value.operation, "init");
+  assertEqual(value.gciNumber, 404);
 });
 
 test("Deno runtime marshals pointer-buffer GCI calls", async () => {

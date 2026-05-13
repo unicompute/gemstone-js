@@ -19,6 +19,7 @@ try {
 const files = pack.files.map((file) => file.path);
 const fileSet = new Set(files);
 const packageJson = JSON.parse(readFileSync("package.json", "utf8"));
+const nativeDeclaration = readFileSync("src/native-module.d.ts", "utf8");
 
 if (packageJson.publishConfig?.provenance !== true) {
   throw new Error("package.json publishConfig.provenance must be true.");
@@ -82,6 +83,11 @@ const forbidden = [
 for (const path of required) {
   if (!fileSet.has(path)) {
     throw new Error(`npm pack is missing required file: ${path}`);
+  }
+}
+for (const snippet of ["interface GemStoneNativeError", "isGemStoneNativeError(error: unknown)"]) {
+  if (!nativeDeclaration.includes(snippet)) {
+    throw new Error(`src/native-module.d.ts is missing native error guard declaration: ${snippet}`);
   }
 }
 

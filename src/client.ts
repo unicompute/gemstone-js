@@ -307,6 +307,28 @@ export class Session implements AsyncDisposable {
     return value === null ? null : this.typedOop<T>(value);
   }
 
+  async globalPick(names: readonly string[]): Promise<Record<string, MarshalledValue>> {
+    const result: Record<string, MarshalledValue> = {};
+    for (const name of names) {
+      result[name] = await this.globalGet(name);
+    }
+    return result;
+  }
+
+  async globalEntries(): Promise<Record<string, MarshalledValue>> {
+    return this.globalPick(await this.globalKeys());
+  }
+
+  async globalKeys(): Promise<string[]> {
+    const source = `
+      String streamContents: [:stream |
+        UserGlobals keysAndValuesDo: [:key :value |
+          stream nextPutAll: key asString; lf]]
+    `;
+    const result = await this.eval(source);
+    return typeof result === "string" ? result.split(/\r?\n/).filter(Boolean) : [];
+  }
+
   async globalHas(name: string): Promise<boolean> {
     return await this.globalGetOop(name) !== null;
   }
@@ -333,12 +355,24 @@ export class Session implements AsyncDisposable {
     });
   }
 
+  async globalSetAll(values: Record<string, GemStoneArgument>): Promise<void> {
+    for (const [name, value] of Object.entries(values)) {
+      await this.globalSet(name, value);
+    }
+  }
+
   async globalSetOop<T = unknown>(name: string, value: TypedOop<T> | ManagedOop<T> | Oop): Promise<void> {
     await this.#observe("global_set_oop", { name }, async () => {
       const userGlobals = await this.resolveSymbol("UserGlobals");
       const key = await this.newSymbol(name);
       await this.runtime.symDictAtObjPut(userGlobals, key, typeof value === "bigint" ? value : value.oop);
     });
+  }
+
+  async globalSetAllOop(values: Record<string, TypedOop<unknown> | ManagedOop<unknown> | Oop>): Promise<void> {
+    for (const [name, value] of Object.entries(values)) {
+      await this.globalSetOop(name, value);
+    }
   }
 
   async globalRemove(name: string): Promise<boolean> {

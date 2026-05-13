@@ -44,12 +44,16 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
   const key = `GemstoneJsLive_${Date.now()}`;
   const extraKey = `${key}_Extra`;
   const globalKey = `${key}_Global`;
+  const globalExtraKey = `${key}_GlobalExtra`;
   const dictKey = `${key}_Dict`;
-  await session.globalSet(globalKey, "global");
+  await session.globalSetAll({ [globalKey]: "global", [globalExtraKey]: "global-extra" });
   assert.equal(await session.globalHas(globalKey), true);
   assert.equal(await session.globalGet(globalKey), "global");
   assert.equal(await session.globalRequireValue(globalKey), "global");
+  assert.equal((await session.globalKeys()).includes(globalKey), true);
+  assert.deepEqual(await session.globalPick([globalKey, `${globalKey}_Missing`]), { [globalKey]: "global", [`${globalKey}_Missing`]: null });
   assert.equal(await session.globalRemove(globalKey), true);
+  assert.equal(await session.globalDelete(globalExtraKey), true);
   assert.equal(await session.globalHas(globalKey), false);
   assert.equal(await session.globalDelete(globalKey), false);
   await root.setAllValue({ [key]: "ok", [extraKey]: "extra" });

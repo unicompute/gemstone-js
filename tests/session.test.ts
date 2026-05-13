@@ -732,17 +732,33 @@ test("Session.dictionary creates a GsDict wrapper", async () => {
 });
 
 test("globalSet and globalGet round-trip through UserGlobals", async () => {
-  const runtime = new MockGciRuntime();
+  let runtime: MockGciRuntime;
+  let listCalls = 0;
+  runtime = new MockGciRuntime({
+    execute(source) {
+      if (source.includes("UserGlobals keysAndValuesDo:")) {
+        listCalls += 1;
+        return runtime.newString("JsBridgeValue\nJsBridgeObject\n");
+      }
+      return OOP_NIL;
+    },
+  });
   const session = await Session.connect({ username: "u", password: "p", runtime });
   const object = runtime.allocate();
 
-  await session.globalSet("JsBridgeValue", "ready");
-  await session.globalSetOop("JsBridgeObject", object);
+  await session.globalSetAll({ JsBridgeValue: "ready" });
+  await session.globalSetAllOop({ JsBridgeObject: object });
 
   assertEqual(await session.globalHas("JsBridgeValue"), true);
   assertEqual(await session.globalGet("JsBridgeValue"), "ready");
   assertEqual(await session.globalRequireValue("JsBridgeValue"), "ready");
   assertEqual(await session.globalRequireOop("JsBridgeObject"), object);
+  assertEqual((await session.globalKeys()).join(","), "JsBridgeValue,JsBridgeObject");
+  assertEqual((await session.globalPick(["JsBridgeValue", "MissingGlobal"])).JsBridgeValue, "ready");
+  const entries = await session.globalEntries();
+  assertEqual(entries.JsBridgeValue, "ready");
+  assertEqual(entries.JsBridgeObject, object);
+  assertEqual(listCalls, 2);
   const nullableObject = await session.globalGetObject<{ status: string }>("JsBridgeObject");
   if (!nullableObject) throw new Error("globalGetObject should return a typed handle for existing globals");
   assertEqual(nullableObject.oop, object);

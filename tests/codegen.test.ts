@@ -182,6 +182,8 @@ test("renderGeneratedModule emits stable multi-wrapper source", () => {
 });
 
 test("renderGeneratedModule rejects invalid manifests", () => {
+  assertThrows(() => renderGeneratedModule(null as never));
+  assertThrows(() => renderGeneratedModule([] as never));
   assertThrows(() => renderGeneratedModule({ functions: "oops" as never }));
   assertThrows(() => renderGeneratedModule({
     functions: [
@@ -202,6 +204,25 @@ test("renderGeneratedModule rejects invalid manifests", () => {
 });
 
 test("renderGeneratedFunction rejects unsafe JavaScript identifiers", () => {
+  assertThrows(() => renderGeneratedFunction(null as never));
+  assertThrows(() => renderGeneratedFunction({
+    exportedName: 42 as never,
+    className: "Booking",
+    selector: "find:",
+    argNames: ["id"],
+  }));
+  assertThrows(() => renderGeneratedFunction({
+    exportedName: "findBooking",
+    className: "Booking",
+    selector: "find:",
+    argNames: "id" as never,
+  }));
+  assertThrows(() => renderGeneratedFunction({
+    exportedName: "findBooking",
+    className: "Booking",
+    selector: "find:",
+    argNames: [42] as never,
+  }));
   assertThrows(() => renderGeneratedFunction({
     exportedName: "bad;name",
     className: "Booking",

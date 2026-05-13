@@ -109,10 +109,11 @@ export async function sendGenerated(
 }
 
 export function renderGeneratedFunction(options: RenderGeneratedFunctionOptions): string {
+  assertGeneratedFunctionOptions(options);
   const exportedName = assertIdentifier(options.exportedName, "exportedName");
   const className = assertNonEmptyString(options.className, "className");
   const selector = assertSelector(options.selector);
-  const argNames = options.argNames.map((arg) => assertIdentifier(arg, "argName"));
+  const argNames = assertArgNames(options.argNames).map((arg) => assertIdentifier(arg, "argName"));
   const returnKind = assertReturnKind(options.returnKind ?? "value");
   assertUniqueArgNames(argNames);
   assertSelectorArity(selector, argNames);
@@ -139,6 +140,9 @@ export function renderGeneratedFunction(options: RenderGeneratedFunctionOptions)
 }
 
 export function renderGeneratedModule(options: RenderGeneratedModuleOptions): string {
+  if (typeof options !== "object" || options === null || Array.isArray(options)) {
+    throw new TypeError("Generated module options must be an object.");
+  }
   if (!Array.isArray(options.functions)) {
     throw new TypeError("Generated module functions must be an array.");
   }
@@ -158,7 +162,16 @@ function assertReturnKind(value: unknown): GeneratedReturnKind {
   throw new RangeError(`Generated return kind must be "value", "oop", or "object": ${String(value)}`);
 }
 
-function assertNonEmptyString(value: string, field: string): string {
+function assertGeneratedFunctionOptions(value: unknown): asserts value is RenderGeneratedFunctionOptions {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new TypeError("Generated function options must be an object.");
+  }
+}
+
+function assertNonEmptyString(value: unknown, field: string): string {
+  if (typeof value !== "string") {
+    throw new TypeError(`Generated ${field} must be a string.`);
+  }
   if (value.trim() === "") {
     throw new RangeError(`Generated ${field} must not be empty.`);
   }
@@ -178,9 +191,19 @@ function assertSelector(value: string): string {
   return selector;
 }
 
-function assertIdentifier(value: string, field: string): string {
+function assertIdentifier(value: unknown, field: string): string {
+  if (typeof value !== "string") {
+    throw new TypeError(`Generated ${field} must be a string.`);
+  }
   if (!/^[A-Za-z_$][A-Za-z0-9_$]*$/.test(value) || RESERVED_JS_WORDS.has(value)) {
     throw new RangeError(`Generated ${field} must be a valid JavaScript identifier: ${value}`);
+  }
+  return value;
+}
+
+function assertArgNames(value: unknown): readonly string[] {
+  if (!Array.isArray(value)) {
+    throw new TypeError("Generated function argument names must be an array.");
   }
   return value;
 }

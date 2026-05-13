@@ -33,8 +33,8 @@ The first implementation slice follows `../plan.js.txt`:
 - Codegen helpers validate generated JavaScript identifiers and emit wrappers
   that choose between `performValueWith()`, `performWith()`, or
   `classRef().sendObject()` based on the requested return kind. Selector shape,
-  arity, and module export uniqueness are checked before source is emitted so
-  manifest mistakes fail locally.
+  arity, manifest structure, and module export uniqueness are checked before
+  source is emitted so manifest mistakes fail locally.
 - The `codegen` npm script is a manifest-driven file generator around the same
   renderer, with a `--check` mode for keeping generated wrapper source explicit,
   reviewable, and current in CI.

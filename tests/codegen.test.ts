@@ -1,0 +1,127 @@
+import {
+  GemStoneClass,
+  GemStoneSelector,
+  metadataFor,
+  OOP_FALSE,
+  renderGeneratedFunction,
+  sendGenerated,
+  Session,
+  smallintToOop,
+} from "../src/index.ts";
+import { MockGciRuntime } from "../src/testing/mock-runtime.ts";
+
+const registeredTests: Array<() => Promise<void>> = [];
+
+test("sendGenerated uses the standard argument marshalling path", async () => {
+  const runtime = new MockGciRuntime();
+  const session = await Session.connect({ username: "u", password: "p", runtime });
+
+  await sendGenerated(session, "Booking", "find:active:count:", ["Ada", false, 3]);
+
+  const perform = runtime.calls.findLast((call) => call.method === "perform");
+  if (!perform) throw new Error("sendGenerated should call perform");
+  const args = perform.args[2] as unknown[];
+
+  assert(runtime.calls.some((call) => call.method === "newString" && call.args[0] === "Ada"), "string arguments should use newString");
+  assertEqual(args[1], OOP_FALSE);
+  assertEqual(args[2], smallintToOop(3));
+
+  await session.logout();
+});
+
+test("renderGeneratedFunction emits value-returning wrappers without dangling parameters", () => {
+  assertEqual(renderGeneratedFunction({
+    exportedName: "currentStatus",
+    className: "Booking",
+    selector: "currentStatus",
+    argNames: [],
+  }), [
+    "export async function currentStatus(session) {",
+    "  const receiver = await session.resolveSymbol(\"Booking\");",
+    "  return session.performValueWith(receiver, \"currentStatus\");",
+    "}",
+    "",
+  ].join("\n"));
+
+  assertEqual(renderGeneratedFunction({
+    exportedName: "findBooking",
+    className: "Booking",
+    selector: "find:active:",
+    argNames: ["id", "active"],
+  }), [
+    "export async function findBooking(session, id, active) {",
+    "  const receiver = await session.resolveSymbol(\"Booking\");",
+    "  return session.performValueWith(receiver, \"find:active:\", id, active);",
+    "}",
+    "",
+  ].join("\n"));
+});
+
+test("renderGeneratedFunction rejects unsafe JavaScript identifiers", () => {
+  assertThrows(() => renderGeneratedFunction({
+    exportedName: "bad;name",
+    className: "Booking",
+    selector: "find:",
+    argNames: ["id"],
+  }));
+  assertThrows(() => renderGeneratedFunction({
+    exportedName: "findBooking",
+    className: "Booking",
+    selector: "find:",
+    argNames: ["class"],
+  }));
+  assertThrows(() => renderGeneratedFunction({
+    exportedName: "findBooking",
+    className: "Booking",
+    selector: "find:again:",
+    argNames: ["id", "id"],
+  }));
+});
+
+test("decorator helpers retain class and selector metadata", () => {
+  class Booking {}
+
+  GemStoneSelector("markPaidAt:")(Booking.prototype, "markPaidAt", undefined as never);
+  GemStoneClass("OkzBooking")(Booking);
+
+  const metadata = metadataFor(Booking);
+  if (!metadata) throw new Error("GemStoneClass should register metadata");
+  assertEqual(metadata.className, "OkzBooking");
+  assertEqual(metadata.selectors.get("markPaidAt"), "markPaidAt:");
+});
+
+for (const run of registeredTests) {
+  await run();
+}
+
+function test(name: string, fn: () => void | Promise<void>): void {
+  registeredTests.push(async () => {
+    try {
+      await fn();
+    } catch (error) {
+      if (error instanceof Error) {
+        error.message = `${name}: ${error.message}`;
+      }
+      throw error;
+    }
+  });
+}
+
+function assert(value: unknown, message: string): void {
+  if (!value) throw new Error(message);
+}
+
+function assertEqual<T>(actual: T, expected: T): void {
+  if (actual !== expected) {
+    throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
+  }
+}
+
+function assertThrows(fn: () => unknown): void {
+  try {
+    fn();
+  } catch {
+    return;
+  }
+  throw new Error("expected function to throw");
+}

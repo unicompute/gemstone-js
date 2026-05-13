@@ -24,6 +24,8 @@ The first implementation slice follows `../plan.js.txt`:
   primitives. They should stay thin: the session owns marshalling and GCI calls.
 - Query helpers render simple selector paths and unwrap GemStone arrays through
   `size`/`at:` so iterators yield object handles instead of chunk containers.
+- Codegen helpers emit `performValueWith()` calls and validate generated
+  JavaScript identifiers before rendering wrapper source.
 - `Session.inspect()` asks GemStone for a compact string payload and parses it
   locally, avoiding a dependency on dictionary marshalling for debug metadata.
 - Framework adapters treat failed commit/abort cleanup as a broken session and

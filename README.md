@@ -54,6 +54,8 @@ native package; the TypeScript package can be tested locally with a mock runtime
 - Codegen helpers render wrappers that share the same JavaScript argument
   marshalling as hand-written calls and can return marshalled values, raw OOPs,
   or retained typed object handles.
+- `npm run codegen -- <manifest.json> [output.ts]` renders wrapper modules from
+  a JSON manifest; see `examples/codegen.manifest.json`.
 - `InMemoryMetrics` and `InMemoryTracer` make observability behavior easy to
   assert in tests and examples.
 

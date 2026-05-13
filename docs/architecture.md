@@ -33,6 +33,8 @@ The first implementation slice follows `../plan.js.txt`:
 - Codegen helpers validate generated JavaScript identifiers and emit wrappers
   that choose between `performValueWith()`, `performWith()`, or
   `classRef().sendObject()` based on the requested return kind.
+- The `codegen` npm script is a manifest-driven file generator around the same
+  renderer, keeping generated wrapper source explicit and reviewable.
 - `Session.inspect()` asks GemStone for a compact string payload and parses it
   locally, avoiding a dependency on dictionary marshalling for debug metadata.
 - Framework adapters treat failed commit/abort cleanup as a broken session and

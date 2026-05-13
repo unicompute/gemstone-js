@@ -37,10 +37,12 @@ export {
   inferSelector,
   metadataFor,
   renderGeneratedFunction,
+  renderGeneratedModule,
   sendGenerated,
   type GeneratedReturnKind,
   type GemStoneClassMetadata,
   type RenderGeneratedFunctionOptions,
+  type RenderGeneratedModuleOptions,
 } from "./codegen.ts";
 export { PersistentRoot } from "./persistent-root.ts";
 export { GsDict } from "./gsdict.ts";

@@ -1,0 +1,17 @@
+{
+  "functions": [
+    {
+      "exportedName": "currentBookingStatus",
+      "className": "Booking",
+      "selector": "currentStatus",
+      "argNames": []
+    },
+    {
+      "exportedName": "findBookingObject",
+      "className": "Booking",
+      "selector": "find:",
+      "argNames": ["id"],
+      "returnKind": "object"
+    }
+  ]
+}

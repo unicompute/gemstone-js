@@ -45,6 +45,7 @@
     "docs",
     "examples",
     "scripts/check-package.mjs",
+    "scripts/codegen.mjs",
     "LICENSE",
     "README.md"
   ],
@@ -53,7 +54,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "build": "tsc -p tsconfig.json --noEmit",
     "pack:check": "node scripts/check-package.mjs",
-    "codegen": "node ./src/codegen.ts"
+    "codegen": "node scripts/codegen.mjs"
   },
   "optionalDependencies": {
     "@gemstone-js/native": "0.1.0-alpha.0"

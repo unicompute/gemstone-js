@@ -8,60 +8,69 @@ import {
   validateGeneratedModuleOptions,
 } from "../src/codegen.ts";
 
-const { check, format, help, outputPath, sourcePaths, extra } = parseArgs(process.argv.slice(2));
-
-if (help) {
-  printUsage(process.stdout);
-  process.exit(0);
-}
-if (extra.length > 0) {
-  fail(`Unexpected argument: ${extra[0]}`, true);
-}
-if (sourcePaths.length === 0) {
-  fail("Missing TypeScript source path.", true);
-}
-if (check && !outputPath) {
-  fail("--check requires --out.", true);
+try {
+  await main(process.argv.slice(2));
+} catch (error) {
+  fail(errorMessage(error));
 }
 
-const functions = [];
-const imports = new Map();
-for (const sourcePath of sourcePaths) {
-  const source = await readFile(sourcePath, "utf8");
-  const sourceFunctions = scanSource(source, sourcePath);
-  functions.push(...sourceFunctions);
-  collectUsedTypeImports(scanImports(source), sourceFunctions, imports);
-}
+async function main(args) {
+  const { check, format, help, outputPath, sourcePaths, extra } = parseArgs(args);
 
-const manifest = {
-  $schema: "./schemas/codegen-manifest.schema.json",
-  ...(imports.size > 0 ? { imports: renderTypeImports(imports) } : {}),
-  functions,
-};
-validateGeneratedModuleOptions(manifest);
-const rendered = format === "module"
-  ? renderGeneratedModule(manifest)
-  : `${JSON.stringify(manifest, null, 2)}\n`;
-
-if (check) {
-  let existing;
-  try {
-    existing = await readFile(outputPath, "utf8");
-  } catch (error) {
-    fail(`Cannot read generated output ${outputPath}: ${errorMessage(error)}`);
+  if (help) {
+    printUsage(process.stdout);
+    return;
   }
-  if (existing !== rendered) {
-    fail(`Generated ${format} output is out of date: ${outputPath}`);
+  if (extra.length > 0) {
+    fail(`Unexpected argument: ${extra[0]}`, true);
   }
-  process.stdout.write(`Generated ${format} output is up to date: ${outputPath}\n`);
-} else if (outputPath) {
-  await writeFile(outputPath, rendered);
-} else {
-  process.stdout.write(rendered);
+  if (sourcePaths.length === 0) {
+    fail("Missing TypeScript source path.", true);
+  }
+  if (check && !outputPath) {
+    fail("--check requires --out.", true);
+  }
+
+  const functions = [];
+  const imports = new Map();
+  for (const sourcePath of sourcePaths) {
+    const source = await readFile(sourcePath, "utf8");
+    const sourceFunctions = scanSource(source, sourcePath);
+    functions.push(...sourceFunctions);
+    collectUsedTypeImports(scanImports(source, sourcePath), sourceFunctions, imports);
+  }
+
+  const manifest = {
+    $schema: "./schemas/codegen-manifest.schema.json",
+    ...(imports.size > 0 ? { imports: renderTypeImports(imports) } : {}),
+    functions,
+  };
+  validateGeneratedModuleOptions(manifest);
+  const rendered = format === "module"
+    ? renderGeneratedModule(manifest)
+    : `${JSON.stringify(manifest, null, 2)}\n`;
+
+  if (check) {
+    let existing;
+    try {
+      existing = await readFile(outputPath, "utf8");
+    } catch (error) {
+      fail(`Cannot read generated output ${outputPath}: ${errorMessage(error)}`);
+    }
+    if (existing !== rendered) {
+      fail(`Generated ${format} output is out of date: ${outputPath}`);
+    }
+    process.stdout.write(`Generated ${format} output is up to date: ${outputPath}\n`);
+  } else if (outputPath) {
+    await writeFile(outputPath, rendered);
+  } else {
+    process.stdout.write(rendered);
+  }
 }
 
 function scanSource(source, sourcePath) {
   const sourceFile = ts.createSourceFile(sourcePath, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+  assertNoParseDiagnostics(sourceFile, sourcePath);
   const decoratorNames = scanDecoratorNames(sourceFile);
   const functions = [];
 
@@ -85,6 +94,7 @@ function scanSource(source, sourcePath) {
 
 function scanImports(source, sourcePath = "source.ts") {
   const sourceFile = ts.createSourceFile(sourcePath, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+  assertNoParseDiagnostics(sourceFile, sourcePath);
   const imports = new Map();
 
   for (const statement of sourceFile.statements) {
@@ -106,6 +116,14 @@ function scanImports(source, sourcePath = "source.ts") {
   }
 
   return imports;
+}
+
+function assertNoParseDiagnostics(sourceFile, sourcePath) {
+  const diagnostic = sourceFile.parseDiagnostics[0];
+  if (!diagnostic) return;
+  const position = sourceFile.getLineAndCharacterOfPosition(diagnostic.start ?? 0);
+  const message = ts.flattenDiagnosticMessageText(diagnostic.messageText, " ");
+  throw new Error(`${sourcePath}:${position.line + 1}:${position.character + 1}: TypeScript parse error: ${message}`);
 }
 
 function scanDecoratorNames(sourceFile) {

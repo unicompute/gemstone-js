@@ -23,6 +23,25 @@ const packageJson = JSON.parse(readFileSync("package.json", "utf8"));
 if (packageJson.publishConfig?.provenance !== true) {
   throw new Error("package.json publishConfig.provenance must be true.");
 }
+const requiredScripts = {
+  "codegen:check": "node scripts/codegen.mjs --check examples/codegen.manifest.json examples/codegen.generated.ts",
+  "codegen:scan:check": "node scripts/scan-codegen.mjs --module --check --out examples/booking.decorators.generated.ts examples/booking.decorators.ts",
+  "pack:check": "node scripts/check-package.mjs",
+};
+for (const [name, command] of Object.entries(requiredScripts)) {
+  if (packageJson.scripts?.[name] !== command) {
+    throw new Error(`package.json script ${name} must be ${JSON.stringify(command)}.`);
+  }
+}
+runRequiredCheck("codegen manifest output", ["scripts/codegen.mjs", "--check", "examples/codegen.manifest.json", "examples/codegen.generated.ts"]);
+runRequiredCheck("decorated-source codegen output", [
+  "scripts/scan-codegen.mjs",
+  "--module",
+  "--check",
+  "--out",
+  "examples/booking.decorators.generated.ts",
+  "examples/booking.decorators.ts",
+]);
 
 const required = [
   "LICENSE",
@@ -73,3 +92,14 @@ for (const path of forbidden) {
 }
 
 console.log(`Package check passed: ${pack.name}@${pack.version} (${files.length} files).`);
+
+function runRequiredCheck(label, args) {
+  try {
+    execFileSync(process.execPath, args, { encoding: "utf8", stdio: "pipe" });
+  } catch (error) {
+    const stdout = error && typeof error === "object" && "stdout" in error ? String(error.stdout ?? "") : "";
+    const stderr = error && typeof error === "object" && "stderr" in error ? String(error.stderr ?? "") : "";
+    const details = [stdout, stderr].map((text) => text.trim()).filter(Boolean).join("\n");
+    throw new Error(`${label} check failed.${details ? `\n${details}` : ""}`);
+  }
+}

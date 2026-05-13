@@ -251,6 +251,35 @@ test("codegen scanner recognizes gemstone-js namespace decorators only", async (
   }
 });
 
+test("codegen scanner reports TypeScript parse errors without a stack trace", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "gemstone-js-codegen-scan-parse-"));
+  try {
+    const sourcePath = join(dir, "broken.ts");
+    await writeFile(sourcePath, [
+      "import { GemStoneClass, type Session } from \"gemstone-js\";",
+      "@GemStoneClass(\"Booking\")",
+      "class BrokenBookingModel {",
+      "  status(session: Session): Promise<string> {",
+      "}",
+      "",
+    ].join("\n"));
+
+    await assert.rejects(
+      execNode([scanScript, sourcePath]),
+      (error: unknown) => {
+        assert(error && typeof error === "object" && "stderr" in error);
+        const stderr = String((error as { stderr: string }).stderr);
+        assert.match(stderr, /TypeScript parse error/);
+        assert.match(stderr, /broken\.ts:\d+:\d+/);
+        assert(!stderr.includes("at scanSource"), "parse errors should not include scanner stack traces");
+        return true;
+      },
+    );
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 test("codegen scanner checks committed decorated-source wrapper output", async () => {
   const check = await execNode([
     scanScript,

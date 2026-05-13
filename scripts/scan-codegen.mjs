@@ -264,18 +264,28 @@ function isGemStoneDecoratorCall(callee, decoratorName, acceptedNames, namespace
 }
 
 function parseParameters(parameters, sourceFile, sourcePath) {
-  return parameters.map((parameter) => {
+  const parsed = [];
+  for (const parameter of parameters) {
+    if (isThisParameter(parameter)) continue;
     if (!ts.isIdentifier(parameter.name)) {
       throw new Error(
         `${sourcePath}:${lineNumber(sourceFile, parameter)}: Unsupported method parameter syntax: ${parameter.getText(sourceFile)}`,
       );
     }
-    return {
+    parsed.push({
       name: parameter.name.text,
       type: parameter.type ? typeText(parameter.type, sourceFile) : undefined,
       typeNode: parameter.type,
-    };
-  });
+    });
+  }
+  return parsed;
+}
+
+function isThisParameter(parameter) {
+  return (
+    (ts.isIdentifier(parameter.name) && parameter.name.text === "this")
+    || parameter.name.kind === ts.SyntaxKind.ThisKeyword
+  );
 }
 
 function collectUsedTypeImports(sourceImports, usedTypeNames, target) {

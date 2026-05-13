@@ -310,6 +310,47 @@ test("codegen scanner preserves imports used by typeof type queries", async () =
   }
 });
 
+test("codegen scanner ignores TypeScript this parameters", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "gemstone-js-codegen-scan-this-"));
+  try {
+    const sourcePath = join(dir, "this-param.ts");
+    await writeFile(sourcePath, [
+      "import { GemStoneClass, GemStoneSelector, type Session } from \"gemstone-js\";",
+      "import type { Receiver } from \"./receiver.ts\";",
+      "@GemStoneClass(\"Booking\")",
+      "class ThisParamBookingModel {",
+      "  @GemStoneSelector(\"status\")",
+      "  static status(this: Receiver, session: Session): Promise<string> {",
+      "    throw new Error(\"scanner fixture only\");",
+      "  }",
+      "}",
+      "",
+    ].join("\n"));
+
+    const { stdout } = await execNode([scanScript, sourcePath]);
+    const scanned = JSON.parse(stdout);
+
+    assert.deepEqual(scanned.imports, [
+      {
+        from: "gemstone-js",
+        typeNames: ["Session"],
+      },
+    ]);
+    assert.deepEqual(scanned.functions, [
+      {
+        exportedName: "status",
+        className: "Booking",
+        selector: "status",
+        argNames: [],
+        sessionType: "Session",
+        returnType: "string",
+      },
+    ]);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 test("codegen scanner resolves decorator/type aliases and skips overload signatures", async () => {
   const dir = await mkdtemp(join(tmpdir(), "gemstone-js-codegen-scan-alias-"));
   try {

@@ -617,6 +617,28 @@ test("PersistentRoot value helpers use session marshalling", async () => {
   await session.logout();
 });
 
+test("PersistentRoot required helpers expose raw, value, and dictionary entries", async () => {
+  const runtime = new MockGciRuntime();
+  const session = await Session.connect({ username: "u", password: "p", runtime });
+  const root = new PersistentRoot(session);
+
+  await root.setValue("RootStatus", "ready");
+  const savedDict = await root.setDict("RootDict", { name: "Ada" });
+
+  assertEqual(await root.has("RootStatus"), true);
+  assertEqual(await root.has("MissingRootEntry"), false);
+  assertEqual(await root.requireValue("RootStatus"), "ready");
+  assertEqual(await root.requireOop("RootDict"), savedDict.oop);
+  assertEqual(await (await root.requireDict("RootDict")).get("name"), "Ada");
+
+  const required = await root.require("RootDict");
+  assertEqual(required.oop, savedDict.oop);
+  await required.release();
+  await assertRejects(() => root.requireOop("MissingRootEntry"), Error);
+
+  await session.logout();
+});
+
 test("PersistentRoot.list returns root keys from GemStone helper output", async () => {
   let runtime: MockGciRuntime;
   runtime = new MockGciRuntime({

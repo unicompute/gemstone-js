@@ -33,6 +33,10 @@ export class PersistentRoot {
     return oop === null ? null : this.session.marshalOop(oop);
   }
 
+  async has(name: string): Promise<boolean> {
+    return await this.getOop(name) !== null;
+  }
+
   async set<T = unknown>(name: string, value: TypedOop<T> | ManagedOop<T> | Oop): Promise<void> {
     const root = await this.#root();
     const oop = typeof value === "bigint" ? value : value.oop;
@@ -59,9 +63,21 @@ export class PersistentRoot {
   }
 
   async require<T = unknown>(name: string): Promise<TypedOop<T>> {
-    const value = await this.get<T>(name);
-    if (!value) throw new Error(`Persistent root ${this.rootName} has no entry named ${name}.`);
+    return new TypedOop<T>(this.session, await this.requireOop(name));
+  }
+
+  async requireOop(name: string): Promise<Oop> {
+    const value = await this.getOop(name);
+    if (value === null) throw this.#missingEntry(name);
     return value;
+  }
+
+  async requireValue(name: string): Promise<MarshalledValue> {
+    return this.session.marshalOop(await this.requireOop(name));
+  }
+
+  async requireDict(name: string): Promise<GsDict> {
+    return new GsDict(this.session, await this.requireOop(name));
   }
 
   async list(): Promise<string[]> {
@@ -84,5 +100,9 @@ export class PersistentRoot {
     const root = await this.#rootOop;
     if (root === OOP_ILLEGAL) throw new Error(`Cannot resolve GemStone persistent root ${this.rootName}.`);
     return root;
+  }
+
+  #missingEntry(name: string): Error {
+    return new Error(`Persistent root ${this.rootName} has no entry named ${name}.`);
   }
 }

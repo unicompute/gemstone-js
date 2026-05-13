@@ -238,6 +238,8 @@ test("Session exposes low-level allocation and fetch helpers", async () => {
   await session.fetchClass(classOop);
   await session.fetchSize(classOop);
   await session.fetchBytes(classOop, 1, 4);
+  await assertRejects(() => session.fetchBytes(classOop, 0, 1), RangeError);
+  await assertRejects(() => session.fetchBytes(classOop, 1, -1), RangeError);
 
   assert(runtime.calls.some((call) => call.method === "newOop"), "newOop should delegate to the runtime");
   assert(runtime.calls.some((call) => call.method === "fetchClass"), "fetchClass should delegate to the runtime");
@@ -369,6 +371,16 @@ function assertEqual<T>(actual: T, expected: T): void {
   if (actual !== expected) {
     throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
   }
+}
+
+async function assertRejects(fn: () => Promise<unknown>, expected: new (...args: never[]) => Error): Promise<void> {
+  try {
+    await fn();
+  } catch (error) {
+    if (error instanceof expected) return;
+    throw new Error(`expected ${expected.name}, got ${error instanceof Error ? error.name : String(error)}`);
+  }
+  throw new Error(`expected ${expected.name}, got no rejection`);
 }
 
 function delay(ms: number): Promise<void> {

@@ -208,7 +208,11 @@ export class Session implements AsyncDisposable {
   }
 
   async fetchBytes(value: Oop, start: number, count: number): Promise<Uint8Array> {
-    return this.#observe("fetch_bytes", { start, count }, () => this.runtime.fetchBytes(value, start, count));
+    const validatedStart = validateFetchStart(start);
+    const validatedCount = validateFetchCount(count);
+    return this.#observe("fetch_bytes", { start: validatedStart, count: validatedCount }, () => (
+      this.runtime.fetchBytes(value, validatedStart, validatedCount)
+    ));
   }
 
   async dictionaryToOop(value: GemStoneDictionaryArgument): Promise<Oop> {
@@ -544,4 +548,18 @@ function isPlainRecord(value: unknown): value is GemStoneDictionaryArgument {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
   const prototype = Object.getPrototypeOf(value);
   return prototype === Object.prototype || prototype === null;
+}
+
+function validateFetchStart(value: number): number {
+  if (!Number.isSafeInteger(value) || value < 1) {
+    throw new RangeError("fetchBytes start must be a positive safe integer.");
+  }
+  return value;
+}
+
+function validateFetchCount(value: number): number {
+  if (!Number.isSafeInteger(value) || value < 0) {
+    throw new RangeError("fetchBytes count must be a non-negative safe integer.");
+  }
+  return value;
 }

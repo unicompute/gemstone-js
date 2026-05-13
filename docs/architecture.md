@@ -20,6 +20,8 @@ The first implementation slice follows `../plan.js.txt`:
   converted into GemStone objects.
 - `GsDict` and `PersistentRoot` are convenience layers over the same session
   primitives. They should stay thin: the session owns marshalling and GCI calls.
+- Query helpers render simple selector paths and unwrap GemStone arrays through
+  `size`/`at:` so iterators yield object handles instead of chunk containers.
 - `src/runtime/serialized.ts` serializes all session-bound calls and reactivates
   the session id before dispatching into GCI. This is the current safety layer
   before a dedicated native session thread lands.

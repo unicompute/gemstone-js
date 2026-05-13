@@ -34,6 +34,9 @@ native package; the TypeScript package can be tested locally with a mock runtime
 - Result marshalling now converts GemStone `String` and `Symbol` objects back
   into JavaScript strings via `fetchString()` and class detection. Float OOPs are
   converted when the runtime reports that `GciOopToFlt_` succeeded.
+- `GSCollection.search()` unwraps result arrays into typed handles, and
+  `GSCollection.iter()` fetches collection chunks while yielding individual
+  objects.
 - Pool, observability hooks, persistent-root, query, codegen, and framework
   adapter scaffolds.
 

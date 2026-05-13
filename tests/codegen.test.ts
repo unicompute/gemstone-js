@@ -183,6 +183,22 @@ test("renderGeneratedModule emits stable multi-wrapper source", () => {
 
 test("renderGeneratedModule rejects invalid manifests", () => {
   assertThrows(() => renderGeneratedModule({ functions: "oops" as never }));
+  assertThrows(() => renderGeneratedModule({
+    functions: [
+      {
+        exportedName: "findBooking",
+        className: "Booking",
+        selector: "find:",
+        argNames: ["id"],
+      },
+      {
+        exportedName: "findBooking",
+        className: "Booking",
+        selector: "find:active:",
+        argNames: ["id", "active"],
+      },
+    ],
+  }));
 });
 
 test("renderGeneratedFunction rejects unsafe JavaScript identifiers", () => {
@@ -246,6 +262,18 @@ test("renderGeneratedFunction rejects unsafe JavaScript identifiers", () => {
     className: "BookingCounter",
     selector: "+",
     argNames: [],
+  }));
+  assertThrows(() => renderGeneratedFunction({
+    exportedName: "findBooking",
+    className: "Booking",
+    selector: "find:active",
+    argNames: ["id"],
+  }));
+  assertThrows(() => renderGeneratedFunction({
+    exportedName: "findBooking",
+    className: "Booking",
+    selector: "find::",
+    argNames: ["id", "active"],
   }));
 });
 

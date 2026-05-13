@@ -96,6 +96,7 @@ function scanImports(source, sourcePath = "source.ts") {
   const sourceFile = ts.createSourceFile(sourcePath, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
   assertNoParseDiagnostics(sourceFile, sourcePath);
   const imports = new Map();
+  scanNamespaceImports(sourceFile, imports);
 
   for (const statement of sourceFile.statements) {
     if (!ts.isImportDeclaration(statement)) continue;
@@ -116,6 +117,20 @@ function scanImports(source, sourcePath = "source.ts") {
   }
 
   return imports;
+}
+
+function scanNamespaceImports(sourceFile, imports) {
+  for (const statement of sourceFile.statements) {
+    if (!ts.isImportDeclaration(statement)) continue;
+    if (!ts.isStringLiteral(statement.moduleSpecifier)) continue;
+    const namedBindings = statement.importClause?.namedBindings;
+    if (!namedBindings || !ts.isNamespaceImport(namedBindings)) continue;
+    const name = namedBindings.name.text;
+    imports.set(name, {
+      from: statement.moduleSpecifier.text,
+      typeNamespaceName: name,
+    });
+  }
 }
 
 function assertNoParseDiagnostics(sourceFile, sourcePath) {
@@ -242,7 +257,11 @@ function collectUsedTypeImports(sourceImports, functions, target) {
   for (const name of collectUsedTypeNames(functions)) {
     const imported = sourceImports.get(name);
     if (imported) {
-      addTypeImport(target, imported.from, imported.alias ? { name: imported.name, alias: imported.alias } : imported.name);
+      if (imported.typeNamespaceName) {
+        addTypeImport(target, imported.from, { typeNamespaceName: imported.typeNamespaceName });
+      } else {
+        addTypeImport(target, imported.from, imported.alias ? { name: imported.name, alias: imported.alias } : imported.name);
+      }
     }
   }
 }
@@ -269,9 +288,14 @@ function collectTypeNames(type, names) {
 }
 
 function addTypeImport(target, from, name) {
-  const bucket = target.get(from) ?? { typeNames: new Set(), typeSpecifiers: new Map() };
+  const bucket = target.get(from) ?? { typeNames: new Set(), typeSpecifiers: new Map(), typeNamespaceName: undefined };
   if (typeof name === "string") {
     bucket.typeNames.add(name);
+  } else if (name.typeNamespaceName) {
+    if (bucket.typeNamespaceName && bucket.typeNamespaceName !== name.typeNamespaceName) {
+      throw new Error(`Cannot merge multiple namespace type imports from ${from}.`);
+    }
+    bucket.typeNamespaceName = name.typeNamespaceName;
   } else {
     bucket.typeSpecifiers.set(name.alias ?? name.name, name);
   }
@@ -281,6 +305,7 @@ function addTypeImport(target, from, name) {
 function renderTypeImports(imports) {
   return Array.from(imports, ([from, bucket]) => ({
     from,
+    ...(bucket.typeNamespaceName ? { typeNamespaceName: bucket.typeNamespaceName } : {}),
     ...(bucket.typeNames.size > 0 ? { typeNames: Array.from(bucket.typeNames) } : {}),
     ...(bucket.typeSpecifiers.size > 0 ? { typeSpecifiers: Array.from(bucket.typeSpecifiers.values()) } : {}),
   }));

@@ -71,8 +71,8 @@ native package; the TypeScript package can be tested locally with a mock runtime
 - `npm run codegen -- [--check] <manifest.json> [output.ts]` renders wrapper
   modules from a JSON manifest and can verify checked-in generated files in CI;
   see `examples/codegen.manifest.json` and `examples/codegen.generated.ts`.
-  Manifest imports support both direct `typeNames` and aliased
-  `typeSpecifiers`.
+  Manifest imports support direct `typeNames`, aliased `typeSpecifiers`, and
+  namespace `typeNamespaceName` imports.
 - `examples/booking.decorators.ts` is a committed scanner fixture; CI verifies
   that it still renders `examples/booking.decorators.generated.ts`.
 - `Session.performObjectWith()` and `sendValue()` aliases make value, raw OOP,

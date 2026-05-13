@@ -251,6 +251,46 @@ test("codegen scanner recognizes gemstone-js namespace decorators only", async (
   }
 });
 
+test("codegen scanner preserves namespace type imports used by wrapper signatures", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "gemstone-js-codegen-scan-type-namespace-"));
+  try {
+    const sourcePath = join(dir, "namespace-types.ts");
+    await writeFile(sourcePath, [
+      "import { GemStoneClass, GemStoneSelector, type Session, type TypedOop } from \"gemstone-js\";",
+      "import type * as BookingTypes from \"./booking-types.ts\";",
+      "@GemStoneClass(\"Booking\")",
+      "class BookingModel {",
+      "  @GemStoneSelector(\"find:\")",
+      "  static findBooking(session: Session, id: string): Promise<TypedOop<BookingTypes.Booking>> {",
+      "    throw new Error(\"scanner fixture only\");",
+      "  }",
+      "}",
+      "",
+    ].join("\n"));
+
+    const { stdout } = await execNode([scanScript, sourcePath]);
+    const scanned = JSON.parse(stdout);
+
+    assert.deepEqual(scanned.imports, [
+      {
+        from: "gemstone-js",
+        typeNames: ["Session", "TypedOop"],
+      },
+      {
+        from: "./booking-types.ts",
+        typeNamespaceName: "BookingTypes",
+      },
+    ]);
+    assert.equal(scanned.functions[0].returnType, "TypedOop<BookingTypes.Booking>");
+
+    const moduleOutput = await execNode([scanScript, "--module", sourcePath]);
+    assert.match(moduleOutput.stdout, /import type \* as BookingTypes from "\.\/booking-types\.ts";/);
+    assert.match(moduleOutput.stdout, /Promise<TypedOop<BookingTypes\.Booking>>/);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 test("codegen scanner reports TypeScript parse errors without a stack trace", async () => {
   const dir = await mkdtemp(join(tmpdir(), "gemstone-js-codegen-scan-parse-"));
   try {

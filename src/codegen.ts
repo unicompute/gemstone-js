@@ -13,6 +13,7 @@ export interface GeneratedImportSpec {
   defaultName?: string;
   namespaceName?: string;
   names?: readonly string[];
+  typeNamespaceName?: string;
   typeNames?: readonly string[];
   typeSpecifiers?: readonly GeneratedNamedImportSpec[];
 }
@@ -355,12 +356,14 @@ function assertImportSpecs(value: unknown): readonly GeneratedImportSpec[] {
       "defaultName",
       "namespaceName",
       "names",
+      "typeNamespaceName",
       "typeNames",
       "typeSpecifiers",
     ]);
     assertNonEmptyString(spec.from, "import from");
     if (spec.defaultName !== undefined) assertIdentifier(spec.defaultName, "import defaultName");
     if (spec.namespaceName !== undefined) assertIdentifier(spec.namespaceName, "import namespaceName");
+    if (spec.typeNamespaceName !== undefined) assertIdentifier(spec.typeNamespaceName, "import typeNamespaceName");
     assertOptionalIdentifierArray(spec.names, "import names");
     assertOptionalIdentifierArray(spec.typeNames, "import typeNames");
     assertOptionalNamedImportSpecArray(spec.typeSpecifiers, "import typeSpecifiers");
@@ -372,6 +375,7 @@ function assertImportSpecs(value: unknown): readonly GeneratedImportSpec[] {
       !spec.defaultName
       && !spec.namespaceName
       && !spec.names?.length
+      && !spec.typeNamespaceName
       && !spec.typeNames?.length
       && !spec.typeSpecifiers?.length
     ) {
@@ -423,6 +427,12 @@ function assertUniqueImportLocals(spec: GeneratedImportSpec): void {
     }
     seen.add(spec.namespaceName);
   }
+  if (spec.typeNamespaceName) {
+    if (seen.has(spec.typeNamespaceName)) {
+      throw new RangeError(`Generated import entries must contain unique local names: ${spec.typeNamespaceName}`);
+    }
+    seen.add(spec.typeNamespaceName);
+  }
   for (const name of spec.names ?? []) {
     if (seen.has(name)) throw new RangeError(`Generated import entries must contain unique local names: ${name}`);
     seen.add(name);
@@ -462,6 +472,9 @@ function renderGeneratedImport(spec: GeneratedImportSpec): string {
   const lines: string[] = [];
   if (valueParts.length) {
     lines.push(`import ${valueParts.join(", ")} from ${from};`);
+  }
+  if (spec.typeNamespaceName) {
+    lines.push(`import type * as ${spec.typeNamespaceName} from ${from};`);
   }
   if (spec.typeNames?.length || spec.typeSpecifiers?.length) {
     lines.push(`import type { ${renderTypeImportParts(spec).join(", ")} } from ${from};`);

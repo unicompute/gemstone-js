@@ -351,6 +351,55 @@ test("codegen scanner ignores TypeScript this parameters", async () => {
   }
 });
 
+test("codegen scanner rejects unsupported parameter forms", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "gemstone-js-codegen-scan-params-"));
+  try {
+    const cases = [
+      {
+        file: "optional.ts",
+        method: "static status(session: Session, active?: boolean): Promise<string> {",
+        message: /Unsupported optional method parameter syntax/,
+      },
+      {
+        file: "defaulted.ts",
+        method: "static status(session: Session, active = true): Promise<string> {",
+        message: /Unsupported defaulted method parameter syntax/,
+      },
+      {
+        file: "rest.ts",
+        method: "static status(session: Session, ...flags: boolean[]): Promise<string> {",
+        message: /Unsupported rest method parameter syntax/,
+      },
+    ];
+
+    for (const item of cases) {
+      const sourcePath = join(dir, item.file);
+      await writeFile(sourcePath, [
+        "import { GemStoneClass, GemStoneSelector, type Session } from \"gemstone-js\";",
+        "@GemStoneClass(\"Booking\")",
+        "class UnsupportedParamBookingModel {",
+        "  @GemStoneSelector(\"status:\")",
+        `  ${item.method}`,
+        "    throw new Error(\"scanner fixture only\");",
+        "  }",
+        "}",
+        "",
+      ].join("\n"));
+
+      await assert.rejects(
+        execNode([scanScript, sourcePath]),
+        (error: unknown) => {
+          assert(error && typeof error === "object" && "stderr" in error);
+          assert.match(String((error as { stderr: string }).stderr), item.message);
+          return true;
+        },
+      );
+    }
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 test("codegen scanner resolves decorator/type aliases and skips overload signatures", async () => {
   const dir = await mkdtemp(join(tmpdir(), "gemstone-js-codegen-scan-alias-"));
   try {

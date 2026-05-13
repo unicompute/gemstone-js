@@ -267,6 +267,15 @@ function parseParameters(parameters, sourceFile, sourcePath) {
   const parsed = [];
   for (const parameter of parameters) {
     if (isThisParameter(parameter)) continue;
+    if (parameter.dotDotDotToken) {
+      throwUnsupportedParameter(sourceFile, sourcePath, parameter, "rest");
+    }
+    if (parameter.questionToken) {
+      throwUnsupportedParameter(sourceFile, sourcePath, parameter, "optional");
+    }
+    if (parameter.initializer) {
+      throwUnsupportedParameter(sourceFile, sourcePath, parameter, "defaulted");
+    }
     if (!ts.isIdentifier(parameter.name)) {
       throw new Error(
         `${sourcePath}:${lineNumber(sourceFile, parameter)}: Unsupported method parameter syntax: ${parameter.getText(sourceFile)}`,
@@ -279,6 +288,12 @@ function parseParameters(parameters, sourceFile, sourcePath) {
     });
   }
   return parsed;
+}
+
+function throwUnsupportedParameter(sourceFile, sourcePath, parameter, kind) {
+  throw new Error(
+    `${sourcePath}:${lineNumber(sourceFile, parameter)}: Unsupported ${kind} method parameter syntax: ${parameter.getText(sourceFile)}`,
+  );
 }
 
 function isThisParameter(parameter) {

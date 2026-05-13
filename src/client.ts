@@ -332,6 +332,14 @@ export class Session implements AsyncDisposable {
     return this.dict(rawHandleOop(value)).keys();
   }
 
+  async dictionarySize(value: TypedOop<unknown> | ManagedOop<unknown> | Oop): Promise<number> {
+    return this.dict(rawHandleOop(value)).size();
+  }
+
+  async dictionaryIsEmpty(value: TypedOop<unknown> | ManagedOop<unknown> | Oop): Promise<boolean> {
+    return this.dict(rawHandleOop(value)).isEmpty();
+  }
+
   async dictionaryEntriesOop(value: TypedOop<unknown> | ManagedOop<unknown> | Oop): Promise<Record<string, Oop | null>> {
     return this.dict(rawHandleOop(value)).entriesOop();
   }

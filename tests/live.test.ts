@@ -44,6 +44,8 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
   assert.deepEqual(await session.dictionaryOopToObject(dict.oop), { status: "ready", count: 2n });
   assert.deepEqual(await session.dictionaryValues(dict.oop), { status: "ready", count: 2n });
   assert.deepEqual(new Set(await session.dictionaryKeys(dict.oop)), new Set(["status", "count"]));
+  assert.equal(await session.dictionarySize(dict.oop), 2);
+  assert.equal(await session.dictionaryIsEmpty(dict.oop), false);
   assert.equal((await session.dictionaryEntriesOop(dict.oop)).status !== null, true);
   assert.equal(new Map(await session.dictionaryItems(dict.oop)).get("status"), "ready");
   const sessionDictItemsOop = new Map(await session.dictionaryItemsOop(dict.oop));

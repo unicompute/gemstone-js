@@ -707,6 +707,8 @@ test("dictionaryToOop stores and retrieves string-key values", async () => {
   assertEqual(readback.retries, 3n);
   assertEqual(readback.enabled, true);
   assertEqual((await session.dictionaryKeys(dict)).join(","), "name,retries,enabled");
+  assertEqual(await session.dictionarySize(dict), 3);
+  assertEqual(await session.dictionaryIsEmpty(dict), false);
   const rawEntries = await session.dictionaryEntriesOop(dict);
   assertEqual(await session.marshalOop(rawEntries.name ?? OOP_NIL), "Alice");
   assertEqual(await session.marshalOop(rawEntries.retries ?? OOP_NIL), 3n);
@@ -725,6 +727,8 @@ test("dictionaryToOop stores and retrieves string-key values", async () => {
   const wrapped = session.typedOop(dict);
   assertEqual((await session.dictionaryValues(wrapped)).name, "Alice");
   assertEqual((await session.dictionaryKeys(wrapped)).join(","), "name,retries,enabled");
+  assertEqual(await session.dictionarySize(wrapped), 3);
+  assertEqual(await session.dictionaryIsEmpty(wrapped), false);
   await wrapped.release();
   assert(runtime.calls.some((call) => call.method === "strKeyValueDictAtPut"), "dictionaryToOop should write string-key entries");
 

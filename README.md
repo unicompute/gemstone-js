@@ -39,7 +39,8 @@ native package; the TypeScript package can be tested locally with a mock runtime
   and `maxItems`/`maxTotalItems` bounds to guard recursive or unexpectedly
   large arrays; raw OOP readback accepts a `maxItems` bound.
 - Dictionary/global helpers: `dictionaryToOop()`, `dictionaryOopToObject()`,
-  `dictionaryValues()`, `dictionaryKeys()`, `dictionaryItems()`,
+  `dictionaryValues()`, `dictionaryKeys()`, `dictionarySize()`,
+  `dictionaryIsEmpty()`, `dictionaryItems()`,
   raw `dictionaryEntriesOop()`/`dictionaryItemsOop()`,
   value-list `dictionaryValueList()`, raw `dictionaryValueOops()`,
   `strDictGet()`, `strDictSet()`,

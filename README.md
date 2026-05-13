@@ -64,7 +64,7 @@ native package; the TypeScript package can be tested locally with a mock runtime
   emit generated wrapper source directly from decorated classes.
 - `npm run codegen -- [--check] <manifest.json> [output.ts]` renders wrapper
   modules from a JSON manifest and can verify checked-in generated files in CI;
-  see `examples/codegen.manifest.json`.
+  see `examples/codegen.manifest.json` and `examples/codegen.generated.ts`.
 - `Session.performObjectWith()` and `sendValue()` aliases make value, raw OOP,
   and retained object-returning sends explicit at both session and class-ref
   layers.

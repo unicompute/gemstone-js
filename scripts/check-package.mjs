@@ -29,6 +29,8 @@ const required = [
   "README.md",
   "docs/architecture.md",
   "docs/releasing.md",
+  "examples/booking.ts",
+  "examples/codegen.generated.ts",
   "examples/codegen.manifest.json",
   "examples/quickstart.ts",
   "package.json",

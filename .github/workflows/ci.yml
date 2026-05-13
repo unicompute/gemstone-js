@@ -20,6 +20,7 @@ jobs:
           node-version: ${{ matrix.node }}
       - run: npm install --omit=optional
       - run: npm run typecheck
+      - run: npm run codegen:check
       - run: npm test
       - run: npm run pack:check
       - run: npm pack --json

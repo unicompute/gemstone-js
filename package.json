@@ -58,6 +58,7 @@
     "build": "tsc -p tsconfig.json --noEmit",
     "pack:check": "node scripts/check-package.mjs",
     "codegen": "node scripts/codegen.mjs",
+    "codegen:check": "node scripts/codegen.mjs --check examples/codegen.manifest.json examples/codegen.generated.ts",
     "codegen:scan": "node scripts/scan-codegen.mjs",
     "test:live": "GS_RUN_LIVE=1 node --test tests/live.test.ts"
   },

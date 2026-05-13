@@ -19,6 +19,8 @@ native package; the TypeScript package can be tested locally with a mock runtime
   handles pass their retained OOP.
 - Runtime adapters: Node (`@gemstone-js/native`), Deno FFI starter, Bun FFI
   starter, and a mock runtime for tests.
+- Runtime library discovery follows `libPath`, `GS_LIB_PATH`, `GS_LIB`, then
+  `GEMSTONE/lib` for the Deno and Bun FFI adapters.
 - OOP helpers ported from `gemstone-rs/crates/gemstone-gci`.
 - Low-level allocation/fetch helpers: `newOop()`, `fetchClass()`,
   `fetchSize()`, and `fetchBytes()`.

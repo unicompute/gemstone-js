@@ -1,5 +1,6 @@
 import { OOP_NIL, oop, type Oop } from "../oop.ts";
 import type { GciErrorInfo, GciRuntime, LoginOptions, SymDictLookup } from "../types.ts";
+import { resolveGciLibraryPath } from "./library-discovery.ts";
 
 type DenoLibrary = {
   symbols: Record<string, (...args: unknown[]) => unknown>;
@@ -152,12 +153,34 @@ export const gci: GciRuntime = {
 
 function openLibrary(libPath?: string): DenoLibrary {
   if (library) return library;
-  const deno = (globalThis as { Deno?: { dlopen: (path: string, symbols: unknown) => DenoLibrary; env?: { get(key: string): string | undefined } } }).Deno;
+  const deno = (globalThis as {
+    Deno?: {
+      dlopen: (path: string, symbols: unknown) => DenoLibrary;
+      env?: { get(key: string): string | undefined };
+      readDirSync?: (path: string) => Iterable<{ name: string }>;
+    };
+  }).Deno;
   if (!deno) throw new Error("Deno runtime adapter loaded outside Deno.");
-  const path = libPath ?? deno.env?.get("GS_LIB_PATH") ?? deno.env?.get("GS_LIB");
-  if (!path) throw new Error("Deno adapter needs libPath or GS_LIB_PATH for libgcirpc.");
+  const path = resolveGciLibraryPath(libPath, denoEnv(deno), {
+    listDir(dir) {
+      try {
+        return Array.from(deno.readDirSync?.(dir) ?? [], (entry) => entry.name);
+      } catch {
+        return [];
+      }
+    },
+  });
+  if (!path) throw new Error("Deno adapter cannot find libgcirpc. Pass libPath or set GS_LIB_PATH, GS_LIB, or GEMSTONE.");
   library = deno.dlopen(path, symbols);
   return library;
+}
+
+function denoEnv(deno: { env?: { get(key: string): string | undefined } }): Record<string, string | undefined> {
+  return {
+    GS_LIB_PATH: deno.env?.get("GS_LIB_PATH"),
+    GS_LIB: deno.env?.get("GS_LIB"),
+    GEMSTONE: deno.env?.get("GEMSTONE"),
+  };
 }
 
 function cString(value: string): Uint8Array {

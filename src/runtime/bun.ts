@@ -1,9 +1,13 @@
 import { OOP_NIL, oop, type Oop } from "../oop.ts";
 import type { GciErrorInfo, GciRuntime, LoginOptions, SymDictLookup } from "../types.ts";
+import { resolveGciLibraryPath } from "./library-discovery.ts";
 
 type BunFFI = {
   dlopen: (path: string, symbols: unknown) => { symbols: Record<string, (...args: unknown[]) => unknown> };
   FFIType: Record<string, unknown>;
+};
+type NodeFs = {
+  readdirSync?: (path: string) => string[];
 };
 
 let library: { symbols: Record<string, (...args: unknown[]) => unknown> } | undefined;
@@ -152,10 +156,20 @@ export const gci: GciRuntime = {
 function openLibrary(libPath?: string): { symbols: Record<string, (...args: unknown[]) => unknown> } {
   if (library) return library;
   const bun = (globalThis as { Bun?: { env?: Record<string, string | undefined> } }).Bun;
-  const ffi = (globalThis as { require?: (name: string) => BunFFI }).require?.("bun:ffi");
+  const require = (globalThis as { require?: (name: string) => unknown }).require;
+  const ffi = require?.("bun:ffi") as BunFFI | undefined;
   if (!bun || !ffi) throw new Error("Bun runtime adapter loaded outside Bun.");
-  const path = libPath ?? bun.env?.GS_LIB_PATH ?? bun.env?.GS_LIB;
-  if (!path) throw new Error("Bun adapter needs libPath or GS_LIB_PATH for libgcirpc.");
+  const fs = require?.("node:fs") as NodeFs | undefined;
+  const path = resolveGciLibraryPath(libPath, bun.env ?? {}, {
+    listDir(dir) {
+      try {
+        return fs?.readdirSync?.(dir) ?? [];
+      } catch {
+        return [];
+      }
+    },
+  });
+  if (!path) throw new Error("Bun adapter cannot find libgcirpc. Pass libPath or set GS_LIB_PATH, GS_LIB, or GEMSTONE.");
   library = ffi.dlopen(path, symbols(ffi));
   return library;
 }

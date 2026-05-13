@@ -1,4 +1,4 @@
-import { Session, TypedOop, type MarshalledValue } from "./client.ts";
+import { ManagedOop, Session, TypedOop, type GemStoneArgument, type MarshalledValue } from "./client.ts";
 import { OOP_NIL, smallintToOop, type Oop } from "./oop.ts";
 import { escapeSmalltalkStringLiteral, validateGemStoneGlobalName } from "./smalltalk-source.ts";
 
@@ -8,6 +8,8 @@ export type GSCollectionIndexKind = "equality";
 export interface GSCollectionIndexOptions {
   kind?: GSCollectionIndexKind;
 }
+
+type OopHandle<T = unknown> = ManagedOop<T> | TypedOop<T> | Oop;
 
 export class GSCollection<T = unknown> {
   readonly session: Session;
@@ -50,6 +52,54 @@ export class GSCollection<T = unknown> {
 
   async isEmpty(): Promise<boolean> {
     return await this.size() === 0;
+  }
+
+  async add(value: GemStoneArgument): Promise<this> {
+    await this.session.performWith(await this.#collectionOop(), "add:", value);
+    return this;
+  }
+
+  async addAll(values: readonly GemStoneArgument[]): Promise<this> {
+    const collection = await this.#collectionOop();
+    for (const value of values) {
+      await this.session.performWith(collection, "add:", value);
+    }
+    return this;
+  }
+
+  async addOop(value: OopHandle<T>): Promise<this> {
+    await this.session.perform(await this.#collectionOop(), "add:", rawOop(value));
+    return this;
+  }
+
+  async addAllOop(values: readonly OopHandle<T>[]): Promise<this> {
+    const collection = await this.#collectionOop();
+    for (const value of values) {
+      await this.session.perform(collection, "add:", rawOop(value));
+    }
+    return this;
+  }
+
+  async remove(value: GemStoneArgument): Promise<boolean> {
+    const collection = await this.#collectionOop();
+    return this.#removeOop(collection, await this.session.argumentToOop(value));
+  }
+
+  async removeOop(value: OopHandle<T>): Promise<boolean> {
+    return this.#removeOop(await this.#collectionOop(), rawOop(value));
+  }
+
+  async delete(value: GemStoneArgument): Promise<boolean> {
+    return this.remove(value);
+  }
+
+  async deleteOop(value: OopHandle<T>): Promise<boolean> {
+    return this.removeOop(value);
+  }
+
+  async clear(): Promise<this> {
+    await this.session.perform(await this.#collectionOop(), "removeAll");
+    return this;
   }
 
   async all(): Promise<TypedOop<T>[]> {
@@ -135,6 +185,17 @@ export class GSCollection<T = unknown> {
       ((collection detect: [:each | ${predicate}] ifNone: [nil]) isNil) not
     `;
     return toBoolean(await this.session.eval(source), "GSCollection exists");
+  }
+
+  async #collectionOop(): Promise<Oop> {
+    return this.session.execute(this.name);
+  }
+
+  async #removeOop(collection: Oop, value: Oop): Promise<boolean> {
+    const exists = await this.session.performValue(collection, "includes:", value);
+    if (!toBoolean(exists, "GSCollection includes:")) return false;
+    await this.session.perform(collection, "remove:", value);
+    return true;
   }
 
   async #allResultArray(): Promise<Oop> {
@@ -269,6 +330,10 @@ function selectorsForIndexKind(kind: GSCollectionIndexKind): { create: string; r
     };
   }
   throw new RangeError(`Unsupported GemStone index kind: ${String(kind)}`);
+}
+
+function rawOop<T>(value: OopHandle<T>): Oop {
+  return typeof value === "bigint" ? value : value.oop;
 }
 
 function normalizeChunkSize(value: number): number {

@@ -2,6 +2,7 @@ import {
   GSCollection,
   OOP_FALSE,
   OOP_NIL,
+  OOP_TRUE,
   oopToSmallint,
   smallintToOop,
   Session,
@@ -234,6 +235,63 @@ test("GSCollection size helpers render collection size without fetching handles"
   assertEqual(executeSources[0], "Bookings size");
   assertEqual(executeSources[1], "Bookings size");
   assert(!runtime.calls.some((call) => call.method === "addOopToExportSet"), "size helpers should not retain object handles");
+  await session.logout();
+});
+
+test("GSCollection mutation helpers add, remove, and clear collection members", async () => {
+  const collectionOop = 0x9000n as Oop;
+  const rawItem = 0x9008n as Oop;
+  const secondRawItem = 0x9010n as Oop;
+  const members = new Set<string>();
+  const executeSources: string[] = [];
+  const performSelectors: string[] = [];
+  const runtime = new MockGciRuntime({
+    execute(source) {
+      executeSources.push(source);
+      return source.trim() === "Bookings" ? collectionOop : OOP_NIL;
+    },
+    perform(receiver, selector, args) {
+      assertEqual(receiver, collectionOop);
+      performSelectors.push(selector);
+      if (selector === "add:") {
+        members.add(args[0].toString());
+        return args[0];
+      }
+      if (selector === "includes:") {
+        return members.has(args[0].toString()) ? OOP_TRUE : OOP_FALSE;
+      }
+      if (selector === "remove:") {
+        members.delete(args[0].toString());
+        return args[0];
+      }
+      if (selector === "removeAll") {
+        members.clear();
+        return receiver;
+      }
+      return OOP_NIL;
+    },
+  });
+  const session = await Session.connect({ username: "u", password: "p", runtime });
+  const collection = new GSCollection(session, "Bookings");
+
+  await collection.add("ready");
+  await collection.addAll(["queued", true]);
+  await collection.addOop(rawItem);
+  await collection.addAllOop([secondRawItem]);
+  assert(members.has(rawItem.toString()), "addOop should add a raw OOP without marshalling it as a SmallInteger");
+  assert(members.has(secondRawItem.toString()), "addAllOop should add raw OOPs without value marshalling");
+
+  assertEqual(await collection.remove("ready"), true);
+  assertEqual(await collection.delete("missing"), false);
+  assertEqual(await collection.deleteOop(rawItem), true);
+  assertEqual(await collection.removeOop(secondRawItem), true);
+  await collection.clear();
+
+  assertEqual(members.size, 0);
+  assert(executeSources.every((source) => source === "Bookings"), "mutations should resolve the collection global before sending");
+  assertEqual(performSelectors.filter((selector) => selector === "add:").length, 5);
+  assertEqual(performSelectors.filter((selector) => selector === "remove:").length, 3);
+  assert(performSelectors.includes("removeAll"), "clear should send removeAll");
   await session.logout();
 });
 

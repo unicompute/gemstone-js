@@ -69,6 +69,9 @@ native package; the TypeScript package can be tested locally with a mock runtime
 - `GSCollection.search()` unwraps result arrays into typed handles,
   `GSCollection.searchOop()` returns raw handles, `all()`/`allOop()` read the
   collection as object handles, `page()`/`pageOop()` fetch bounded array pages,
+  `add()`/`addAll()` and raw `addOop()`/`addAllOop()` append values,
+  `remove()`/`delete()` and raw `removeOop()`/`deleteOop()` remove members,
+  `clear()` sends `removeAll`,
   `first()`/`firstOop()` return nullable first matches without materializing
   result arrays, `limit()`/`take()` fetch bounded predicate matches,
   `size()`/`isEmpty()` expose collection metadata, `count()` increments a
@@ -131,9 +134,9 @@ string, float, nested array marshalling/readback, global
 lookup/enumeration/required/raw set/removal helpers, `GsDict` metadata,
 value/raw enumeration, required-read, and removal helpers, and `PersistentRoot`
 value, dictionary, key, pick, required-value, batch-value, and removal helpers.
-It also covers live query `count()`, `exists()`, `first()`, `limit()`, and
-index create/remove when the backing collection supports GemStone index
-selectors.
+It also covers live query add/remove, `count()`, `exists()`, `first()`,
+`limit()`, and index create/remove when the backing collection supports
+GemStone index selectors.
 
 ## Example
 

@@ -11,7 +11,8 @@ native package; the TypeScript package can be tested locally with a mock runtime
 ## Current Status
 
 - Async-first API: `Session.connect()`, `execute()`, `perform()`,
-  `withTransaction()`, and `AsyncDisposable` support.
+  `withTransaction()` with sync or async callbacks, and `AsyncDisposable`
+  support.
 - High-level argument marshalling through `performWith()` and
   `ManagedOop.send()`: strings become GemStone strings, numbers become
   SmallIntegers or Floats, bigints become SmallIntegers, booleans/null become
@@ -43,7 +44,8 @@ native package; the TypeScript package can be tested locally with a mock runtime
   failed resets are discarded, waiters are served with replacement sessions, and
   close rejects pending acquires. Explicit validation queries run without
   needing a separate interval option, `warm()` is idempotent for target
-  capacity, and `withSession()` wraps acquire/use/release callback flows.
+  capacity, and `withSession()` wraps sync or async acquire/use/release
+  callback flows.
 - Result marshalling now converts GemStone `String` and `Symbol` objects back
   into JavaScript strings via `fetchString()` and class detection. Float OOPs are
   converted when the runtime reports that `GciOopToFlt_` succeeded.

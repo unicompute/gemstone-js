@@ -32,6 +32,7 @@ import {
 export type MarshalledValue = bigint | number | boolean | string | null | Oop;
 export type GemStoneDictionaryArgument = { readonly [key: string]: GemStoneArgument };
 export type GemStoneArgument = ManagedOop<unknown> | string | number | bigint | boolean | null | GemStoneDictionaryArgument;
+type MaybePromise<T> = T | Promise<T>;
 
 export class Session implements AsyncDisposable {
   readonly config: ResolvedSessionConfig;
@@ -356,7 +357,7 @@ export class Session implements AsyncDisposable {
     return this.#observe("in_transaction", undefined, () => this.runtime.inTransaction());
   }
 
-  async withTransaction<T>(fn: (session: Session) => Promise<T>): Promise<T> {
+  async withTransaction<T>(fn: (session: Session) => MaybePromise<T>): Promise<T> {
     try {
       const result = await fn(this);
       await this.commit();

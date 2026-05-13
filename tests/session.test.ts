@@ -33,6 +33,7 @@ test("withTransaction commits on success and aborts on failure", async () => {
   const runtime = new MockGciRuntime();
   const session = await Session.connect({ username: "u", password: "p", runtime });
 
+  assertEqual(await session.withTransaction(() => "sync-result"), "sync-result");
   await session.withTransaction(async () => {
     await session.execute("1 + 1");
   });
@@ -198,6 +199,22 @@ test("SessionPool.withSession releases successful callbacks", async () => {
     assertEqual(lease.session, used);
 
     await lease.release({ clean: true });
+    await pool.close();
+  } finally {
+    setGciRuntimeForTesting(undefined);
+  }
+});
+
+test("SessionPool.withSession accepts synchronous callbacks", async () => {
+  const runtime = new MockGciRuntime();
+  setGciRuntimeForTesting(runtime);
+  try {
+    const pool = new SessionPool({ username: "u", password: "p", maxSize: 1 });
+
+    const sessionId = await pool.withSession((session) => session.sessionId, { release: { clean: true } });
+
+    assertEqual(sessionId, 1);
+    assertEqual(pool.stats().idle, 1);
     await pool.close();
   } finally {
     setGciRuntimeForTesting(undefined);

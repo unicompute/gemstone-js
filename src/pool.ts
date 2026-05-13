@@ -20,6 +20,8 @@ export interface PoolWithSessionOptions {
   release?: PooledSessionReleaseOptions;
 }
 
+type MaybePromise<T> = T | Promise<T>;
+
 export class PooledSession implements AsyncDisposable {
   readonly session: Session;
   #pool: SessionPool | undefined;
@@ -136,7 +138,7 @@ export class SessionPool implements AsyncDisposable {
   }
 
   async withSession<T>(
-    fn: (session: Session, lease: PooledSession) => Promise<T>,
+    fn: (session: Session, lease: PooledSession) => MaybePromise<T>,
     options: PoolWithSessionOptions = {},
   ): Promise<T> {
     const lease = await this.acquire(options.acquireTimeoutMs);

@@ -136,6 +136,51 @@ test("SessionPool validates numeric configuration", () => {
   assertThrows(() => new SessionPool({ validationIntervalMs: -1 }));
 });
 
+test("SessionPool warm is idempotent for target capacity", async () => {
+  const runtimes: MockGciRuntime[] = [];
+  setGciRuntimeFactoryForTesting(() => {
+    const runtime = new MockGciRuntime();
+    runtimes.push(runtime);
+    return runtime;
+  });
+  try {
+    const pool = new SessionPool({ username: "u", password: "p", minSize: 2, maxSize: 4 });
+
+    assertEqual(await pool.warm(), 2);
+    assertEqual(await pool.warm(), 0);
+    assertEqual(pool.stats().idle, 2);
+    assertEqual(pool.stats().currentCapacity, 2);
+    assertEqual(pool.stats().createdTotal, 2);
+    assertEqual(runtimes.length, 2);
+    await assertRejects(() => pool.warm(-1), RangeError);
+
+    await pool.close();
+  } finally {
+    setGciRuntimeFactoryForTesting(undefined);
+  }
+});
+
+test("SessionPool stats report pending acquires", async () => {
+  const runtime = new MockGciRuntime();
+  setGciRuntimeForTesting(runtime);
+  try {
+    const pool = new SessionPool({ username: "u", password: "p", maxSize: 1 });
+    const first = await pool.acquire();
+    const waiting = pool.acquire(undefined);
+
+    assertEqual(pool.stats().pendingAcquires, 1);
+
+    await first.release({ clean: true });
+    const second = await waiting;
+    assertEqual(pool.stats().pendingAcquires, 0);
+
+    await second.release({ clean: true });
+    await pool.close();
+  } finally {
+    setGciRuntimeForTesting(undefined);
+  }
+});
+
 test("default Session.connect asks the runtime factory for each session", async () => {
   const runtimes: MockGciRuntime[] = [];
   setGciRuntimeFactoryForTesting(() => {

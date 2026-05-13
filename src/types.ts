@@ -133,6 +133,7 @@ export interface GciRuntime {
 export interface PoolStats {
   inUse: number;
   idle: number;
+  pendingAcquires: number;
   currentCapacity: number;
   createdTotal: number;
   evictedTotal: number;

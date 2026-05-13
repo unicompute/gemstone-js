@@ -82,9 +82,9 @@ export class SessionPool implements AsyncDisposable {
   async warm(count = this.config.minSize): Promise<number> {
     this.#ensureOpen();
     this.#ensureSweeper();
-    const target = Math.min(Math.max(count, 0), this.config.maxSize);
+    const target = normalizeWarmTarget(count, this.config.maxSize);
     let warmed = 0;
-    while (warmed < target && this.#created < this.config.maxSize) {
+    while (this.#created < target) {
       const session = await this.#createSession();
       this.#idle.push({ session, lastUsedAt: Date.now(), validatedAt: 0 });
       warmed += 1;
@@ -179,6 +179,7 @@ export class SessionPool implements AsyncDisposable {
     return {
       inUse: Math.max(this.#created - this.#idle.length, 0),
       idle: this.#idle.length,
+      pendingAcquires: this.#waiters.length,
       currentCapacity: this.#created,
       createdTotal: this.#createdTotal,
       evictedTotal: this.#evictedTotal,
@@ -282,4 +283,11 @@ export class SessionPool implements AsyncDisposable {
   #ensureOpen(): void {
     if (this.#closed) throw new Error("SessionPool is closed.");
   }
+}
+
+function normalizeWarmTarget(count: number, maxSize: number): number {
+  if (!Number.isSafeInteger(count) || count < 0) {
+    throw new RangeError("SessionPool warm count must be a non-negative safe integer.");
+  }
+  return Math.min(count, maxSize);
 }

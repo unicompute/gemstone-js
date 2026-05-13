@@ -33,7 +33,8 @@ native package; the TypeScript package can be tested locally with a mock runtime
 - Session pool release is reset-aware: dirty sessions are aborted before reuse,
   failed resets are discarded, waiters are served with replacement sessions, and
   close rejects pending acquires. Explicit validation queries run without
-  needing a separate interval option.
+  needing a separate interval option, and `warm()` is idempotent for target
+  capacity.
 - Result marshalling now converts GemStone `String` and `Symbol` objects back
   into JavaScript strings via `fetchString()` and class detection. Float OOPs are
   converted when the runtime reports that `GciOopToFlt_` succeeded.

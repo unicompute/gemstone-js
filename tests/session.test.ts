@@ -463,6 +463,18 @@ test("arrayOopToValues converts GemStone Arrays back to JavaScript values", asyn
   assertEqual(await session.arrayLastValue(emptyArray), null);
   assertEqual(await session.arrayLastOop(emptyArray), null);
   assertEqual(await session.arrayLastObject(emptyArray), null);
+  const picked = await session.arrayPick(array, [1, 4]);
+  assertEqual(picked[1], "Ada");
+  assertEqual(picked[4], nested);
+  const pickedValues = await session.arrayPickValue(array, [2]);
+  assertEqual(pickedValues[2], 2n);
+  const pickedOops = await session.arrayPickOop(array, [1, 4]);
+  assertEqual(pickedOops[1], name);
+  assertEqual(pickedOops[4], nested);
+  const pickedObjects = await session.arrayPickObject(array, [1, 4]);
+  assertEqual(pickedObjects[1].oop, name);
+  assertEqual(pickedObjects[4].oop, nested);
+  await Promise.all(Object.values(pickedObjects).map((item) => item.release()));
   await session.arrayAtPut(array, 2, "Bea");
   assertEqual(await session.arrayAtValue(array, 2), "Bea");
   await session.arraySetValue(array, 3, false);
@@ -473,9 +485,18 @@ test("arrayOopToValues converts GemStone Arrays back to JavaScript values", asyn
   assertEqual(await session.arrayAtOop(array, 4), object);
   await session.arraySetObject(array, 1, objectHandle);
   assertEqual(await session.arrayAtOop(array, 1), object);
+  await session.arraySetAllValue(array, { 2: "Clara", 3: true });
+  assertEqual(await session.arrayAtValue(array, 2), "Clara");
+  assertEqual(await session.arrayAtValue(array, 3), true);
+  await session.arraySetAllOop(array, { 1: name, 4: nested });
+  assertEqual(await session.arrayAtOop(array, 1), name);
+  assertEqual(await session.arrayAtOop(array, 4), nested);
+  await session.arraySetAllObject(array, { 4: objectHandle });
+  assertEqual(await session.arrayAtOop(array, 4), object);
   await objectHandle.release();
   await assertRejects(() => session.arrayAtValue(array, 0), RangeError);
   await assertRejects(() => session.arrayAtPut(array, 1.5, "bad"), RangeError);
+  await assertRejects(() => session.arraySetAll(array, { 0: "bad" }), RangeError);
 
   arrays.set(array, [name, smallintToOop(2), OOP_NIL, nested]);
   const values = await session.arrayOopToValues(array);

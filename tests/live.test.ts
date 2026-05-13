@@ -37,8 +37,13 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
   assert.notEqual(liveArrayFirst, null);
   await liveArrayFirst?.release();
   assert.equal(await session.arrayLastValue(array), true);
+  assert.equal((await session.arrayPickValue(array, [1]))[1], "gemstone-js live");
+  assert.equal((await session.arrayPickOop(array, [2]))[2], nestedArray.oop);
   await session.arrayAtPut(array, 3, false);
   assert.equal(await session.arrayAtValue(array, 3), false);
+  await session.arraySetAllValue(array, { 1: "gemstone-js batch", 3: true });
+  assert.equal(await session.arrayAtValue(array, 1), "gemstone-js batch");
+  assert.equal(await session.arrayAtValue(array, 3), true);
   await session.arraySetOop(array, 2, nestedArray);
   assert.equal(await session.arrayAtOop(array, 2), nestedArray.oop);
   assert.equal((await session.arrayOops(array)).length, 3);

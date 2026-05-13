@@ -43,6 +43,7 @@ export interface ArrayOopReadbackOptions {
 }
 export type GemStoneArrayArgument = readonly GemStoneArgument[];
 export type GemStoneDictionaryArgument = { readonly [key: string]: GemStoneArgument };
+export type GemStoneArrayIndexMap<T> = { readonly [index: number]: T };
 export type GemStoneArgument =
   | ManagedOop<unknown>
   | string
@@ -327,6 +328,42 @@ export class Session implements AsyncDisposable {
     return item === null ? null : this.typedOop<T>(item);
   }
 
+  async arrayPick(value: TypedOop<unknown[]> | ManagedOop<unknown[]> | Oop, indexes: readonly number[]): Promise<Record<number, MarshalledValue>> {
+    const result: Record<number, MarshalledValue> = {};
+    for (const index of indexes) {
+      result[index] = await this.arrayAt(value, index);
+    }
+    return result;
+  }
+
+  async arrayPickValue(value: TypedOop<unknown[]> | ManagedOop<unknown[]> | Oop, indexes: readonly number[]): Promise<Record<number, MarshalledValue>> {
+    return this.arrayPick(value, indexes);
+  }
+
+  async arrayPickOop(value: TypedOop<unknown[]> | ManagedOop<unknown[]> | Oop, indexes: readonly number[]): Promise<Record<number, Oop>> {
+    const result: Record<number, Oop> = {};
+    for (const index of indexes) {
+      result[index] = await this.arrayAtOop(value, index);
+    }
+    return result;
+  }
+
+  async arrayPickObject<T = unknown>(
+    value: TypedOop<unknown[]> | ManagedOop<unknown[]> | Oop,
+    indexes: readonly number[],
+  ): Promise<Record<number, TypedOop<T>>> {
+    const result: Record<number, TypedOop<T>> = {};
+    try {
+      for (const index of indexes) {
+        result[index] = await this.arrayAtObject<T>(value, index);
+      }
+      return result;
+    } catch (error) {
+      await releaseNullableHandles(Object.values(result));
+      throw error;
+    }
+  }
+
   async arrayAtPut(
     value: TypedOop<unknown[]> | ManagedOop<unknown[]> | Oop,
     index: number,
@@ -359,6 +396,22 @@ export class Session implements AsyncDisposable {
     await this.arrayAtPut(value, index, item);
   }
 
+  async arraySetAll(
+    value: TypedOop<unknown[]> | ManagedOop<unknown[]> | Oop,
+    items: GemStoneArrayIndexMap<GemStoneArgument>,
+  ): Promise<void> {
+    for (const [index, item] of arrayIndexEntries(items, "arraySetAll index")) {
+      await this.arrayAtPut(value, index, item);
+    }
+  }
+
+  async arraySetAllValue(
+    value: TypedOop<unknown[]> | ManagedOop<unknown[]> | Oop,
+    items: GemStoneArrayIndexMap<GemStoneArgument>,
+  ): Promise<void> {
+    await this.arraySetAll(value, items);
+  }
+
   async arrayAtPutOop<T = unknown>(
     value: TypedOop<unknown[]> | ManagedOop<unknown[]> | Oop,
     index: number,
@@ -389,6 +442,22 @@ export class Session implements AsyncDisposable {
     item: OopHandle<T>,
   ): Promise<void> {
     await this.arrayAtPutOop(value, index, item);
+  }
+
+  async arraySetAllOop(
+    value: TypedOop<unknown[]> | ManagedOop<unknown[]> | Oop,
+    items: GemStoneArrayIndexMap<OopHandle>,
+  ): Promise<void> {
+    for (const [index, item] of arrayIndexEntries(items, "arraySetAllOop index")) {
+      await this.arrayAtPutOop(value, index, item);
+    }
+  }
+
+  async arraySetAllObject(
+    value: TypedOop<unknown[]> | ManagedOop<unknown[]> | Oop,
+    items: GemStoneArrayIndexMap<OopHandle>,
+  ): Promise<void> {
+    await this.arraySetAllOop(value, items);
   }
 
   async arrayOopToValues(array: Oop, options: ArrayReadbackOptions = {}): Promise<MarshalledValue[]> {
@@ -1456,6 +1525,17 @@ function validateArrayIndex(value: number): number {
     throw new RangeError("GemStone Array index must be a positive safe integer.");
   }
   return value;
+}
+
+function arrayIndexEntries<T>(items: GemStoneArrayIndexMap<T>, field: string): Array<[number, T]> {
+  return Object.entries(items).map(([key, value]) => [validateArrayIndexKey(key, field), value as T]);
+}
+
+function validateArrayIndexKey(value: string, field: string): number {
+  if (!/^[1-9]\d*$/.test(value)) {
+    throw new RangeError(`${field} must be a positive safe integer property name: ${value}`);
+  }
+  return validateArrayIndex(Number(value));
 }
 
 function toBoolean(value: MarshalledValue, operation: string): boolean {

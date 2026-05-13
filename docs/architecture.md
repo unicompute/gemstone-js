@@ -29,8 +29,9 @@ The first implementation slice follows `../plan.js.txt`:
   `arrayOopToObjects()` is the direct retained-handle counterpart for callers
   that already have a raw Array OOP.
 - `Session.arraySize()`, `arrayAt*()`, nullable `arrayFirst*()`/`arrayLast*()`,
-  and `arraySet*()` expose direct one-based GemStone `Array` metadata and
-  indexed element access without materializing whole arrays.
+  batch `arrayPick*()`/`arraySetAll*()`, and single-index `arraySet*()` expose
+  direct one-based GemStone `Array` metadata and indexed element access without
+  materializing whole arrays.
 - `Session.dictionaryOopToObject()` and `dictionaryValues()` read GemStone
   `StringKeyValueDictionary` instances through the `GsDict` key-enumeration
   path, preserving the existing string-key and value-marshalling behavior.

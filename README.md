@@ -36,7 +36,8 @@ native package; the TypeScript package can be tested locally with a mock runtime
   `arrayOopToOops()`/`arrayOops()`, retained object
   `arrayOopToObjects()`/`arrayObjects()`, direct array
   `arraySize()`/`arrayIsEmpty()`/`arrayAt*()`/`arrayFirst*()`/`arrayLast*()`
-  and `arraySet*()` helpers, and retained `array()` wrappers.
+  plus batch `arrayPick*()`/`arraySetAll*()` helpers, and retained `array()`
+  wrappers.
   Array value readback accepts optional `maxDepth`
   and `maxItems`/`maxTotalItems` bounds to guard recursive or unexpectedly
   large arrays; raw OOP readback accepts a `maxItems` bound.

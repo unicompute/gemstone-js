@@ -304,6 +304,37 @@ test("ManagedOop.send marshals JavaScript arguments", async () => {
   await session.logout();
 });
 
+test("Session.classRef exposes explicit class-side sends and typed wrapping", async () => {
+  const runtime = new MockGciRuntime();
+  const session = await Session.connect({ username: "u", password: "p", runtime });
+  const bookingClass = session.classRef<{ status: string }>("Booking");
+
+  const classOop = await bookingClass.oop();
+  assertEqual(await bookingClass.oop(), classOop);
+  const classResolutions = runtime.calls.filter((call) => (
+    call.method === "resolveSymbol" && call.args[0] === "Booking"
+  ));
+  assertEqual(classResolutions.length, 1);
+
+  await bookingClass.sendOop("findById:", "B-1");
+  const perform = runtime.calls.findLast((call) => call.method === "perform");
+  if (!perform) throw new Error("classRef sendOop should call perform");
+  assertEqual(perform.args[0], classOop);
+  assert(runtime.calls.some((call) => call.method === "newString" && call.args[0] === "B-1"), "classRef sendOop should marshal string arguments");
+
+  const wrapped = bookingClass.wrap(smallintToOop(5));
+  assertEqual(wrapped.session, session);
+  assertEqual(wrapped.oop, smallintToOop(5));
+  await wrapped.release();
+
+  const allocated = await bookingClass.new();
+  assert(runtime.calls.some((call) => call.method === "newOop" && call.args[0] === classOop), "classRef new should allocate through newOop");
+  await allocated.release();
+
+  assertThrows(() => session.classRef("   "));
+  await session.logout();
+});
+
 test("Session exposes low-level allocation and fetch helpers", async () => {
   const runtime = new MockGciRuntime();
   const session = await Session.connect({ username: "u", password: "p", runtime });

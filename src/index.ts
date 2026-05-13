@@ -1,5 +1,6 @@
 export {
   Session,
+  GemStoneClassRef,
   ManagedOop,
   TypedOop,
   resolveSessionConfig,

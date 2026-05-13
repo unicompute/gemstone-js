@@ -17,6 +17,9 @@ native package; the TypeScript package can be tested locally with a mock runtime
   SmallIntegers or Floats, bigints become SmallIntegers, booleans/null become
   immediate OOPs, plain objects become `StringKeyValueDictionary`, and managed
   handles pass their retained OOP.
+- `Session.classRef()` gives an explicit typed class handle for class-side
+  sends, allocation, and wrapping returned OOPs without hiding async remote
+  calls behind JavaScript property access.
 - Runtime adapters: Node (`@gemstone-js/native`), Deno FFI starter, Bun FFI
   starter, and a mock runtime for tests.
 - Runtime library discovery follows `libPath`, `GS_LIB_PATH`, `GS_LIB`, then

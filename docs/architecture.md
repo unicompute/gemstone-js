@@ -23,6 +23,9 @@ The first implementation slice follows `../plan.js.txt`:
 - `Session.argumentToOop()` handles the common JS-to-GemStone path. Use
   `perform()` for raw OOP arguments; use `performWith()` when you want JS values
   converted into GemStone objects.
+- `Session.classRef()` is the first explicit object-model layer: it caches class
+  symbol resolution and exposes async class-side sends/allocation while keeping
+  remote calls visible.
 - `GsDict` and `PersistentRoot` are convenience layers over the same session
   primitives. They should stay thin: the session owns marshalling and GCI calls.
 - Query helpers render simple selector paths and unwrap GemStone arrays through

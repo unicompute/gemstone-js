@@ -399,6 +399,10 @@ export class Session implements AsyncDisposable {
     return new TypedOop<T>(this, value);
   }
 
+  classRef<T = unknown>(name: string): GemStoneClassRef<T> {
+    return new GemStoneClassRef<T>(this, name);
+  }
+
   async logout(): Promise<void> {
     if (!this.#loggedIn) return;
     await this.#observe("logout", undefined, async () => {
@@ -512,6 +516,41 @@ export class ManagedOop<T = unknown> implements AsyncDisposable {
 }
 
 export class TypedOop<T = unknown> extends ManagedOop<T> {
+}
+
+export class GemStoneClassRef<T = unknown> {
+  readonly session: Session;
+  readonly name: string;
+  #oop: Promise<Oop> | undefined;
+
+  constructor(session: Session, name: string) {
+    if (!name.trim()) {
+      throw new RangeError("GemStone class name must not be empty.");
+    }
+    this.session = session;
+    this.name = name;
+  }
+
+  async oop(): Promise<Oop> {
+    this.#oop ??= this.session.resolveSymbol(this.name);
+    return this.#oop;
+  }
+
+  async send<R = MarshalledValue>(selector: string, ...args: GemStoneArgument[]): Promise<R> {
+    return await this.session.performValueWith(await this.oop(), selector, ...args) as R;
+  }
+
+  async sendOop(selector: string, ...args: GemStoneArgument[]): Promise<Oop> {
+    return this.session.performWith(await this.oop(), selector, ...args);
+  }
+
+  async new(): Promise<TypedOop<T>> {
+    return this.wrap(await this.session.newOop(await this.oop()));
+  }
+
+  wrap(value: Oop): TypedOop<T> {
+    return this.session.typedOop<T>(value);
+  }
 }
 
 const managedOopFinalizer = new FinalizationRegistry<{ session: Session; value: Oop }>(

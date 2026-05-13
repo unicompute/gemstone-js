@@ -63,6 +63,28 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
   assert.deepEqual(new Set(await session.dictionaryValueList(dict.oop)), new Set(["ready", 2n]));
   const sessionDictValueOops = await session.dictionaryValueOops(dict.oop);
   assert.deepEqual(new Set(await Promise.all(sessionDictValueOops.map((oop) => session.marshalOop(oop)))), new Set(["ready", 2n]));
+  const dictObject = await objectClass.sendObject("new");
+  await session.dictionarySetValue(dict.oop, "mode", "active");
+  await session.dictionarySetAllValue(dict.oop, { batch: "yes" });
+  await session.dictionarySetObject(dict.oop, "object", dictObject);
+  await session.dictionarySetAllObject(dict.oop, { objectBatch: dictObject });
+  await session.dictionarySetDict(dict.oop, "sessionNested", { status: "session-child" });
+  assert.equal(await session.dictionaryGetValue(dict.oop, "mode"), "active");
+  assert.equal(await session.dictionaryGet(dict.oop, "batch"), "yes");
+  assert.equal(await session.dictionaryGetOop(dict.oop, "object"), dictObject.oop);
+  const liveDictObject = await session.dictionaryGetObject(dict.oop, "object");
+  assert.equal(liveDictObject?.oop, dictObject.oop);
+  await liveDictObject?.release();
+  assert.equal(await (await session.dictionaryGetDict(dict.oop, "sessionNested"))?.requireValue("status"), "session-child");
+  assert.equal(await session.dictionaryRemove(dict.oop, "mode"), true);
+  assert.deepEqual(await session.dictionaryDeleteAll(dict.oop, ["batch", "object", "objectBatch", "sessionNested", "missing-session-key"]), {
+    batch: true,
+    object: true,
+    objectBatch: true,
+    sessionNested: true,
+    "missing-session-key": false,
+  });
+  await dictObject.release();
   assert.deepEqual(await dict.toObject(), { status: "ready", count: 2n });
   assert.equal(await dict.size(), 2);
   assert.equal(await dict.isEmpty(), false);

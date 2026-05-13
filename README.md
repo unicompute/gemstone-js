@@ -43,8 +43,9 @@ native package; the TypeScript package can be tested locally with a mock runtime
   `dictionaryIsEmpty()`, `dictionaryEntries()`, `dictionaryItems()`,
   raw `dictionaryEntriesOop()`/`dictionaryItemsOop()`,
   value-list `dictionaryValueList()`, raw `dictionaryValueOops()`,
-  direct dictionary `has`/`pick`/`require` helpers for raw, value, object, and
-  nested-dictionary entries, `strDictGet()`, `strDictSet()`,
+  direct dictionary `get`/`set`/`replace`/`remove`/`clear` plus
+  `has`/`pick`/`require` helpers for raw, value, object, and nested-dictionary
+  entries, `strDictGet()`, `strDictSet()`,
   `globalGet()`/`globalGetValue()`, `globalGetObject()`,
   `globalHas()`/`globalHasAll()`, `globalKeys()`, `globalPick()`, raw `globalPickOop()`,
   nullable object/dictionary `globalPickObject()`/`globalPickDict()`,

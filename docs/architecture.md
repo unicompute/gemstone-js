@@ -31,9 +31,10 @@ The first implementation slice follows `../plan.js.txt`:
 - `Session.dictionaryOopToObject()` and `dictionaryValues()` read GemStone
   `StringKeyValueDictionary` instances through the `GsDict` key-enumeration
   path, preserving the existing string-key and value-marshalling behavior.
-  Session-level dictionary key/item/value-list, pick/require, and size helpers
-  delegate to the same wrapper path for callers that have a raw dictionary OOP
-  but do not need to keep a `GsDict` wrapper around.
+  Session-level dictionary key/item/value-list, get/set/replace/remove,
+  pick/require, and size helpers delegate to the same wrapper path for callers
+  that have a raw dictionary OOP but do not need to keep a `GsDict` wrapper
+  around.
 - `Session.argumentToOop()` handles the common JS-to-GemStone path. Use
   `perform()` for raw OOP arguments; use `performWith()` when you want JS values
   converted into GemStone objects.

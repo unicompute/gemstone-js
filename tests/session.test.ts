@@ -732,8 +732,22 @@ test("dictionaryToOop stores and retrieves string-key values", async () => {
   assertEqual(await session.dictionaryIsEmpty(wrapped), false);
   await wrapped.release();
   const object = runtime.allocate();
-  await session.dict(dict).setOop("object", object);
-  await session.dict(dict).setDict("nested", { status: "child" });
+  await session.dictionarySetValue(dict, "mode", "active");
+  await session.dictionarySetAllValue(dict, { batch: "yes", disabled: false });
+  await session.dictionarySetOop(dict, "object", object);
+  await session.dictionarySetAllOop(dict, { objectBatch: object });
+  await session.dictionarySetObject(dict, "objectAlias", object);
+  await session.dictionarySetAllObject(dict, { objectBatchAlias: object });
+  await session.dictionarySetDict(dict, "nested", { status: "child" });
+  await session.dictionarySetAllDict(dict, { nestedBatch: { status: "batch-child" } });
+  assertEqual(await session.dictionaryGetValue(dict, "mode"), "active");
+  assertEqual(await session.dictionaryGet(dict, "disabled"), false);
+  assertEqual(await session.dictionaryGetOop(dict, "object"), object);
+  const directObject = await session.dictionaryGetObject<{ name: string }>(dict, "object");
+  assertEqual(directObject?.oop, object);
+  await directObject?.release();
+  assertEqual(await (await session.dictionaryGetDict(dict, "nested"))?.get("status"), "child");
+  assertEqual(await (await session.dictionaryGetDict(dict, "nestedBatch"))?.get("status"), "batch-child");
   assertEqual(await session.dictionaryHas(dict, "name"), true);
   assertDeepEqual(await session.dictionaryHasAll(dict, ["name", "missing"]), { name: true, missing: false });
   assertEqual((await session.dictionaryPick(dict, ["name", "missing"])).name, "Alice");
@@ -766,8 +780,60 @@ test("dictionaryToOop stores and retrieves string-key values", async () => {
   assertEqual(await (await session.dictionaryRequireAllDict(dict, ["nested"])).nested.get("status"), "child");
   await assertRejects(() => session.dictionaryRequireOop(dict, "missing"), Error);
   await assertRejects(() => session.dictionaryRequireAllOop(dict, ["name", "missing"]), Error);
+  assertEqual(await session.dictionaryRemove(dict, "mode"), true);
+  assertEqual(await session.dictionaryDelete(dict, "mode"), false);
+  assertDeepEqual(await session.dictionaryRemoveAll(dict, ["batch", "missing-batch"]), { batch: true, "missing-batch": false });
+  assertDeepEqual(await session.dictionaryDeleteAll(dict, ["disabled", "missing-disabled"]), { disabled: true, "missing-disabled": false });
   assert(runtime.calls.some((call) => call.method === "strKeyValueDictAtPut"), "dictionaryToOop should write string-key entries");
 
+  await session.logout();
+});
+
+test("Session dictionary replace and clear helpers rebuild contents", async () => {
+  let runtime: MockGciRuntime;
+  let dictOop = OOP_NIL;
+  runtime = new MockGciRuntime({
+    execute(source) {
+      assert(source.includes(`Object _objectForOop: ${dictOop.toString()}.`), "session dictionary clear should enumerate dictionary keys");
+      const prefix = `${dictOop}:`;
+      const keys = [...runtime.strKeyDict.keys()]
+        .filter((key) => key.startsWith(prefix))
+        .map((key) => key.slice(prefix.length));
+      return runtime.newString(keys.length === 0 ? "" : `${keys.join("\n")}\n`);
+    },
+  });
+  const session = await Session.connect({ username: "u", password: "p", runtime });
+  dictOop = await session.dictionaryToOop({ old: "value", stale: "value" });
+  const object = runtime.allocate();
+  const objectHandle = session.typedOop(object);
+
+  await session.dictionaryReplaceAll(dictOop, { fresh: "value", enabled: true });
+  assertEqual(await session.dictionaryGetValue(dictOop, "fresh"), "value");
+  assertEqual(await session.dictionaryGetValue(dictOop, "old"), null);
+  assertEqual(await session.dictionaryGetValue(dictOop, "enabled"), true);
+
+  await session.dictionaryReplaceAllValue(dictOop, { status: "ready" });
+  assertEqual(await session.dictionaryGetValue(dictOop, "status"), "ready");
+  assertEqual(await session.dictionaryGetValue(dictOop, "fresh"), null);
+
+  await session.dictionaryReplaceAllOop(dictOop, { object });
+  assertEqual(await session.dictionaryGetOop(dictOop, "object"), object);
+  assertEqual(await session.dictionaryGetValue(dictOop, "status"), null);
+
+  await session.dictionaryReplaceAllObject(dictOop, { objectAlias: objectHandle });
+  assertEqual(await session.dictionaryGetOop(dictOop, "objectAlias"), object);
+  assertEqual(await session.dictionaryGetOop(dictOop, "object"), null);
+
+  const nested = await session.dictionaryReplaceAllDict(dictOop, { nested: { status: "child" } });
+  assertEqual(await nested.nested.get("status"), "child");
+  assertEqual(await session.dictionaryGetOop(dictOop, "objectAlias"), null);
+  assertEqual(await (await session.dictionaryRequireDict(dictOop, "nested")).get("status"), "child");
+
+  await session.dictionaryClear(dictOop);
+  assertEqual(await session.dictionaryIsEmpty(dictOop), true);
+  assertEqual(await session.dictionaryGetValue(dictOop, "nested"), null);
+
+  await objectHandle.release();
   await session.logout();
 });
 

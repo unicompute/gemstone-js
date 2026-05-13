@@ -438,6 +438,106 @@ export class Session implements AsyncDisposable {
     return this.dict(rawHandleOop(value)).requireAllDict(keys);
   }
 
+  async dictionaryGet(value: OopHandle, key: string): Promise<MarshalledValue> {
+    return this.dict(rawHandleOop(value)).get(key);
+  }
+
+  async dictionaryGetValue(value: OopHandle, key: string): Promise<MarshalledValue> {
+    return this.dictionaryGet(value, key);
+  }
+
+  async dictionaryGetOop(value: OopHandle, key: string): Promise<Oop | null> {
+    return this.dict(rawHandleOop(value)).getOop(key);
+  }
+
+  async dictionaryGetObject<T = unknown>(value: OopHandle, key: string): Promise<TypedOop<T> | null> {
+    return this.dict(rawHandleOop(value)).getObject<T>(key);
+  }
+
+  async dictionaryGetDict(value: OopHandle, key: string): Promise<GsDict | null> {
+    return this.dict(rawHandleOop(value)).getDict(key);
+  }
+
+  async dictionarySet(value: OopHandle, key: string, item: GemStoneArgument): Promise<void> {
+    await this.dict(rawHandleOop(value)).set(key, item);
+  }
+
+  async dictionarySetValue(value: OopHandle, key: string, item: GemStoneArgument): Promise<void> {
+    await this.dictionarySet(value, key, item);
+  }
+
+  async dictionarySetAll(value: OopHandle, items: Record<string, GemStoneArgument>): Promise<void> {
+    await this.dict(rawHandleOop(value)).setAll(items);
+  }
+
+  async dictionarySetAllValue(value: OopHandle, items: Record<string, GemStoneArgument>): Promise<void> {
+    await this.dictionarySetAll(value, items);
+  }
+
+  async dictionarySetOop<T = unknown>(value: OopHandle, key: string, item: OopHandle<T>): Promise<void> {
+    await this.dict(rawHandleOop(value)).setOop(key, item);
+  }
+
+  async dictionarySetAllOop(value: OopHandle, items: Record<string, OopHandle>): Promise<void> {
+    await this.dict(rawHandleOop(value)).setAllOop(items);
+  }
+
+  async dictionarySetObject<T = unknown>(value: OopHandle, key: string, item: OopHandle<T>): Promise<void> {
+    await this.dictionarySetOop(value, key, item);
+  }
+
+  async dictionarySetAllObject(value: OopHandle, items: Record<string, OopHandle>): Promise<void> {
+    await this.dictionarySetAllOop(value, items);
+  }
+
+  async dictionarySetDict(value: OopHandle, key: string, item: GemStoneDictionaryArgument): Promise<GsDict> {
+    return this.dict(rawHandleOop(value)).setDict(key, item);
+  }
+
+  async dictionarySetAllDict(value: OopHandle, items: Record<string, GemStoneDictionaryArgument>): Promise<Record<string, GsDict>> {
+    return this.dict(rawHandleOop(value)).setAllDict(items);
+  }
+
+  async dictionaryReplaceAll(value: OopHandle, items: Record<string, GemStoneArgument>): Promise<void> {
+    await this.dict(rawHandleOop(value)).replaceAll(items);
+  }
+
+  async dictionaryReplaceAllValue(value: OopHandle, items: Record<string, GemStoneArgument>): Promise<void> {
+    await this.dictionaryReplaceAll(value, items);
+  }
+
+  async dictionaryReplaceAllOop(value: OopHandle, items: Record<string, OopHandle>): Promise<void> {
+    await this.dict(rawHandleOop(value)).replaceAllOop(items);
+  }
+
+  async dictionaryReplaceAllObject(value: OopHandle, items: Record<string, OopHandle>): Promise<void> {
+    await this.dictionaryReplaceAllOop(value, items);
+  }
+
+  async dictionaryReplaceAllDict(value: OopHandle, items: Record<string, GemStoneDictionaryArgument>): Promise<Record<string, GsDict>> {
+    return this.dict(rawHandleOop(value)).replaceAllDict(items);
+  }
+
+  async dictionaryRemove(value: OopHandle, key: string): Promise<boolean> {
+    return this.dict(rawHandleOop(value)).remove(key);
+  }
+
+  async dictionaryDelete(value: OopHandle, key: string): Promise<boolean> {
+    return this.dictionaryRemove(value, key);
+  }
+
+  async dictionaryRemoveAll(value: OopHandle, keys: readonly string[]): Promise<Record<string, boolean>> {
+    return this.dict(rawHandleOop(value)).removeAll(keys);
+  }
+
+  async dictionaryDeleteAll(value: OopHandle, keys: readonly string[]): Promise<Record<string, boolean>> {
+    return this.dictionaryRemoveAll(value, keys);
+  }
+
+  async dictionaryClear(value: OopHandle): Promise<void> {
+    await this.dict(rawHandleOop(value)).clear();
+  }
+
   async dictionary(value: GemStoneDictionaryArgument = {}): Promise<GsDict> {
     return new GsDict(this, await this.dictionaryToOop(value));
   }

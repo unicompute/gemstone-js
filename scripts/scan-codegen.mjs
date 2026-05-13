@@ -8,6 +8,8 @@ import {
   validateGeneratedModuleOptions,
 } from "../src/codegen.ts";
 
+const TYPE_PRINTER = ts.createPrinter({ removeComments: true });
+
 try {
   await main(process.argv.slice(2));
 } catch (error) {
@@ -204,7 +206,7 @@ function scanMethod(member, className, sourceFile, sourcePath, decoratorNames, i
   const line = lineNumber(sourceFile, member.name);
   const selector = decoratorStringArg(member, "GemStoneSelector", sourceFile, sourcePath, decoratorNames)
     ?? inferSelectorForSource(methodName, parameters.length, sourcePath, line);
-  const returnType = unwrapPromise(member.type?.getText(sourceFile).trim());
+  const returnType = unwrapPromiseReturnType(member.type, sourceFile);
 
   const entry = {
     exportedName: methodName,
@@ -262,7 +264,7 @@ function parseParameters(parameters, sourceFile, sourcePath) {
     }
     return {
       name: parameter.name.text,
-      type: parameter.type?.getText(sourceFile).trim(),
+      type: parameter.type ? typeText(parameter.type, sourceFile) : undefined,
     };
   });
 }
@@ -338,10 +340,38 @@ function renderTypeImports(imports) {
   }));
 }
 
-function unwrapPromise(type) {
-  if (!type) return undefined;
-  const match = type.match(/^Promise\s*<(.+)>$/);
-  return match ? match[1].trim() : type;
+function unwrapPromiseReturnType(typeNode, sourceFile) {
+  if (!typeNode) return undefined;
+  const unwrapped = promiseTypeArgument(typeNode) ?? typeNode;
+  return typeText(unwrapped, sourceFile);
+}
+
+function promiseTypeArgument(typeNode) {
+  let node = typeNode;
+  while (ts.isParenthesizedTypeNode(node)) {
+    node = node.type;
+  }
+  if (!ts.isTypeReferenceNode(node)) return undefined;
+  if (!isPromiseTypeName(node.typeName)) return undefined;
+  if (node.typeArguments?.length !== 1) return undefined;
+  return node.typeArguments[0];
+}
+
+function isPromiseTypeName(typeName) {
+  if (ts.isIdentifier(typeName)) return typeName.text === "Promise";
+  return (
+    ts.isQualifiedName(typeName)
+    && ts.isIdentifier(typeName.left)
+    && typeName.left.text === "globalThis"
+    && typeName.right.text === "Promise"
+  );
+}
+
+function typeText(typeNode, sourceFile) {
+  return TYPE_PRINTER
+    .printNode(ts.EmitHint.Unspecified, typeNode, sourceFile)
+    .replace(/\s*\r?\n\s*/g, " ")
+    .trim();
 }
 
 function inferSelectorForSource(methodName, arity, sourcePath, lineNumber) {

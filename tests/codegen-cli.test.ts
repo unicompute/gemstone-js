@@ -159,6 +159,70 @@ test("codegen scanner handles same-line decorators and nested parameter types", 
   }
 });
 
+test("codegen scanner unwraps Promise return types from TypeScript AST nodes", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "gemstone-js-codegen-scan-promise-"));
+  try {
+    const sourcePath = join(dir, "promise-booking.ts");
+    await writeFile(sourcePath, [
+      "import { GemStoneClass, GemStoneSelector, type Session, type TypedOop } from \"gemstone-js\";",
+      "import type Booking from \"./booking.ts\";",
+      "@GemStoneClass(\"Booking\")",
+      "class PromiseBookingModel {",
+      "  @GemStoneSelector(\"find:\")",
+      "  static findBooking(",
+      "    session: Session,",
+      "    id: string,",
+      "  ): Promise<",
+      "    TypedOop<Booking>",
+      "  > {",
+      "    throw new Error(\"scanner fixture only\");",
+      "  }",
+      "  @GemStoneSelector(\"status\")",
+      "  static status(session: Session): globalThis.Promise<string> {",
+      "    throw new Error(\"scanner fixture only\");",
+      "  }",
+      "}",
+      "",
+    ].join("\n"));
+
+    const { stdout } = await execNode([scanScript, sourcePath]);
+    const scanned = JSON.parse(stdout);
+
+    assert.deepEqual(scanned.imports, [
+      {
+        from: "gemstone-js",
+        typeNames: ["Session", "TypedOop"],
+      },
+      {
+        from: "./booking.ts",
+        typeDefaultName: "Booking",
+      },
+    ]);
+    assert.deepEqual(scanned.functions, [
+      {
+        exportedName: "findBooking",
+        className: "Booking",
+        selector: "find:",
+        argNames: ["id"],
+        argTypes: ["string"],
+        sessionType: "Session",
+        returnType: "TypedOop<Booking>",
+        returnKind: "object",
+      },
+      {
+        exportedName: "status",
+        className: "Booking",
+        selector: "status",
+        argNames: [],
+        sessionType: "Session",
+        returnType: "string",
+      },
+    ]);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 test("codegen scanner resolves decorator/type aliases and skips overload signatures", async () => {
   const dir = await mkdtemp(join(tmpdir(), "gemstone-js-codegen-scan-alias-"));
   try {

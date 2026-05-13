@@ -71,6 +71,27 @@ test("GSCollection.searchOop unwraps result arrays without retaining handles", a
   await session.logout();
 });
 
+test("GSCollection count and exists render validated predicates without fetching handles", async () => {
+  const executeSources: string[] = [];
+  const counts = [3, 0];
+  const runtime = new MockGciRuntime({
+    execute(source) {
+      executeSources.push(source);
+      return smallintToOop(counts.shift() ?? 0);
+    },
+  });
+  const session = await Session.connect({ username: "u", password: "p", runtime });
+  const collection = new GSCollection(session, "Bookings");
+
+  assertEqual(await collection.count("customer.name", "=", "Ada's booking"), 3);
+  assertEqual(await collection.exists("status", "=", "missing"), false);
+
+  assert(executeSources[0].includes("(collection select: [:each | (each customer name = 'Ada''s booking')]) size"), "count should render escaped Smalltalk predicate");
+  assert(executeSources[1].includes("(collection select: [:each | (each status = 'missing')]) size"), "exists should reuse the count predicate");
+  assert(!runtime.calls.some((call) => call.method === "addOopToExportSet"), "count helpers should not retain object handles");
+  await session.logout();
+});
+
 test("GSCollection.iter yields individual objects from each fetched chunk", async () => {
   const arrays = new Map<Oop, Oop[]>();
   const chunkByOffset = new Map<number, Oop>();
@@ -137,6 +158,7 @@ test("GSCollection rejects unsafe query inputs before rendering Smalltalk", asyn
   assertThrows(() => new GSCollection(session, ""));
   assertThrows(() => new GSCollection(session, "Bookings; System abortTransaction"));
   await assertRejects(() => collection.search("customer; System abortTransaction", "=", "Ada"), RangeError);
+  await assertRejects(() => collection.count("customer; System abortTransaction", "=", "Ada"), RangeError);
   await assertRejects(async () => {
     for await (const _item of collection.iter(0)) {
       throw new Error("iterator should not yield");

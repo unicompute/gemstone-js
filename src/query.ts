@@ -54,16 +54,35 @@ export class GSCollection<T = unknown> {
     return result === OOP_NIL ? [] : this.#arrayOops(result);
   }
 
+  async count(path: string, op: ComparisonOp, value: string | number | bigint | boolean): Promise<number> {
+    const predicate = await this.#predicate(path, op, value);
+    const source = `
+      | collection |
+      collection := ${this.name}.
+      (collection select: [:each | ${predicate}]) size
+    `;
+    return toSafeArraySize(await this.session.eval(source));
+  }
+
+  async exists(path: string, op: ComparisonOp, value: string | number | bigint | boolean): Promise<boolean> {
+    return await this.count(path, op, value) > 0;
+  }
+
   async #searchResultArray(path: string, op: ComparisonOp, value: string | number | bigint | boolean): Promise<Oop> {
-    const literal = await this.#literal(value);
-    const selector = selectorForPath(path);
+    const predicate = await this.#predicate(path, op, value);
     const source = `
       | collection results |
       collection := ${this.name}.
-      results := collection select: [:each | (each ${selector} ${smalltalkOp(op)} ${literal})].
+      results := collection select: [:each | ${predicate}].
       results asArray
     `;
     return this.session.execute(source);
+  }
+
+  async #predicate(path: string, op: ComparisonOp, value: string | number | bigint | boolean): Promise<string> {
+    const literal = await this.#literal(value);
+    const selector = selectorForPath(path);
+    return `(each ${selector} ${smalltalkOp(op)} ${literal})`;
   }
 
   async *iter(chunkSize = 256): AsyncIterable<TypedOop<T>> {

@@ -328,6 +328,30 @@ export class Session implements AsyncDisposable {
     return this.dictionaryOopToObject(typeof value === "bigint" ? value : value.oop);
   }
 
+  async dictionaryKeys(value: TypedOop<unknown> | ManagedOop<unknown> | Oop): Promise<string[]> {
+    return this.dict(rawHandleOop(value)).keys();
+  }
+
+  async dictionaryEntriesOop(value: TypedOop<unknown> | ManagedOop<unknown> | Oop): Promise<Record<string, Oop | null>> {
+    return this.dict(rawHandleOop(value)).entriesOop();
+  }
+
+  async dictionaryItems(value: TypedOop<unknown> | ManagedOop<unknown> | Oop): Promise<Array<[string, MarshalledValue]>> {
+    return this.dict(rawHandleOop(value)).items();
+  }
+
+  async dictionaryItemsOop(value: TypedOop<unknown> | ManagedOop<unknown> | Oop): Promise<Array<[string, Oop]>> {
+    return this.dict(rawHandleOop(value)).itemsOop();
+  }
+
+  async dictionaryValueList(value: TypedOop<unknown> | ManagedOop<unknown> | Oop): Promise<MarshalledValue[]> {
+    return this.dict(rawHandleOop(value)).values();
+  }
+
+  async dictionaryValueOops(value: TypedOop<unknown> | ManagedOop<unknown> | Oop): Promise<Oop[]> {
+    return this.dict(rawHandleOop(value)).valuesOop();
+  }
+
   async dictionary(value: GemStoneDictionaryArgument = {}): Promise<GsDict> {
     return new GsDict(this, await this.dictionaryToOop(value));
   }
@@ -1076,6 +1100,10 @@ function isPlainRecord(value: unknown): value is GemStoneDictionaryArgument {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
   const prototype = Object.getPrototypeOf(value);
   return prototype === Object.prototype || prototype === null;
+}
+
+function rawHandleOop(value: TypedOop<unknown> | ManagedOop<unknown> | Oop): Oop {
+  return typeof value === "bigint" ? value : value.oop;
 }
 
 interface NormalizedArrayReadbackOptions {

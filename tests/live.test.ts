@@ -43,6 +43,16 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
   assert.equal(await dict.get("count"), 2n);
   assert.deepEqual(await session.dictionaryOopToObject(dict.oop), { status: "ready", count: 2n });
   assert.deepEqual(await session.dictionaryValues(dict.oop), { status: "ready", count: 2n });
+  assert.deepEqual(new Set(await session.dictionaryKeys(dict.oop)), new Set(["status", "count"]));
+  assert.equal((await session.dictionaryEntriesOop(dict.oop)).status !== null, true);
+  assert.equal(new Map(await session.dictionaryItems(dict.oop)).get("status"), "ready");
+  const sessionDictItemsOop = new Map(await session.dictionaryItemsOop(dict.oop));
+  const sessionDictStatusOop = sessionDictItemsOop.get("status");
+  if (sessionDictStatusOop === undefined) throw new Error("dictionaryItemsOop should include status.");
+  assert.equal(await session.marshalOop(sessionDictStatusOop), "ready");
+  assert.deepEqual(new Set(await session.dictionaryValueList(dict.oop)), new Set(["ready", 2n]));
+  const sessionDictValueOops = await session.dictionaryValueOops(dict.oop);
+  assert.deepEqual(new Set(await Promise.all(sessionDictValueOops.map((oop) => session.marshalOop(oop)))), new Set(["ready", 2n]));
   assert.deepEqual(await dict.toObject(), { status: "ready", count: 2n });
   assert.equal(await dict.size(), 2);
   assert.equal(await dict.isEmpty(), false);

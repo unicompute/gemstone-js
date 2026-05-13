@@ -706,8 +706,25 @@ test("dictionaryToOop stores and retrieves string-key values", async () => {
   assertEqual(readback.name, "Alice");
   assertEqual(readback.retries, 3n);
   assertEqual(readback.enabled, true);
+  assertEqual((await session.dictionaryKeys(dict)).join(","), "name,retries,enabled");
+  const rawEntries = await session.dictionaryEntriesOop(dict);
+  assertEqual(await session.marshalOop(rawEntries.name ?? OOP_NIL), "Alice");
+  assertEqual(await session.marshalOop(rawEntries.retries ?? OOP_NIL), 3n);
+  const items = await session.dictionaryItems(dict);
+  assertEqual(items[0][0], "name");
+  assertEqual(items[0][1], "Alice");
+  assertEqual(items[1][0], "retries");
+  assertEqual(items[1][1], 3n);
+  const rawItems = await session.dictionaryItemsOop(dict);
+  assertEqual(rawItems[0][0], "name");
+  assertEqual(await session.marshalOop(rawItems[0][1]), "Alice");
+  const valueList = await session.dictionaryValueList(dict);
+  assertEqual(valueList.join(","), "Alice,3,true");
+  const rawValueList = await session.dictionaryValueOops(dict);
+  assertEqual(await session.marshalOop(rawValueList[0]), "Alice");
   const wrapped = session.typedOop(dict);
   assertEqual((await session.dictionaryValues(wrapped)).name, "Alice");
+  assertEqual((await session.dictionaryKeys(wrapped)).join(","), "name,retries,enabled");
   await wrapped.release();
   assert(runtime.calls.some((call) => call.method === "strKeyValueDictAtPut"), "dictionaryToOop should write string-key entries");
 

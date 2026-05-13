@@ -1,6 +1,7 @@
 import {
   OOP_FALSE,
   OOP_NIL,
+  GemStoneError,
   GsDict,
   PersistentRoot,
   Session,
@@ -447,6 +448,31 @@ test("arrayOopToValues converts GemStone Arrays back to JavaScript values", asyn
   await session.logout();
 });
 
+test("arrayOopToValues rejects cyclic GemStone Arrays", async () => {
+  const arrays = new Map<Oop, Oop[]>();
+  const runtime = new MockGciRuntime({
+    perform(receiver, selector, args) {
+      const values = arrays.get(receiver);
+      if (!values) return OOP_NIL;
+      if (selector === "size") return smallintToOop(values.length);
+      if (selector === "at:") {
+        const index = Number(oopToSmallint(args[0]));
+        return values[index - 1] ?? OOP_NIL;
+      }
+      return OOP_NIL;
+    },
+  });
+  const arrayClass = runtime.classSymbol("Array");
+  const array = runtime.allocate();
+  runtime.classByOop.set(array, arrayClass);
+  arrays.set(array, [array]);
+  const session = await Session.connect({ username: "u", password: "p", runtime });
+
+  await assertRejects(() => session.arrayOopToValues(array), GemStoneError);
+
+  await session.logout();
+});
+
 test("ManagedOop.send marshals JavaScript arguments", async () => {
   const runtime = new MockGciRuntime();
   const session = await Session.connect({ username: "u", password: "p", runtime });
@@ -686,12 +712,20 @@ test("GsDict keys and entries list dictionary contents", async () => {
   assertEqual(entries.city, "London");
   const values = await dict.values();
   assertEqual(values.join(","), "Ada,London");
+  const rawValues = await dict.valuesOop();
+  assertEqual(await session.marshalOop(rawValues[0]), "Ada");
+  assertEqual(await session.marshalOop(rawValues[1]), "London");
   const items = await dict.items();
   assertEqual(items[0][0], "name");
   assertEqual(items[0][1], "Ada");
   assertEqual(items[1][0], "city");
   assertEqual(items[1][1], "London");
-  assertEqual(keyListCalls, 4);
+  const rawItems = await dict.itemsOop();
+  assertEqual(rawItems[0][0], "name");
+  assertEqual(await session.marshalOop(rawItems[0][1]), "Ada");
+  assertEqual(rawItems[1][0], "city");
+  assertEqual(await session.marshalOop(rawItems[1][1]), "London");
+  assertEqual(keyListCalls, 6);
 
   await session.logout();
 });
@@ -902,7 +936,14 @@ test("PersistentRoot pick and entries read root values by listed names", async (
   const entries = await root.entries();
   assertEqual(entries.RootStatus, "ready");
   assertEqual(entries.RootEnabled, true);
-  assertEqual(listCalls, 1);
+  const values = await root.values();
+  assertEqual(values.join(","), "ready,true");
+  const items = await root.items();
+  assertEqual(items[0][0], "RootStatus");
+  assertEqual(items[0][1], "ready");
+  assertEqual(items[1][0], "RootEnabled");
+  assertEqual(items[1][1], true);
+  assertEqual(listCalls, 3);
 
   await session.logout();
 });

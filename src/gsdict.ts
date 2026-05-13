@@ -107,10 +107,23 @@ export class GsDict implements AsyncDisposable {
     return (await this.items()).map(([, value]) => value);
   }
 
+  async valuesOop(): Promise<Oop[]> {
+    return (await this.itemsOop()).map(([, value]) => value);
+  }
+
   async items(): Promise<Array<[string, MarshalledValue]>> {
     const result: Array<[string, MarshalledValue]> = [];
     for (const key of await this.keys()) {
       result.push([key, await this.get(key)]);
+    }
+    return result;
+  }
+
+  async itemsOop(): Promise<Array<[string, Oop]>> {
+    const result: Array<[string, Oop]> = [];
+    for (const key of await this.keys()) {
+      const value = await this.getOop(key);
+      if (value !== null) result.push([key, value]);
     }
     return result;
   }

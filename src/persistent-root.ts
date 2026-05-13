@@ -131,6 +131,18 @@ export class PersistentRoot {
     return this.pick(await this.keys());
   }
 
+  async values(): Promise<MarshalledValue[]> {
+    return (await this.items()).map(([, value]) => value);
+  }
+
+  async items(): Promise<Array<[string, MarshalledValue]>> {
+    const result: Array<[string, MarshalledValue]> = [];
+    for (const key of await this.keys()) {
+      result.push([key, await this.getValue(key)]);
+    }
+    return result;
+  }
+
   async keys(): Promise<string[]> {
     return this.list();
   }

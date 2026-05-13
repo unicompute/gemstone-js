@@ -3,7 +3,7 @@
   "imports": [
     {
       "from": "gemstone-js",
-      "typeNames": ["Session", "TypedOop"]
+      "typeNames": ["Oop", "Session", "TypedOop"]
     },
     {
       "from": "./booking.ts",
@@ -43,6 +43,16 @@
       "sessionType": "Session",
       "returnType": "TypedOop<BookingRecord>",
       "returnKind": "object"
+    },
+    {
+      "exportedName": "findBookingOopByTags",
+      "className": "Booking",
+      "selector": "findOopWithTags:",
+      "argNames": ["tags"],
+      "argTypes": ["readonly string[]"],
+      "sessionType": "Session",
+      "returnType": "Oop",
+      "returnKind": "oop"
     }
   ]
 }

@@ -40,13 +40,14 @@ native package; the TypeScript package can be tested locally with a mock runtime
 - `GsDict` wraps GemStone `StringKeyValueDictionary` objects with `get()`,
   `getObject()`, `set()`/`setAll()`, raw `setOop()`/`setAllOop()`,
   `remove()`/`delete()`, `has()`, `size()`, `isEmpty()`, `keys()`,
-  `values()`, `items()`, `entries()`, `pick()`, required raw/value/object
-  accessors, explicit send helpers, and inspection helpers.
+  `values()`, raw `valuesOop()`, `items()`, raw `itemsOop()`, `entries()`,
+  `pick()`, required raw/value/object accessors, explicit send helpers, and
+  inspection helpers.
 - `PersistentRoot` now has value helpers (`getValue()`, `setValue()`,
   `setAllValue()`, `getDict()`, `setDict()`), raw `setAll()`,
   `getObject()`, `remove()`/`delete()`, `has()`, `keys()`, `pick()`,
-  `entries()`, and required raw/value/object/dictionary access built on the
-  session marshalling layer.
+  `entries()`, `values()`, `items()`, and required raw/value/object/dictionary
+  access built on the session marshalling layer.
 - Session pool release is reset-aware: dirty sessions are aborted before reuse,
   failed resets are discarded, waiters are served with replacement sessions, and
   close rejects pending acquires. Explicit validation queries run without
@@ -70,7 +71,7 @@ native package; the TypeScript package can be tested locally with a mock runtime
   `createEqualityIndexOn()`/`removeEqualityIndexOn()` and higher-level
   `createIndex()`/`removeIndex()` calls. Source-rendering helpers validate
   collection names, persistent-root names, and SymbolDictionary entry names
-  before emitting Smalltalk.
+  before emitting Smalltalk; see `docs/naming.md` for the shared policy.
 - Pool, observability hooks, persistent-root, query, codegen, and Express,
   Fastify, and Hono adapter scaffolds.
 - Codegen helpers render wrappers that share the same JavaScript argument
@@ -103,11 +104,7 @@ native package; the TypeScript package can be tested locally with a mock runtime
 ## Local Smoke Test
 
 ```sh
-npm test
-npm run typecheck
-npm run codegen:check
-npm run codegen:scan:check
-npm run pack:check
+npm run verify
 ```
 
 Node 24 can execute the `.ts` tests directly using built-in type stripping.
@@ -122,10 +119,10 @@ GS_RUN_LIVE=1 npm run test:live
 ```
 
 The live smoke covers connect, execute, class-side sends, `performWith()`,
-string, float, array marshalling/readback, global lookup/enumeration/required/raw
-set/removal helpers, `GsDict` metadata, enumeration, required-read, and removal
-helpers, and `PersistentRoot` value, dictionary, key, pick, required-value,
-batch-value, and removal helpers.
+string, float, nested array marshalling/readback, global
+lookup/enumeration/required/raw set/removal helpers, `GsDict` metadata,
+value/raw enumeration, required-read, and removal helpers, and `PersistentRoot`
+value, dictionary, key, pick, required-value, batch-value, and removal helpers.
 
 ## Example
 

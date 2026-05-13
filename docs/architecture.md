@@ -30,6 +30,11 @@ The first implementation slice follows `../plan.js.txt`:
   primitives. They should stay thin: the session owns marshalling and GCI calls,
   while wrappers expose explicit value/raw/object accessors and send helpers,
   dictionary metadata, dictionary/root enumeration, and required root accessors.
+- Source-rendered helper names share one validation policy. Collection names,
+  persistent-root names, persistent-root entries, and direct global names must
+  be simple GemStone global-style identifiers; dictionary string keys are passed
+  through string-key GCI APIs and are not constrained by that policy. See
+  `docs/naming.md`.
 - Query helpers render simple selector paths, expose collection metadata,
   can count/check predicate matches, and unwrap GemStone arrays through
   `size`/`at:` so iterators yield object handles instead of chunk containers.

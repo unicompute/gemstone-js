@@ -9,11 +9,7 @@ CI runs:
 
 ```sh
 npm install --omit=optional
-npm run typecheck
-npm run codegen:check
-npm run codegen:scan:check
-npm test
-npm run pack:check
+npm run verify
 npm pack --json
 ```
 

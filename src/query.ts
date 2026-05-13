@@ -128,10 +128,13 @@ export class GSCollection<T = unknown> {
     const source = `
       | collection results |
       collection := ${this.name}.
-      results := (collection select: [:each | ${predicate}]) asArray.
+      results := OrderedCollection new.
+      collection do: [:each |
+        (results size < ${count} and: [${predicate}])
+          ifTrue: [results add: each]].
       results size = 0
         ifTrue: [nil]
-        ifFalse: [results copyFrom: 1 to: (${count} min: results size)]
+        ifFalse: [results asArray]
     `;
     return this.session.execute(source);
   }

@@ -20,9 +20,11 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
   const floatOop = await session.floatOop(1.25);
   assert.equal(await session.marshalOop(floatOop), 1.25);
 
-  const array = await session.array(["gemstone-js live", 2, true]);
+  const nestedArray = await session.array([2, false]);
+  const array = await session.array(["gemstone-js live", nestedArray, true]);
   assert.equal(await array.sendValue("size"), 3n);
-  assert.deepEqual(await session.arrayValues(array), ["gemstone-js live", 2n, true]);
+  assert.deepEqual(await session.arrayValues(array), ["gemstone-js live", [2n, false], true]);
+  await nestedArray.release();
   await array.release();
 
   const dict = await session.dictionary({ status: "ready", count: 2 });
@@ -34,6 +36,12 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
   assert.equal((await dict.entries()).status, "ready");
   assert.deepEqual(new Set(await dict.values()), new Set(["ready", 2n]));
   assert.deepEqual(new Map(await dict.items()).get("status"), "ready");
+  const dictValueOops = await dict.valuesOop();
+  assert.deepEqual(new Set(await Promise.all(dictValueOops.map((oop) => session.marshalOop(oop)))), new Set(["ready", 2n]));
+  const dictItemsOop = new Map(await Promise.all((await dict.itemsOop()).map(async ([key, oop]) => (
+    [key, await session.marshalOop(oop)] as const
+  ))));
+  assert.equal(dictItemsOop.get("status"), "ready");
   assert.equal(await dict.requireValue("status"), "ready");
   assert.equal(await dict.remove("count"), true);
   assert.equal(await dict.has("count"), false);

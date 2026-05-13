@@ -61,7 +61,8 @@
     "codegen:check": "node scripts/codegen.mjs --check examples/codegen.manifest.json examples/codegen.generated.ts",
     "codegen:scan": "node scripts/scan-codegen.mjs",
     "codegen:scan:check": "node scripts/scan-codegen.mjs --module --check --out examples/booking.decorators.generated.ts examples/booking.decorators.ts",
-    "test:live": "GS_RUN_LIVE=1 node --test tests/live.test.ts"
+    "test:live": "GS_RUN_LIVE=1 node --test tests/live.test.ts",
+    "verify": "npm run typecheck && npm run codegen:check && npm run codegen:scan:check && npm test && npm run pack:check"
   },
   "optionalDependencies": {
     "@gemstone-js/native": "0.1.0-alpha.0"

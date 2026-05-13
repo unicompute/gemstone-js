@@ -102,8 +102,10 @@ test("GSCollection limit helpers fetch bounded result arrays", async () => {
   assertEqual(rawResults.join(","), [first, second].join(","));
   assertEqual((await collection.limitOop("status", "=", "ready", 0)).length, 0);
 
-  assert(executeSources[0].includes("results copyFrom: 1 to: (2 min: results size)"), "limit should render a bounded copy");
-  assert(executeSources[1].includes("results copyFrom: 1 to: (2 min: results size)"), "takeOop should reuse the bounded query");
+  assert(executeSources[0].includes("OrderedCollection new"), "limit should collect into a bounded result buffer");
+  assert(executeSources[0].includes("results size < 2"), "limit should stop collecting after count matches");
+  assert(!executeSources[0].includes("select:"), "limit should avoid materializing all selected matches");
+  assert(executeSources[1].includes("results size < 2"), "takeOop should reuse the bounded query");
   assertEqual(executeSources.length, 2);
   await session.logout();
 });

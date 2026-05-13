@@ -711,11 +711,16 @@ test("GsDict wraps StringKeyValueDictionary access", async () => {
   assertEqual(required.oop, object);
   await required.release();
   assertEqual(await dict.has("missing"), false);
+  assertDeepEqual(await dict.hasAll(["name", "missing"]), { name: true, missing: false });
   assertEqual((await dict.pick(["name", "city"])).city, "London");
   assertEqual((await dict.pickOop(["object", "missing"])).object, object);
   assertEqual((await dict.pickOop(["object", "missing"])).missing, null);
   assertEqual(await dict.remove("city"), true);
   assertEqual(await dict.has("city"), false);
+  assertDeepEqual(await dict.removeAll(["role", "missing-role"]), { role: true, "missing-role": false });
+  assertEqual(await dict.has("role"), false);
+  assertDeepEqual(await dict.deleteAll(["zone", "missing-zone"]), { zone: true, "missing-zone": false });
+  assertEqual(await dict.has("zone"), false);
   assertEqual(await dict.delete("missing"), false);
 
   await session.logout();
@@ -789,9 +794,15 @@ test("GsDict required helpers expose raw, value, and typed entries", async () =>
   const dict = await GsDict.create(session, { name: "Ada" });
   const object = runtime.allocate();
   await dict.setOop("object", object);
+  await dict.setDict("nested", { status: "child" });
 
   assertEqual(await dict.requireValue("name"), "Ada");
   assertEqual(await dict.requireOop("object"), object);
+  const requiredOops = await dict.requireAllOop(["name", "object"]);
+  assertEqual(await session.marshalOop(requiredOops.name), "Ada");
+  assertEqual(requiredOops.object, object);
+  assertDeepEqual(await dict.requireAllValue(["name"]), { name: "Ada" });
+  assertEqual((await dict.requireAllDict(["nested"])).nested.oop, await dict.requireOop("nested"));
   assertEqual(await dict.getObject("missing"), null);
 
   const nullableObject = await dict.getObject<{ name: string }>("object");
@@ -802,8 +813,15 @@ test("GsDict required helpers expose raw, value, and typed entries", async () =>
   const requiredObject = await dict.requireObject<{ name: string }>("object");
   assertEqual(requiredObject.oop, object);
   await requiredObject.release();
+  const requiredObjects = await dict.requireAllObject<{ name: string }>(["object"]);
+  assertEqual(requiredObjects.object.oop, object);
+  await requiredObjects.object.release();
+  const requiredAliases = await dict.requireAll<{ name: string }>(["object"]);
+  assertEqual(requiredAliases.object.oop, object);
+  await requiredAliases.object.release();
   assert(runtime.calls.some((call) => call.method === "addOopToExportSet" && call.args[0] === object), "object helpers should retain returned handles");
   await assertRejects(() => dict.requireOop("missing"), Error);
+  await assertRejects(() => dict.requireAllOop(["name", "missing"]), Error);
 
   await session.logout();
 });
@@ -887,11 +905,16 @@ test("globalSet and globalGet round-trip through UserGlobals", async () => {
   const storedDict = (await session.globalSetAllDict({ JsBridgeDict: { status: "nested" } })).JsBridgeDict;
 
   assertEqual(await session.globalHas("JsBridgeValue"), true);
+  assertDeepEqual(await session.globalHasAll(["JsBridgeValue", "MissingGlobal"]), { JsBridgeValue: true, MissingGlobal: false });
   assertEqual(await session.globalGet("JsBridgeValue"), "ready");
   assertEqual(await session.globalGetValue("JsBridgeExtraValue"), "extra-ready");
   assertEqual(await session.globalGetValue("JsBridgeValue"), "ready");
   assertEqual(await session.globalRequireValue("JsBridgeValue"), "ready");
   assertEqual(await session.globalRequireOop("JsBridgeObject"), object);
+  assertDeepEqual(await session.globalRequireAllValue(["JsBridgeValue"]), { JsBridgeValue: "ready" });
+  const requiredGlobalOops = await session.globalRequireAllOop(["JsBridgeObject", "JsBridgeDict"]);
+  assertEqual(requiredGlobalOops.JsBridgeObject, object);
+  assertEqual(requiredGlobalOops.JsBridgeDict, storedDict.oop);
   assertEqual((await session.globalKeys()).join(","), "JsBridgeValue,JsBridgeObject,JsBridgeDict");
   assertEqual((await session.globalPick(["JsBridgeValue", "MissingGlobal"])).JsBridgeValue, "ready");
   const pickedOops = await session.globalPickOop(["JsBridgeObject", "MissingGlobal"]);
@@ -938,19 +961,35 @@ test("globalSet and globalGet round-trip through UserGlobals", async () => {
   const requiredAlias = await session.globalRequire<{ status: string }>("JsBridgeObject");
   assertEqual(requiredAlias.oop, object);
   await requiredAlias.release();
+  const requiredObjects = await session.globalRequireAllObject<{ status: string }>(["JsBridgeObject"]);
+  assertEqual(requiredObjects.JsBridgeObject.oop, object);
+  await requiredObjects.JsBridgeObject.release();
+  const requiredAliases = await session.globalRequireAll<{ status: string }>(["JsBridgeObject"]);
+  assertEqual(requiredAliases.JsBridgeObject.oop, object);
+  await requiredAliases.JsBridgeObject.release();
   const nullableDict = await session.globalGetDict("JsBridgeDict");
   if (!nullableDict) throw new Error("globalGetDict should return a dictionary wrapper for existing globals");
   assertEqual(await nullableDict.get("status"), "nested");
   const requiredDict = await session.globalRequireDict("JsBridgeDict");
   assertEqual(await requiredDict.get("status"), "nested");
+  const requiredDicts = await session.globalRequireAllDict(["JsBridgeDict"]);
+  assertEqual(await requiredDicts.JsBridgeDict.get("status"), "nested");
   assert(runtime.calls.some((call) => call.method === "symDictAtObjPut"), "globalSet should write a symbol-keyed global");
-  assertEqual(await session.globalRemove("JsBridgeValue"), true);
-  assertEqual(await session.globalRemove("JsBridgeObject"), true);
-  assertEqual(await session.globalRemove("JsBridgeDict"), true);
+  assertDeepEqual(await session.globalRemoveAll(["JsBridgeValue", "JsBridgeObject", "JsBridgeDict", "MissingGlobal"]), {
+    JsBridgeValue: true,
+    JsBridgeObject: true,
+    JsBridgeDict: true,
+    MissingGlobal: false,
+  });
+  assertDeepEqual(await session.globalDeleteAll(["JsBridgeExtraValue", "MissingGlobal"]), {
+    JsBridgeExtraValue: true,
+    MissingGlobal: false,
+  });
   assertEqual(await session.globalGet("JsBridgeValue"), null);
   assertEqual(await session.globalHas("JsBridgeObject"), false);
   assertEqual(await session.globalDelete("JsBridgeValue"), false);
   await assertRejects(() => session.globalRequireOop("JsBridgeValue"), Error);
+  await assertRejects(() => session.globalRequireAllOop(["JsBridgeValue", "MissingGlobal"]), Error);
 
   await session.logout();
 });
@@ -986,9 +1025,15 @@ test("PersistentRoot required helpers expose raw, value, and dictionary entries"
 
   assertEqual(await root.has("RootStatus"), true);
   assertEqual(await root.has("MissingRootEntry"), false);
+  assertDeepEqual(await root.hasAll(["RootStatus", "MissingRootEntry"]), { RootStatus: true, MissingRootEntry: false });
   assertEqual(await root.requireValue("RootStatus"), "ready");
   assertEqual(await root.requireOop("RootDict"), savedDict.oop);
+  assertDeepEqual(await root.requireAllValue(["RootStatus"]), { RootStatus: "ready" });
+  const requiredRootOops = await root.requireAllOop(["RootDict", "RootObject"]);
+  assertEqual(requiredRootOops.RootDict, savedDict.oop);
+  assertEqual(requiredRootOops.RootObject, object);
   assertEqual(await (await root.requireDict("RootDict")).get("name"), "Ada");
+  assertEqual(await (await root.requireAllDict(["RootDict"])).RootDict.get("name"), "Ada");
   const nullableObject = await root.getObject<{ status: string }>("RootObject");
   if (!nullableObject) throw new Error("getObject should return a typed handle for existing root entries");
   assertEqual(nullableObject.oop, object);
@@ -996,14 +1041,21 @@ test("PersistentRoot required helpers expose raw, value, and dictionary entries"
   const requiredObject = await root.requireObject<{ status: string }>("RootObject");
   assertEqual(requiredObject.oop, object);
   await requiredObject.release();
-  assertEqual(await root.remove("RootStatus"), true);
+  const requiredObjects = await root.requireAllObject<{ status: string }>(["RootObject"]);
+  assertEqual(requiredObjects.RootObject.oop, object);
+  await requiredObjects.RootObject.release();
+  const requiredAliases = await root.requireAll<{ status: string }>(["RootObject"]);
+  assertEqual(requiredAliases.RootObject.oop, object);
+  await requiredAliases.RootObject.release();
+  assertDeepEqual(await root.removeAll(["RootStatus", "MissingRootEntry"]), { RootStatus: true, MissingRootEntry: false });
   assertEqual(await root.has("RootStatus"), false);
-  assertEqual(await root.delete("MissingRootEntry"), false);
+  assertDeepEqual(await root.deleteAll(["RootObject", "MissingRootObject"]), { RootObject: true, MissingRootObject: false });
 
   const required = await root.require("RootDict");
   assertEqual(required.oop, savedDict.oop);
   await required.release();
   await assertRejects(() => root.requireOop("MissingRootEntry"), Error);
+  await assertRejects(() => root.requireAllOop(["RootDict", "MissingRootEntry"]), Error);
 
   await session.logout();
 });
@@ -1181,6 +1233,14 @@ function assert(value: unknown, message: string): void {
 function assertEqual<T>(actual: T, expected: T): void {
   if (actual !== expected) {
     throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
+  }
+}
+
+function assertDeepEqual(actual: unknown, expected: unknown): void {
+  const actualJson = JSON.stringify(actual);
+  const expectedJson = JSON.stringify(expected);
+  if (actualJson !== expectedJson) {
+    throw new Error(`expected ${expectedJson}, got ${actualJson}`);
   }
 }
 

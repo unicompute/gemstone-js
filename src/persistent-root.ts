@@ -65,6 +65,14 @@ export class PersistentRoot {
     return await this.getOop(name) !== null;
   }
 
+  async hasAll(names: readonly string[]): Promise<Record<string, boolean>> {
+    const result: Record<string, boolean> = {};
+    for (const name of names) {
+      result[name] = await this.has(name);
+    }
+    return result;
+  }
+
   async set<T = unknown>(name: string, value: TypedOop<T> | ManagedOop<T> | Oop): Promise<void> {
     const keyName = validatePersistentRootEntryName(name);
     const root = await this.#root();
@@ -93,6 +101,18 @@ export class PersistentRoot {
 
   async delete(name: string): Promise<boolean> {
     return this.remove(name);
+  }
+
+  async removeAll(names: readonly string[]): Promise<Record<string, boolean>> {
+    const result: Record<string, boolean> = {};
+    for (const name of names) {
+      result[name] = await this.remove(name);
+    }
+    return result;
+  }
+
+  async deleteAll(names: readonly string[]): Promise<Record<string, boolean>> {
+    return this.removeAll(names);
   }
 
   async setValue(name: string, value: GemStoneArgument): Promise<void> {
@@ -142,12 +162,53 @@ export class PersistentRoot {
     return value;
   }
 
+  async requireAllOop(names: readonly string[]): Promise<Record<string, Oop>> {
+    const result: Record<string, Oop> = {};
+    for (const name of names) {
+      result[name] = await this.requireOop(name);
+    }
+    return result;
+  }
+
   async requireValue(name: string): Promise<MarshalledValue> {
     return this.session.marshalOop(await this.requireOop(name));
   }
 
+  async requireAllValue(names: readonly string[]): Promise<Record<string, MarshalledValue>> {
+    const result: Record<string, MarshalledValue> = {};
+    for (const name of names) {
+      result[name] = await this.requireValue(name);
+    }
+    return result;
+  }
+
+  async requireAllObject<T = unknown>(names: readonly string[]): Promise<Record<string, TypedOop<T>>> {
+    const result: Record<string, TypedOop<T>> = {};
+    try {
+      for (const name of names) {
+        result[name] = await this.requireObject<T>(name);
+      }
+      return result;
+    } catch (error) {
+      await Promise.allSettled(Object.values(result).map((handle) => handle.release()));
+      throw error;
+    }
+  }
+
+  async requireAll<T = unknown>(names: readonly string[]): Promise<Record<string, TypedOop<T>>> {
+    return this.requireAllObject<T>(names);
+  }
+
   async requireDict(name: string): Promise<GsDict> {
     return new GsDict(this.session, await this.requireOop(name));
+  }
+
+  async requireAllDict(names: readonly string[]): Promise<Record<string, GsDict>> {
+    const result: Record<string, GsDict> = {};
+    for (const name of names) {
+      result[name] = await this.requireDict(name);
+    }
+    return result;
   }
 
   async entries(): Promise<Record<string, MarshalledValue>> {

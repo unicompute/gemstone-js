@@ -32,6 +32,7 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
   assert.equal(await dict.get("count"), 2n);
   assert.equal(await dict.size(), 2);
   assert.equal(await dict.isEmpty(), false);
+  assert.deepEqual(await dict.hasAll(["status", "missing"]), { status: true, missing: false });
   assert.deepEqual(new Set(await dict.keys()), new Set(["status", "count"]));
   assert.equal((await dict.entries()).status, "ready");
   assert.deepEqual(new Set(await dict.values()), new Set(["ready", 2n]));
@@ -48,10 +49,11 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
   if (!nestedDict) throw new Error("GsDict.getDict should return the live nested dictionary.");
   assert.equal(await nestedDict.requireValue("status"), "child");
   assert.equal(await (await dict.requireDict("nested")).requireValue("status"), "child");
-  assert.equal(await dict.delete("nested"), true);
-  assert.equal(await dict.remove("count"), true);
+  assert.equal(await (await dict.requireAllDict(["nested"])).nested.requireValue("status"), "child");
+  assert.deepEqual(await dict.requireAllValue(["status"]), { status: "ready" });
+  assert.deepEqual(await dict.deleteAll(["nested", "missing"]), { nested: true, missing: false });
+  assert.deepEqual(await dict.removeAll(["count", "missing-count"]), { count: true, "missing-count": false });
   assert.equal(await dict.has("count"), false);
-  assert.equal(await dict.delete("missing"), false);
 
   const object = await objectClass.sendObject("new");
   assert.equal(object.session, session);
@@ -71,16 +73,24 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
   await session.globalSetAllOop({ [globalObjectKey]: object });
   await session.globalSetAllDict({ [globalDictKey]: { status: "global-dict" } });
   assert.equal(await session.globalHas(globalKey), true);
+  assert.deepEqual(await session.globalHasAll([globalKey, `${globalKey}_Missing`]), { [globalKey]: true, [`${globalKey}_Missing`]: false });
   assert.equal(await session.globalGet(globalKey), "global");
   assert.equal(await session.globalGetValue(globalValueKey), "global-value");
   assert.equal(await session.globalRequireValue(globalKey), "global");
+  assert.deepEqual(await session.globalRequireAllValue([globalKey]), { [globalKey]: "global" });
+  const requiredGlobalOops = await session.globalRequireAllOop([globalObjectKey, globalDictKey]);
+  assert.equal(requiredGlobalOops[globalObjectKey], object.oop);
   const globalObject = await session.globalRequireObject(globalObjectKey);
   assert.equal(globalObject.oop, object.oop);
   await globalObject.release();
+  const requiredGlobalObjects = await session.globalRequireAllObject([globalObjectKey]);
+  assert.equal(requiredGlobalObjects[globalObjectKey].oop, object.oop);
+  await requiredGlobalObjects[globalObjectKey].release();
   const globalDict = await session.globalGetDict(globalDictKey);
   if (!globalDict) throw new Error("globalGetDict should return the live dictionary.");
   assert.equal(await globalDict.requireValue("status"), "global-dict");
   assert.equal(await (await session.globalRequireDict(globalDictKey)).requireValue("status"), "global-dict");
+  assert.equal(await (await session.globalRequireAllDict([globalDictKey]))[globalDictKey].requireValue("status"), "global-dict");
   assert.equal((await session.globalKeys()).includes(globalKey), true);
   assert.deepEqual(await session.globalPick([globalKey, `${globalKey}_Missing`]), { [globalKey]: "global", [`${globalKey}_Missing`]: null });
   const liveGlobalPickOop = await session.globalPickOop([globalKey, `${globalKey}_Missing`]);
@@ -99,26 +109,41 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
   if (globalValueOop === undefined) throw new Error("globalItemsOop should include the live global value.");
   assert.equal(await session.marshalOop(globalValueOop), "global");
   assert.equal((await session.globalValuesOop()).some((oop) => oop === object.oop), true);
-  assert.equal(await session.globalRemove(globalKey), true);
-  assert.equal(await session.globalDelete(globalExtraKey), true);
-  assert.equal(await session.globalDelete(globalValueKey), true);
-  assert.equal(await session.globalDelete(globalObjectKey), true);
-  assert.equal(await session.globalDelete(globalDictKey), true);
+  assert.deepEqual(await session.globalRemoveAll([globalKey, globalExtraKey]), { [globalKey]: true, [globalExtraKey]: true });
+  assert.deepEqual(await session.globalDeleteAll([globalValueKey, globalObjectKey, globalDictKey, `${globalKey}_Missing`]), {
+    [globalValueKey]: true,
+    [globalObjectKey]: true,
+    [globalDictKey]: true,
+    [`${globalKey}_Missing`]: false,
+  });
   assert.equal(await session.globalHas(globalKey), false);
   assert.equal(await session.globalDelete(globalKey), false);
   await root.setAllValue({ [key]: "ok", [extraKey]: "extra" });
+  const rootObjectKey = `${key}_Object`;
+  await root.setAll({ [rootObjectKey]: object.oop });
   await root.setAllDict({ [dictKey]: { status: "stored" } });
   assert.equal(await root.getValue(key), "ok");
   assert.equal(await root.getValue(extraKey), "extra");
   assert.equal(await root.has(key), true);
+  assert.deepEqual(await root.hasAll([key, `${key}_Missing`]), { [key]: true, [`${key}_Missing`]: false });
   assert.equal(await root.requireValue(key), "ok");
+  assert.deepEqual(await root.requireAllValue([key]), { [key]: "ok" });
   assert.equal((await root.keys()).includes(key), true);
   assert.deepEqual(await root.pick([key, `${key}_Missing`]), { [key]: "ok", [`${key}_Missing`]: null });
+  const requiredRootOops = await root.requireAllOop([rootObjectKey, dictKey]);
+  assert.equal(requiredRootOops[rootObjectKey], object.oop);
+  const requiredRootObjects = await root.requireAllObject([rootObjectKey]);
+  assert.equal(requiredRootObjects[rootObjectKey].oop, object.oop);
+  await requiredRootObjects[rootObjectKey].release();
   assert.equal(await (await root.requireDict(dictKey)).requireValue("status"), "stored");
-  assert.equal(await root.remove(key), true);
+  assert.equal(await (await root.requireAllDict([dictKey]))[dictKey].requireValue("status"), "stored");
+  assert.deepEqual(await root.removeAll([key, extraKey]), { [key]: true, [extraKey]: true });
   assert.equal(await root.has(key), false);
-  assert.equal(await root.delete(extraKey), true);
-  assert.equal(await root.delete(dictKey), true);
+  assert.deepEqual(await root.deleteAll([rootObjectKey, dictKey, `${key}_Missing`]), {
+    [rootObjectKey]: true,
+    [dictKey]: true,
+    [`${key}_Missing`]: false,
+  });
   assert.equal(await root.delete(`${key}_Missing`), false);
 
   const queryKey = `${key}_Query`;

@@ -403,26 +403,75 @@ export class Session implements AsyncDisposable {
     return await this.globalGetOop(name) !== null;
   }
 
+  async globalHasAll(names: readonly string[]): Promise<Record<string, boolean>> {
+    const result: Record<string, boolean> = {};
+    for (const name of names) {
+      result[name] = await this.globalHas(name);
+    }
+    return result;
+  }
+
   async globalRequireOop(name: string): Promise<Oop> {
     const value = await this.globalGetOop(name);
     if (value === null) throw this.#missingGlobal(name);
     return value;
   }
 
+  async globalRequireAllOop(names: readonly string[]): Promise<Record<string, Oop>> {
+    const result: Record<string, Oop> = {};
+    for (const name of names) {
+      result[name] = await this.globalRequireOop(name);
+    }
+    return result;
+  }
+
   async globalRequireValue(name: string): Promise<MarshalledValue> {
     return this.marshalOop(await this.globalRequireOop(name));
+  }
+
+  async globalRequireAllValue(names: readonly string[]): Promise<Record<string, MarshalledValue>> {
+    const result: Record<string, MarshalledValue> = {};
+    for (const name of names) {
+      result[name] = await this.globalRequireValue(name);
+    }
+    return result;
   }
 
   async globalRequireObject<T = unknown>(name: string): Promise<TypedOop<T>> {
     return this.typedOop<T>(await this.globalRequireOop(name));
   }
 
+  async globalRequireAllObject<T = unknown>(names: readonly string[]): Promise<Record<string, TypedOop<T>>> {
+    const result: Record<string, TypedOop<T>> = {};
+    try {
+      for (const name of names) {
+        result[name] = await this.globalRequireObject<T>(name);
+      }
+      return result;
+    } catch (error) {
+      await Promise.allSettled(Object.values(result).map((handle) => handle.release()));
+      throw error;
+    }
+  }
+
   async globalRequire<T = unknown>(name: string): Promise<TypedOop<T>> {
     return this.globalRequireObject<T>(name);
   }
 
+  async globalRequireAll<T = unknown>(names: readonly string[]): Promise<Record<string, TypedOop<T>>> {
+    return this.globalRequireAllObject<T>(names);
+  }
+
   async globalRequireDict(name: string): Promise<GsDict> {
     return new GsDict(this, await this.globalRequireOop(name));
+  }
+
+  async globalRequireAllDict(names: readonly string[]): Promise<Record<string, GsDict>> {
+    const result: Record<string, GsDict> = {};
+    for (const name of names) {
+      result[name] = await this.globalRequireDict(name);
+    }
+    return result;
   }
 
   async globalSet(name: string, value: GemStoneArgument): Promise<void> {
@@ -489,8 +538,20 @@ export class Session implements AsyncDisposable {
     });
   }
 
+  async globalRemoveAll(names: readonly string[]): Promise<Record<string, boolean>> {
+    const result: Record<string, boolean> = {};
+    for (const name of names) {
+      result[name] = await this.globalRemove(name);
+    }
+    return result;
+  }
+
   async globalDelete(name: string): Promise<boolean> {
     return this.globalRemove(name);
+  }
+
+  async globalDeleteAll(names: readonly string[]): Promise<Record<string, boolean>> {
+    return this.globalRemoveAll(names);
   }
 
   async fetchString(value: Oop): Promise<string> {

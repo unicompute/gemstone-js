@@ -38,30 +38,34 @@ native package; the TypeScript package can be tested locally with a mock runtime
   arrays.
 - Dictionary/global helpers: `dictionaryToOop()`, `strDictGet()`,
   `strDictSet()`, `globalGet()`/`globalGetValue()`, `globalGetObject()`,
-  `globalHas()`, `globalKeys()`, `globalPick()`, raw `globalPickOop()`,
+  `globalHas()`/`globalHasAll()`, `globalKeys()`, `globalPick()`, raw `globalPickOop()`,
   `globalEntries()`, raw `globalEntriesOop()`, `globalValues()`, `globalItems()`, raw
   `globalValuesOop()`/`globalItemsOop()`,
   `globalSet()`/`globalSetValue()` and `globalSetAll()`/`globalSetAllValue()`, raw
   `globalSetOop()`/`globalSetAllOop()`, required global accessors including
-  object alias `globalRequire()`, dictionary helpers `globalGetDict()`,
-  `globalSetDict()`/`globalSetAllDict()`, `globalRequireDict()`, and
-  `globalRemove()`/`globalDelete()`.
+  object alias `globalRequire()` and `globalRequireAll*()` bulk variants,
+  dictionary helpers `globalGetDict()`, `globalSetDict()`/`globalSetAllDict()`,
+  `globalRequireDict()`/`globalRequireAllDict()`, and
+  `globalRemove()`/`globalDelete()` plus bulk
+  `globalRemoveAll()`/`globalDeleteAll()`.
 - `GsDict` wraps GemStone `StringKeyValueDictionary` objects with
   `get()`/`getValue()`,
   `getObject()`, `set()`/`setValue()` and `setAll()`/`setAllValue()`, raw
   `setOop()`/`setAllOop()`,
   `remove()`/`delete()`, `has()`, `size()`, `isEmpty()`, `keys()`,
   `values()`, raw `valuesOop()`, `items()`, raw `itemsOop()`, `entries()`,
-  raw `entriesOop()`, `pick()`, raw `pickOop()`, required raw/value/object
-  accessors plus object alias `require()`, nested dictionary helpers
-  `getDict()`/`setDict()`/`setAllDict()`/`requireDict()`, explicit send
-  helpers, and inspection helpers.
+  raw `entriesOop()`, `pick()`, raw `pickOop()`, bulk `hasAll()` and
+  `removeAll()`/`deleteAll()`, required raw/value/object accessors plus object
+  alias `require()` and `requireAll*()` bulk variants, nested dictionary helpers
+  `getDict()`/`setDict()`/`setAllDict()`/`requireDict()`/`requireAllDict()`,
+  explicit send helpers, and inspection helpers.
 - `PersistentRoot` now has value helpers (`getValue()`, `setValue()`,
   `setAllValue()`, `getDict()`, `setDict()`/`setAllDict()`), raw `setAll()`,
-  `getObject()`, `remove()`/`delete()`, `has()`, `keys()`, `pick()`,
-  raw `pickOop()`, `entries()`, raw `entriesOop()`, `values()`, raw
-  `valuesOop()`, `items()`, raw `itemsOop()`, and required
-  raw/value/object/dictionary access built on the session marshalling layer.
+  `getObject()`, `remove()`/`delete()`, `removeAll()`/`deleteAll()`, `has()`,
+  `hasAll()`, `keys()`, `pick()`, raw `pickOop()`, `entries()`, raw
+  `entriesOop()`, `values()`, raw `valuesOop()`, `items()`, raw `itemsOop()`,
+  and required raw/value/object/dictionary access plus `requireAll*()` bulk
+  variants built on the session marshalling layer.
 - Session pool release is reset-aware: dirty sessions are aborted before reuse,
   failed resets are discarded, waiters are served with replacement sessions, and
   close rejects pending acquires. Explicit validation queries run without
@@ -150,12 +154,12 @@ GS_RUN_LIVE=1 npm run test:live
 
 The live smoke covers connect, execute, class-side sends, `performWith()`,
 string, float, nested array marshalling/readback, global
-lookup/enumeration/required/raw set/removal helpers, `GsDict` metadata,
-value/raw enumeration, required-read, and removal helpers, and `PersistentRoot`
-value, dictionary, key, pick, required-value, batch-value, and removal helpers.
-It also covers live query add/remove, `count()`, `exists()`, `first()`,
-`limit()`, and index create/remove when the backing collection supports
-GemStone index selectors.
+lookup/enumeration/bulk required/raw set/removal helpers, `GsDict` metadata,
+value/raw enumeration, bulk required-read, and bulk removal helpers, and
+`PersistentRoot` value, dictionary, key, pick, required-value, batch-value, bulk
+required-read, and bulk removal helpers. It also covers live query add/remove,
+`count()`, `exists()`, `first()`, `limit()`, and index create/remove when the
+backing collection supports GemStone index selectors.
 
 ## Example
 

@@ -44,6 +44,14 @@ export class GSCollection<T = unknown> {
     await this.removeIndexOn(path, options);
   }
 
+  async size(): Promise<number> {
+    return toSafeArraySize(await this.session.eval(`${this.name} size`));
+  }
+
+  async isEmpty(): Promise<boolean> {
+    return await this.size() === 0;
+  }
+
   async search(path: string, op: ComparisonOp, value: string | number | bigint | boolean): Promise<TypedOop<T>[]> {
     const result = await this.#searchResultArray(path, op, value);
     return result === OOP_NIL ? [] : this.#typedOopsFromArray(result);

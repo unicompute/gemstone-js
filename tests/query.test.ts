@@ -92,6 +92,27 @@ test("GSCollection count and exists render validated predicates without fetching
   await session.logout();
 });
 
+test("GSCollection size helpers render collection size without fetching handles", async () => {
+  const executeSources: string[] = [];
+  const sizes = [2, 0];
+  const runtime = new MockGciRuntime({
+    execute(source) {
+      executeSources.push(source);
+      return smallintToOop(sizes.shift() ?? 0);
+    },
+  });
+  const session = await Session.connect({ username: "u", password: "p", runtime });
+  const collection = new GSCollection(session, "Bookings");
+
+  assertEqual(await collection.size(), 2);
+  assertEqual(await collection.isEmpty(), true);
+
+  assertEqual(executeSources[0], "Bookings size");
+  assertEqual(executeSources[1], "Bookings size");
+  assert(!runtime.calls.some((call) => call.method === "addOopToExportSet"), "size helpers should not retain object handles");
+  await session.logout();
+});
+
 test("GSCollection.iter yields individual objects from each fetched chunk", async () => {
   const arrays = new Map<Oop, Oop[]>();
   const chunkByOffset = new Map<number, Oop>();

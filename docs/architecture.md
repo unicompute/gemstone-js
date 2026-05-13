@@ -30,9 +30,9 @@ The first implementation slice follows `../plan.js.txt`:
   primitives. They should stay thin: the session owns marshalling and GCI calls,
   while wrappers expose explicit value/raw/object accessors and send helpers,
   dictionary metadata, dictionary/root enumeration, and required root accessors.
-- Query helpers render simple selector paths, can count/check predicate matches,
-  and unwrap GemStone arrays through `size`/`at:` so iterators yield object
-  handles instead of chunk containers.
+- Query helpers render simple selector paths, expose collection metadata,
+  can count/check predicate matches, and unwrap GemStone arrays through
+  `size`/`at:` so iterators yield object handles instead of chunk containers.
 - Codegen helpers validate generated JavaScript identifiers and emit wrappers
   that choose between `performValueWith()`, `performWith()`, or
   `classRef().sendObject()` based on the requested return kind. Selector shape,

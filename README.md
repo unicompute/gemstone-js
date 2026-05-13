@@ -52,10 +52,11 @@ native package; the TypeScript package can be tested locally with a mock runtime
   hierarchy, slot, and indexed-field metadata for quick debugging of raw object
   handles.
 - `GSCollection.search()` unwraps result arrays into typed handles,
-  `GSCollection.searchOop()` returns raw handles, `count()`/`exists()` answer
-  predicate matches without fetching handles, and `GSCollection.iter()` fetches
-  collection chunks while yielding individual objects. Equality-index helpers
-  are available through both explicit
+  `GSCollection.searchOop()` returns raw handles, `size()`/`isEmpty()` expose
+  collection metadata, `count()`/`exists()` answer predicate matches without
+  fetching handles, and `GSCollection.iter()` fetches collection chunks while
+  yielding individual objects. Equality-index helpers are available through both
+  explicit
   `createEqualityIndexOn()`/`removeEqualityIndexOn()` and higher-level
   `createIndex()`/`removeIndex()` calls. Source-rendering helpers validate
   collection and persistent-root global names before emitting Smalltalk.

@@ -156,6 +156,10 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
   assert.equal(await query.atValue(1), "replacement");
   assert.equal(await query.firstItemValue(), "replacement");
   assert.equal(await query.lastItemValue(), "replacement");
+  assert.equal(await query.firstValue("yourself", "=", "replacement"), "replacement");
+  const iteratedValues: unknown[] = [];
+  for await (const value of query.iterValues(1)) iteratedValues.push(value);
+  assert.deepEqual(iteratedValues, ["replacement"]);
   await query.clear();
   assert.equal(await query.isEmpty(), true);
   assert.equal(await session.globalDelete(queryKey), true);

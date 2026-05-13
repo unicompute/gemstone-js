@@ -294,6 +294,11 @@ export class GSCollection<T = unknown> {
     return result === OOP_NIL ? null : result;
   }
 
+  async firstValue(path: string, op: ComparisonOp, value: string | number | bigint | boolean): Promise<MarshalledValue> {
+    const result = await this.firstOop(path, op, value);
+    return result === null ? null : this.session.marshalOop(result);
+  }
+
   async count(path: string, op: ComparisonOp, value: string | number | bigint | boolean): Promise<number> {
     const predicate = await this.#predicate(path, op, value);
     const source = `
@@ -435,6 +440,12 @@ export class GSCollection<T = unknown> {
         yield oop;
       }
       offset += chunkSize;
+    }
+  }
+
+  async *iterValues(chunkSize = 256): AsyncIterable<MarshalledValue> {
+    for await (const oop of this.iterOop(chunkSize)) {
+      yield await this.session.marshalOop(oop);
     }
   }
 

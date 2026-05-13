@@ -6,6 +6,7 @@ import {
   oopToSmallint,
   smallintToOop,
   Session,
+  type MarshalledValue,
   type Oop,
 } from "../src/index.ts";
 import { MockGciRuntime } from "../src/testing/mock-runtime.ts";
@@ -158,16 +159,21 @@ test("GSCollection value helpers marshal collection results without retaining ha
   const pageArray = 0x9208n as Oop;
   const searchArray = 0x9210n as Oop;
   const limitArray = 0x9218n as Oop;
+  const firstChunk = 0x9220n as Oop;
+  const secondChunk = 0x9228n as Oop;
   const first = smallintToOop(1);
   const second = smallintToOop(2);
   const third = smallintToOop(3);
   const runtime = new MockGciRuntime({
     execute(source) {
       if (source === "Numbers asArray") return allArray;
+      if (source.includes("copyFrom: 1 to: (2 min: collection size)")) return firstChunk;
+      if (source.includes("copyFrom: 3 to: (4 min: collection size)")) return secondChunk;
       if (source.includes("collection copyFrom: 2 to: (3 min: collection size)")) return pageArray;
       if (source.includes("collection at: 2")) return second;
       if (source.includes("collection first")) return first;
       if (source.includes("collection last")) return third;
+      if (source.includes("collection detect:")) return second;
       if (source.includes("collection select:")) return searchArray;
       if (source.includes("OrderedCollection new")) return limitArray;
       return OOP_NIL;
@@ -180,6 +186,8 @@ test("GSCollection value helpers marshal collection results without retaining ha
   arrays.set(pageArray, [second, third]);
   arrays.set(searchArray, [second]);
   arrays.set(limitArray, [second, third]);
+  arrays.set(firstChunk, [first, second]);
+  arrays.set(secondChunk, [third]);
 
   const session = await Session.connect({ username: "u", password: "p", runtime });
   const collection = new GSCollection(session, "Numbers");
@@ -190,9 +198,15 @@ test("GSCollection value helpers marshal collection results without retaining ha
   assertEqual(await collection.itemAtValue(9), null);
   assertEqual(await collection.firstItemValue(), 1n);
   assertEqual(await collection.lastItemValue(), 3n);
+  assertEqual(await collection.firstValue("value", "=", 2), 2n);
   assertEqual((await collection.searchValues("value", "=", 2)).join(","), "2");
   assertEqual((await collection.limitValues("value", ">", 1, 2)).join(","), "2,3");
   assertEqual((await collection.takeValues("value", ">", 1, 2)).join(","), "2,3");
+  const iterated: MarshalledValue[] = [];
+  for await (const value of collection.iterValues(2)) {
+    iterated.push(value);
+  }
+  assertEqual(iterated.join(","), "1,2,3");
   assert(!runtime.calls.some((call) => call.method === "addOopToExportSet"), "value helpers should not retain result handles");
   await session.logout();
 });

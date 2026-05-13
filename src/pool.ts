@@ -10,6 +10,16 @@ export interface PoolConfig extends SessionConfig {
   acquireTimeoutMs?: number;
 }
 
+export interface PooledSessionReleaseOptions {
+  discard?: boolean;
+  clean?: boolean;
+}
+
+export interface PoolWithSessionOptions {
+  acquireTimeoutMs?: number;
+  release?: PooledSessionReleaseOptions;
+}
+
 export class PooledSession implements AsyncDisposable {
   readonly session: Session;
   #pool: SessionPool | undefined;
@@ -20,7 +30,7 @@ export class PooledSession implements AsyncDisposable {
     this.session = session;
   }
 
-  release(options: { discard?: boolean; clean?: boolean } = {}): Promise<void> {
+  release(options: PooledSessionReleaseOptions = {}): Promise<void> {
     if (this.#releasePromise) return this.#releasePromise;
     const pool = this.#pool;
     this.#pool = undefined;
@@ -125,7 +135,26 @@ export class SessionPool implements AsyncDisposable {
     });
   }
 
-  async release(lease: PooledSession, options: { discard?: boolean; clean?: boolean } = {}): Promise<void> {
+  async withSession<T>(
+    fn: (session: Session, lease: PooledSession) => Promise<T>,
+    options: PoolWithSessionOptions = {},
+  ): Promise<T> {
+    const lease = await this.acquire(options.acquireTimeoutMs);
+    try {
+      const result = await fn(lease.session, lease);
+      await lease.release(options.release);
+      return result;
+    } catch (error) {
+      try {
+        await lease.release();
+      } catch {
+        // Preserve the original application error.
+      }
+      throw error;
+    }
+  }
+
+  async release(lease: PooledSession, options: PooledSessionReleaseOptions = {}): Promise<void> {
     const session = lease.session;
     if (options.discard || this.#closed) {
       await this.#discard(session);

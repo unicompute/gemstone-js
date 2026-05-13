@@ -52,7 +52,13 @@ export {
 export { PersistentRoot } from "./persistent-root.ts";
 export { GsDict } from "./gsdict.ts";
 export { GSCollection, type ComparisonOp, type GSCollectionIndexKind, type GSCollectionIndexOptions } from "./query.ts";
-export { PooledSession, SessionPool, type PoolConfig } from "./pool.ts";
+export {
+  PooledSession,
+  SessionPool,
+  type PoolConfig,
+  type PooledSessionReleaseOptions,
+  type PoolWithSessionOptions,
+} from "./pool.ts";
 export { gemstoneExpress, type ExpressGemStoneOptions } from "./adapters/express.ts";
 export { gemstoneFastify, type FastifyGemStoneOptions } from "./adapters/fastify.ts";
 export { gemstoneHono, type HonoGemStoneOptions } from "./adapters/hono.ts";

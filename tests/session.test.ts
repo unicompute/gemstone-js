@@ -181,6 +181,60 @@ test("SessionPool stats report pending acquires", async () => {
   }
 });
 
+test("SessionPool.withSession releases successful callbacks", async () => {
+  const runtime = new MockGciRuntime();
+  setGciRuntimeForTesting(runtime);
+  try {
+    const pool = new SessionPool({ username: "u", password: "p", maxSize: 1 });
+
+    const used = await pool.withSession(async (session) => {
+      await session.execute("1 + 1");
+      return session;
+    }, { release: { clean: true } });
+
+    assertEqual(pool.stats().idle, 1);
+    assert(!runtime.calls.some((call) => call.method === "abort"), "clean successful callback should not abort");
+    const lease = await pool.acquire();
+    assertEqual(lease.session, used);
+
+    await lease.release({ clean: true });
+    await pool.close();
+  } finally {
+    setGciRuntimeForTesting(undefined);
+  }
+});
+
+test("SessionPool.withSession resets failed callbacks while preserving application errors", async () => {
+  const runtime = new MockGciRuntime({
+    abortResult: false,
+    error: { number: 701, fatal: false, message: "abort failed" },
+  });
+  setGciRuntimeForTesting(runtime);
+  try {
+    const pool = new SessionPool({ username: "u", password: "p", maxSize: 1 });
+    let thrown: unknown;
+
+    try {
+      await pool.withSession(async (session) => {
+        await session.execute("1 + 1");
+        throw new Error("boom");
+      });
+    } catch (error) {
+      thrown = error;
+    }
+
+    if (!(thrown instanceof Error)) throw new Error("withSession should rethrow the application error");
+    assertEqual(thrown.message, "boom");
+    assert(runtime.calls.some((call) => call.method === "abort"), "failed callback should reset the session before reuse");
+    assert(runtime.calls.some((call) => call.method === "logout"), "failed reset should discard the session");
+    assertEqual(pool.stats().idle, 0);
+    assertEqual(pool.stats().evictedTotal, 1);
+    await pool.close();
+  } finally {
+    setGciRuntimeForTesting(undefined);
+  }
+});
+
 test("default Session.connect asks the runtime factory for each session", async () => {
   const runtimes: MockGciRuntime[] = [];
   setGciRuntimeFactoryForTesting(() => {

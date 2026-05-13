@@ -122,8 +122,10 @@ test("generated wrappers infer raw-OOP and object return calls from return types
   assertEqual(inferGeneratedReturnKind(undefined), "value");
   assertEqual(inferGeneratedReturnKind("string"), "value");
   assertEqual(inferGeneratedReturnKind("Oop"), "oop");
+  assertEqual(inferGeneratedReturnKind("Gem.Oop"), "oop");
   assertEqual(inferGeneratedReturnKind("TypedOop<Booking>"), "object");
   assertEqual(inferGeneratedReturnKind("TypedOop < Booking >"), "object");
+  assertEqual(inferGeneratedReturnKind("Gem.TypedOop<Booking>"), "object");
 
   assertEqual(renderGeneratedFunction({
     exportedName: "rawBooking",
@@ -151,6 +153,21 @@ test("generated wrappers infer raw-OOP and object return calls from return types
     returnType: "TypedOop<Booking>",
   }), [
     "export async function findBookingObject(session: Session, id: string): Promise<TypedOop<Booking>> {",
+    "  return session.classRef(\"Booking\").sendObject(\"find:\", id);",
+    "}",
+    "",
+  ].join("\n"));
+
+  assertEqual(renderGeneratedFunction({
+    exportedName: "findBookingObject",
+    className: "Booking",
+    selector: "find:",
+    argNames: ["id"],
+    argTypes: ["string"],
+    sessionType: "Gem.Session",
+    returnType: "Gem.TypedOop<Booking>",
+  }), [
+    "export async function findBookingObject(session: Gem.Session, id: string): Promise<Gem.TypedOop<Booking>> {",
     "  return session.classRef(\"Booking\").sendObject(\"find:\", id);",
     "}",
     "",

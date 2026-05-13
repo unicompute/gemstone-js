@@ -85,8 +85,8 @@ export function inferSelector(methodName: string, arity: number): string {
 export function inferGeneratedReturnKind(returnType: string | undefined): GeneratedReturnKind {
   if (!returnType) return "value";
   const normalized = returnType.replace(/\s+/g, "");
-  if (normalized === "Oop") return "oop";
-  if (/^TypedOop(?:<.+>)?$/.test(normalized)) return "object";
+  if (/^(?:[A-Za-z_$][A-Za-z0-9_$]*\.)?Oop$/.test(normalized)) return "oop";
+  if (/^(?:[A-Za-z_$][A-Za-z0-9_$]*\.)?TypedOop(?:<.+>)?$/.test(normalized)) return "object";
   return "value";
 }
 

@@ -532,6 +532,59 @@ test("codegen scanner preserves namespace type imports used by wrapper signature
   }
 });
 
+test("codegen scanner infers object wrappers from namespace-qualified TypedOop", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "gemstone-js-codegen-scan-return-namespace-"));
+  try {
+    const sourcePath = join(dir, "namespace-return.ts");
+    await writeFile(sourcePath, [
+      "import { GemStoneClass, GemStoneSelector } from \"gemstone-js\";",
+      "import type * as Gem from \"gemstone-js\";",
+      "import type { Booking } from \"./booking-types.ts\";",
+      "@GemStoneClass(\"Booking\")",
+      "class BookingModel {",
+      "  @GemStoneSelector(\"find:\")",
+      "  static findBooking(session: Gem.Session, id: string): Promise<Gem.TypedOop<Booking>> {",
+      "    throw new Error(\"scanner fixture only\");",
+      "  }",
+      "}",
+      "",
+    ].join("\n"));
+
+    const { stdout } = await execNode([scanScript, sourcePath]);
+    const scanned = JSON.parse(stdout);
+
+    assert.deepEqual(scanned.imports, [
+      {
+        from: "gemstone-js",
+        typeNamespaceName: "Gem",
+      },
+      {
+        from: "./booking-types.ts",
+        typeNames: ["Booking"],
+      },
+    ]);
+    assert.deepEqual(scanned.functions, [
+      {
+        exportedName: "findBooking",
+        className: "Booking",
+        selector: "find:",
+        argNames: ["id"],
+        argTypes: ["string"],
+        sessionType: "Gem.Session",
+        returnType: "Gem.TypedOop<Booking>",
+        returnKind: "object",
+      },
+    ]);
+
+    const moduleOutput = await execNode([scanScript, "--module", sourcePath]);
+    assert.match(moduleOutput.stdout, /import type \* as Gem from "gemstone-js";/);
+    assert.match(moduleOutput.stdout, /import type \{ Booking \} from "\.\/booking-types\.ts";/);
+    assert.match(moduleOutput.stdout, /sendObject\("find:", id\)/);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 test("codegen scanner preserves default type imports used by wrapper signatures", async () => {
   const dir = await mkdtemp(join(tmpdir(), "gemstone-js-codegen-scan-type-default-"));
   try {

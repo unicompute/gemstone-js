@@ -72,6 +72,57 @@ test("GSCollection.searchOop unwraps result arrays without retaining handles", a
   await session.logout();
 });
 
+test("GSCollection all and page helpers unwrap collection arrays", async () => {
+  const arrays = new Map<Oop, Oop[]>();
+  const arraysBySource = new Map<string, Oop>();
+  const executeSources: string[] = [];
+  const runtime = new MockGciRuntime({
+    execute(source) {
+      executeSources.push(source);
+      return arraysBySource.get(source) ?? arraysBySource.get("page") ?? OOP_NIL;
+    },
+    perform(receiver, selector, args) {
+      return performArray(arrays, receiver, selector, args);
+    },
+  });
+  const allArray = runtime.allocate();
+  const pageArray = runtime.allocate();
+  const first = runtime.allocate();
+  const second = runtime.allocate();
+  const third = runtime.allocate();
+  arrays.set(allArray, [first, second, third]);
+  arrays.set(pageArray, [second, third]);
+  arraysBySource.set("Bookings asArray", allArray);
+  arraysBySource.set("page", pageArray);
+
+  const session = await Session.connect({ username: "u", password: "p", runtime });
+  const collection = new GSCollection<{ name: string }>(session, "Bookings");
+
+  const all = await collection.all();
+  assertEqual(all.length, 3);
+  assertEqual(all[0].oop, first);
+  await Promise.all(all.map((item) => item.release()));
+
+  const allRaw = await collection.allOop();
+  assertEqual(allRaw.join(","), [first, second, third].join(","));
+
+  const page = await collection.page(2, 2);
+  assertEqual(page.length, 2);
+  assertEqual(page[0].oop, second);
+  await Promise.all(page.map((item) => item.release()));
+
+  const pageRaw = await collection.pageOop(2, 2);
+  assertEqual(pageRaw.join(","), [second, third].join(","));
+  assertEqual((await collection.pageOop(1, 0)).length, 0);
+
+  assertEqual(executeSources[0], "Bookings asArray");
+  assertEqual(executeSources[1], "Bookings asArray");
+  assert(executeSources[2].includes("collection copyFrom: 2 to: (3 min: collection size)"), "page should render bounded copy");
+  assert(executeSources[3].includes("collection copyFrom: 2 to: (3 min: collection size)"), "pageOop should reuse bounded copy");
+  assertEqual(executeSources.length, 4);
+  await session.logout();
+});
+
 test("GSCollection limit helpers fetch bounded result arrays", async () => {
   const arrays = new Map<Oop, Oop[]>();
   let limitedResult = OOP_NIL;
@@ -254,6 +305,8 @@ test("GSCollection rejects unsafe query inputs before rendering Smalltalk", asyn
   await assertRejects(() => collection.search("customer; System abortTransaction", "=", "Ada"), RangeError);
   await assertRejects(() => collection.count("customer; System abortTransaction", "=", "Ada"), RangeError);
   await assertRejects(() => collection.limit("customer.name", "=", "Ada", -1), RangeError);
+  await assertRejects(() => collection.page(0, 1), RangeError);
+  await assertRejects(() => collection.page(1, -1), RangeError);
   await assertRejects(async () => {
     for await (const _item of collection.iter(0)) {
       throw new Error("iterator should not yield");

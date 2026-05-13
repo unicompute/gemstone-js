@@ -67,13 +67,15 @@ native package; the TypeScript package can be tested locally with a mock runtime
   hierarchy, slot, and indexed-field metadata for quick debugging of raw object
   handles.
 - `GSCollection.search()` unwraps result arrays into typed handles,
-  `GSCollection.searchOop()` returns raw handles, `first()`/`firstOop()` return
-  nullable first matches without materializing result arrays, `limit()`/`take()`
-  fetch bounded result arrays, `size()`/`isEmpty()` expose collection metadata,
-  `count()` increments a counter without materializing selected matches,
-  `exists()` early-exits with `detect:ifNone:`, and `GSCollection.iter()`
-  fetches collection chunks while yielding individual objects. Equality-index
-  helpers are available through both explicit
+  `GSCollection.searchOop()` returns raw handles, `all()`/`allOop()` read the
+  collection as object handles, `page()`/`pageOop()` fetch bounded array pages,
+  `first()`/`firstOop()` return nullable first matches without materializing
+  result arrays, `limit()`/`take()` fetch bounded predicate matches,
+  `size()`/`isEmpty()` expose collection metadata, `count()` increments a
+  counter without materializing selected matches, `exists()` early-exits with
+  `detect:ifNone:`, and `GSCollection.iter()` fetches collection chunks while
+  yielding individual objects. Equality-index helpers are available through both
+  explicit
   `createEqualityIndexOn()`/`removeEqualityIndexOn()` and higher-level
   `createIndex()`/`removeIndex()` calls. Source-rendering helpers validate
   collection names, persistent-root names, and SymbolDictionary entry names

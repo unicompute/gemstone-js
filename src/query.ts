@@ -52,6 +52,24 @@ export class GSCollection<T = unknown> {
     return await this.size() === 0;
   }
 
+  async all(): Promise<TypedOop<T>[]> {
+    return this.#typedOopsFromArray(await this.#allResultArray());
+  }
+
+  async allOop(): Promise<Oop[]> {
+    return this.#arrayOops(await this.#allResultArray());
+  }
+
+  async page(start: number, count: number): Promise<TypedOop<T>[]> {
+    const result = await this.#pageResultArray(start, count);
+    return result === OOP_NIL ? [] : this.#typedOopsFromArray(result);
+  }
+
+  async pageOop(start: number, count: number): Promise<Oop[]> {
+    const result = await this.#pageResultArray(start, count);
+    return result === OOP_NIL ? [] : this.#arrayOops(result);
+  }
+
   async search(path: string, op: ComparisonOp, value: string | number | bigint | boolean): Promise<TypedOop<T>[]> {
     const result = await this.#searchResultArray(path, op, value);
     return result === OOP_NIL ? [] : this.#typedOopsFromArray(result);
@@ -117,6 +135,25 @@ export class GSCollection<T = unknown> {
       ((collection detect: [:each | ${predicate}] ifNone: [nil]) isNil) not
     `;
     return toBoolean(await this.session.eval(source), "GSCollection exists");
+  }
+
+  async #allResultArray(): Promise<Oop> {
+    return this.session.execute(`${this.name} asArray`);
+  }
+
+  async #pageResultArray(start: number, count: number): Promise<Oop> {
+    start = normalizePageStart(start);
+    count = normalizePageCount(count);
+    if (count === 0) return OOP_NIL;
+    const end = start + count - 1;
+    const source = `
+      | collection |
+      collection := ${this.name} asArray.
+      collection size < ${start}
+        ifTrue: [nil]
+        ifFalse: [collection copyFrom: ${start} to: (${end} min: collection size)]
+    `;
+    return this.session.execute(source);
   }
 
   async #searchResultArray(path: string, op: ComparisonOp, value: string | number | bigint | boolean): Promise<Oop> {
@@ -244,6 +281,20 @@ function normalizeChunkSize(value: number): number {
 function normalizeLimitCount(value: number): number {
   if (!Number.isSafeInteger(value) || value < 0) {
     throw new RangeError("GSCollection limit count must be a non-negative safe integer.");
+  }
+  return value;
+}
+
+function normalizePageStart(value: number): number {
+  if (!Number.isSafeInteger(value) || value < 1) {
+    throw new RangeError("GSCollection page start must be a positive safe integer.");
+  }
+  return value;
+}
+
+function normalizePageCount(value: number): number {
+  if (!Number.isSafeInteger(value) || value < 0) {
+    throw new RangeError("GSCollection page count must be a non-negative safe integer.");
   }
   return value;
 }

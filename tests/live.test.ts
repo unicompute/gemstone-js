@@ -115,6 +115,8 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
   `);
   await session.globalSetOop(queryKey, queryCollection);
   const query = new GSCollection(session, queryKey);
+  assert.equal((await query.allOop()).length, 3);
+  assert.equal((await query.pageOop(2, 2)).length, 2);
   assert.equal(await query.count("key", "=", "ready"), 2);
   assert.equal(await query.exists("key", "=", "done"), true);
   assert.equal(await query.exists("key", "=", "missing"), false);

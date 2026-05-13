@@ -1,6 +1,7 @@
 import { GsDict } from "./gsdict.ts";
 import { ManagedOop, Session, TypedOop, type GemStoneArgument, type MarshalledValue } from "./client.ts";
 import { OOP_ILLEGAL, OOP_NIL, isIllegal, type Oop } from "./oop.ts";
+import { validateGemStoneGlobalName } from "./smalltalk-source.ts";
 
 export class PersistentRoot {
   readonly session: Session;
@@ -9,7 +10,7 @@ export class PersistentRoot {
 
   constructor(session: Session, rootName = "UserGlobals") {
     this.session = session;
-    this.rootName = rootName;
+    this.rootName = validateGemStoneGlobalName(rootName, "persistent root name");
   }
 
   async get<T = unknown>(name: string): Promise<TypedOop<T> | null> {

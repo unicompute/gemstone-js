@@ -105,6 +105,8 @@ test("GSCollection rejects unsafe query inputs before rendering Smalltalk", asyn
   const session = await Session.connect({ username: "u", password: "p", runtime });
   const collection = new GSCollection(session, "Bookings");
 
+  assertThrows(() => new GSCollection(session, ""));
+  assertThrows(() => new GSCollection(session, "Bookings; System abortTransaction"));
   await assertRejects(() => collection.search("customer; System abortTransaction", "=", "Ada"), RangeError);
   await assertRejects(async () => {
     for await (const _item of collection.iter(0)) {
@@ -152,6 +154,15 @@ function assertEqual<T>(actual: T, expected: T): void {
   if (actual !== expected) {
     throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
   }
+}
+
+function assertThrows(fn: () => unknown): void {
+  try {
+    fn();
+  } catch {
+    return;
+  }
+  throw new Error("expected function to throw");
 }
 
 async function assertRejects(fn: () => Promise<unknown>, expected: new (...args: never[]) => Error): Promise<void> {

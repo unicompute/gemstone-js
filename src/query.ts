@@ -1,5 +1,6 @@
 import { Session, TypedOop, type MarshalledValue } from "./client.ts";
 import { OOP_NIL, smallintToOop, type Oop } from "./oop.ts";
+import { escapeSmalltalkStringLiteral, validateGemStoneGlobalName } from "./smalltalk-source.ts";
 
 export type ComparisonOp = "=" | "==" | "!=" | "~=" | "<" | "<=" | ">" | ">=";
 export type GSCollectionIndexKind = "equality";
@@ -14,25 +15,25 @@ export class GSCollection<T = unknown> {
 
   constructor(session: Session, name: string) {
     this.session = session;
-    this.name = name;
+    this.name = validateGemStoneGlobalName(name, "collection name");
   }
 
   async createEqualityIndexOn(path: string): Promise<void> {
-    await this.session.execute(`${this.name} createEqualityIndexOn: '${escapeSmalltalk(path)}'`);
+    await this.session.execute(`${this.name} createEqualityIndexOn: '${escapeSmalltalkStringLiteral(path)}'`);
   }
 
   async removeEqualityIndexOn(path: string): Promise<void> {
-    await this.session.execute(`${this.name} removeEqualityIndexOn: '${escapeSmalltalk(path)}'`);
+    await this.session.execute(`${this.name} removeEqualityIndexOn: '${escapeSmalltalkStringLiteral(path)}'`);
   }
 
   async createIndexOn(path: string, options: GSCollectionIndexOptions = {}): Promise<void> {
     const selectors = selectorsForIndexKind(options.kind ?? "equality");
-    await this.session.execute(`${this.name} ${selectors.create} '${escapeSmalltalk(path)}'`);
+    await this.session.execute(`${this.name} ${selectors.create} '${escapeSmalltalkStringLiteral(path)}'`);
   }
 
   async removeIndexOn(path: string, options: GSCollectionIndexOptions = {}): Promise<void> {
     const selectors = selectorsForIndexKind(options.kind ?? "equality");
-    await this.session.execute(`${this.name} ${selectors.remove} '${escapeSmalltalk(path)}'`);
+    await this.session.execute(`${this.name} ${selectors.remove} '${escapeSmalltalkStringLiteral(path)}'`);
   }
 
   async createIndex(path: string, options: GSCollectionIndexOptions = {}): Promise<void> {
@@ -85,7 +86,7 @@ export class GSCollection<T = unknown> {
   }
 
   async #literal(value: string | number | bigint | boolean): Promise<string> {
-    if (typeof value === "string") return `'${escapeSmalltalk(value)}'`;
+    if (typeof value === "string") return `'${escapeSmalltalkStringLiteral(value)}'`;
     if (typeof value === "boolean") return value ? "true" : "false";
     if (typeof value === "number") {
       if (!Number.isFinite(value)) throw new RangeError("GemStone query number literals must be finite.");
@@ -134,10 +135,6 @@ function selectorsForIndexKind(kind: GSCollectionIndexKind): { create: string; r
     };
   }
   throw new RangeError(`Unsupported GemStone index kind: ${String(kind)}`);
-}
-
-function escapeSmalltalk(value: string): string {
-  return value.replaceAll("'", "''");
 }
 
 function normalizeChunkSize(value: number): number {

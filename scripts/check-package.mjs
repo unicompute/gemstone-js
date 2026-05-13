@@ -61,6 +61,7 @@ const required = [
   "scripts/scan-codegen.mjs",
   "src/index.ts",
   "src/client.ts",
+  "src/smalltalk-source.ts",
   "src/runtime/node.ts",
   "src/runtime/library-discovery.ts",
   "src/testing/mock-runtime.ts",

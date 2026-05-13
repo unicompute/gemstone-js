@@ -51,7 +51,8 @@ native package; the TypeScript package can be tested locally with a mock runtime
   `GSCollection.iter()` fetches collection chunks while yielding individual
   objects. Equality-index helpers are available through both explicit
   `createEqualityIndexOn()`/`removeEqualityIndexOn()` and higher-level
-  `createIndex()`/`removeIndex()` calls.
+  `createIndex()`/`removeIndex()` calls. Source-rendering helpers validate
+  collection and persistent-root global names before emitting Smalltalk.
 - Pool, observability hooks, persistent-root, query, codegen, and Express,
   Fastify, and Hono adapter scaffolds.
 - Codegen helpers render wrappers that share the same JavaScript argument

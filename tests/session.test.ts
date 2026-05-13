@@ -478,6 +478,7 @@ test("PersistentRoot.list returns root keys from GemStone helper output", async 
   let runtime: MockGciRuntime;
   runtime = new MockGciRuntime({
     execute(source) {
+      assert(source.includes("dict := UserGlobals."), "list should render the validated root global");
       assert(source.includes("keysAndValuesDo:"), "list should ask GemStone for root keys");
       return runtime.newString("Alpha\nBeta\n");
     },
@@ -486,6 +487,16 @@ test("PersistentRoot.list returns root keys from GemStone helper output", async 
   const root = new PersistentRoot(session);
 
   assertEqual((await root.list()).join(","), "Alpha,Beta");
+
+  await session.logout();
+});
+
+test("PersistentRoot rejects unsafe root names before rendering Smalltalk", async () => {
+  const runtime = new MockGciRuntime();
+  const session = await Session.connect({ username: "u", password: "p", runtime });
+
+  assertThrows(() => new PersistentRoot(session, ""));
+  assertThrows(() => new PersistentRoot(session, "UserGlobals; System abortTransaction"));
 
   await session.logout();
 });

@@ -196,7 +196,7 @@ function scanClassBody(lines, className, sourcePath, startLine) {
       if (!/\S/.test(line)) continue;
     }
 
-    const methodMatch = line.match(/^\s*(?:static\s+)?(?:async\s+)?([A-Za-z_$][A-Za-z0-9_$]*)\s*\(([^)]*)\)\s*(?::\s*([^;{]+))?/);
+    const methodMatch = line.match(/^\s*(?:(?:public|protected|private|static|async|override|abstract)\s+)*([A-Za-z_$][A-Za-z0-9_$]*)\s*\(([^)]*)\)\s*(?::\s*([^;{]+))?/);
     if (!methodMatch || methodMatch[1] === "constructor") continue;
 
     const methodName = methodMatch[1];

@@ -118,8 +118,8 @@ test("codegen scanner handles same-line decorators and nested parameter types", 
     await writeFile(sourcePath, [
       "import { GemStoneClass, GemStoneSelector, type Session } from \"gemstone-js\";",
       "@GemStoneClass(\"Booking\") class InlineBookingModel {",
-      "  @GemStoneSelector(\"findBy:options:\") static findBy(session: Session, id: string, options: Record<string, boolean>): Promise<string> {}",
-      "  @GemStoneSelector(\"status\") status(session: Session): Promise<string> {}",
+      "  @GemStoneSelector(\"findBy:options:\") public static async findBy(session: Session, id: string, options: Record<string, boolean>): Promise<string> {}",
+      "  @GemStoneSelector(\"status\") protected override status(session: Session): Promise<string> {}",
       "}",
       "",
     ].join("\n"));

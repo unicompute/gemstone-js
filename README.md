@@ -33,11 +33,12 @@ native package; the TypeScript package can be tested locally with a mock runtime
 - Dictionary/global helpers: `dictionaryToOop()`, `strDictGet()`,
   `strDictSet()`, `globalGet()`, and `globalSet()`.
 - `GsDict` wraps GemStone `StringKeyValueDictionary` objects with `get()`,
-  `getObject()`, `set()`, `has()`, `keys()`, `entries()`, `pick()`, required
-  raw/value/object accessors, explicit send helpers, and inspection helpers.
+  `getObject()`, `set()`, `has()`, `size()`, `isEmpty()`, `keys()`,
+  `entries()`, `pick()`, required raw/value/object accessors, explicit send
+  helpers, and inspection helpers.
 - `PersistentRoot` now has value helpers (`getValue()`, `setValue()`,
-  `getDict()`, `setDict()`), `has()`, `pick()`, `entries()`, and required
-  raw/value/dictionary access built on the session marshalling layer.
+  `getDict()`, `setDict()`), `has()`, `keys()`, `pick()`, `entries()`, and
+  required raw/value/dictionary access built on the session marshalling layer.
 - Session pool release is reset-aware: dirty sessions are aborted before reuse,
   failed resets are discarded, waiters are served with replacement sessions, and
   close rejects pending acquires. Explicit validation queries run without

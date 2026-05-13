@@ -89,7 +89,11 @@ export class PersistentRoot {
   }
 
   async entries(): Promise<Record<string, MarshalledValue>> {
-    return this.pick(await this.list());
+    return this.pick(await this.keys());
+  }
+
+  async keys(): Promise<string[]> {
+    return this.list();
   }
 
   async list(): Promise<string[]> {

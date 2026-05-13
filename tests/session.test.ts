@@ -532,6 +532,25 @@ test("GsDict wraps StringKeyValueDictionary access", async () => {
   await session.logout();
 });
 
+test("GsDict size helpers convert GemStone counts", async () => {
+  let size = 2;
+  const runtime = new MockGciRuntime({
+    perform(_receiver, selector) {
+      if (selector === "size") return smallintToOop(size);
+      return OOP_NIL;
+    },
+  });
+  const session = await Session.connect({ username: "u", password: "p", runtime });
+  const dict = new GsDict(session, runtime.allocate());
+
+  assertEqual(await dict.size(), 2);
+  assertEqual(await dict.isEmpty(), false);
+  size = 0;
+  assertEqual(await dict.isEmpty(), true);
+
+  await session.logout();
+});
+
 test("GsDict keys and entries list dictionary contents", async () => {
   let runtime: MockGciRuntime;
   let dictOop = OOP_NIL;
@@ -731,6 +750,7 @@ test("PersistentRoot.list returns root keys from GemStone helper output", async 
   const root = new PersistentRoot(session);
 
   assertEqual((await root.list()).join(","), "Alpha,Beta");
+  assertEqual((await root.keys()).join(","), "Alpha,Beta");
 
   await session.logout();
 });

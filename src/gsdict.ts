@@ -45,6 +45,14 @@ export class GsDict implements AsyncDisposable {
     return await this.getOop(key) !== null;
   }
 
+  async size(): Promise<number> {
+    return toSafeSize(await this.sendValue("size"));
+  }
+
+  async isEmpty(): Promise<boolean> {
+    return await this.size() === 0;
+  }
+
   async keys(): Promise<string[]> {
     const source = `
       | dict |
@@ -112,4 +120,15 @@ export class GsDict implements AsyncDisposable {
   #missingEntry(key: string): Error {
     return new Error(`GemStone dictionary has no entry for key ${key}.`);
   }
+}
+
+function toSafeSize(value: MarshalledValue): number {
+  if (typeof value === "bigint") {
+    if (value < 0n || value > BigInt(Number.MAX_SAFE_INTEGER)) {
+      throw new RangeError(`GemStone dictionary size is outside JavaScript's safe integer range: ${value}`);
+    }
+    return Number(value);
+  }
+  if (typeof value === "number" && Number.isSafeInteger(value) && value >= 0) return value;
+  throw new TypeError(`GemStone dictionary size must be a non-negative integer, got ${String(value)}.`);
 }

@@ -29,7 +29,7 @@ The first implementation slice follows `../plan.js.txt`:
 - `GsDict` and `PersistentRoot` are convenience layers over the same session
   primitives. They should stay thin: the session owns marshalling and GCI calls,
   while wrappers expose explicit value/raw/object accessors and send helpers,
-  dictionary/root enumeration, and required root accessors.
+  dictionary metadata, dictionary/root enumeration, and required root accessors.
 - Query helpers render simple selector paths and unwrap GemStone arrays through
   `size`/`at:` so iterators yield object handles instead of chunk containers.
 - Codegen helpers validate generated JavaScript identifiers and emit wrappers

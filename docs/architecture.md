@@ -34,7 +34,8 @@ The first implementation slice follows `../plan.js.txt`:
   that choose between `performValueWith()`, `performWith()`, or
   `classRef().sendObject()` based on the requested return kind.
 - The `codegen` npm script is a manifest-driven file generator around the same
-  renderer, keeping generated wrapper source explicit and reviewable.
+  renderer, with a `--check` mode for keeping generated wrapper source explicit,
+  reviewable, and current in CI.
 - `Session.inspect()` asks GemStone for a compact string payload and parses it
   locally, avoiding a dependency on dictionary marshalling for debug metadata.
 - Framework adapters treat failed commit/abort cleanup as a broken session and

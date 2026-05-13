@@ -90,6 +90,12 @@ export interface SymDictLookup {
   assoc: Oop;
 }
 
+export interface GemStoneInspection {
+  oop: Oop;
+  class: string;
+  printString: string;
+}
+
 export interface GciRuntime {
   readonly name: RuntimeName;
   init(libPath?: string): Promise<number | void>;

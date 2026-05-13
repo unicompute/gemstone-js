@@ -376,6 +376,25 @@ test("marshalOop converts float OOPs when the runtime supports it", async () => 
   await session.logout();
 });
 
+test("inspect returns typed class and printString metadata", async () => {
+  let runtime: MockGciRuntime;
+  runtime = new MockGciRuntime({
+    async execute(source) {
+      assert(source.includes("Object _objectForOop:"), "inspect should use the GemStone object lookup helper");
+      return runtime.newString(`${smallintToOop(7).toString()}\nSmallInteger\n7\nagain`);
+    },
+  });
+  const session = await Session.connect({ username: "u", password: "p", runtime });
+
+  const inspection = await session.inspect(smallintToOop(7));
+
+  assertEqual(inspection.oop, smallintToOop(7));
+  assertEqual(inspection.class, "SmallInteger");
+  assertEqual(inspection.printString, "7\nagain");
+
+  await session.logout();
+});
+
 for (const run of registeredTests) {
   await run();
 }

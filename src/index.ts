@@ -74,6 +74,7 @@ export {
   GemStoneError,
   type GciErrorInfo,
   type GciRuntime,
+  type GemStoneInspection,
   type LoginOptions,
   type PoolStats,
   type ResolvedSessionConfig,

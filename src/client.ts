@@ -12,6 +12,7 @@ import {
   isNil,
   isSmallint,
   marshalImmediateOop,
+  oop,
   oopToChar,
   oopToHex,
   oopToSmallint,
@@ -22,6 +23,7 @@ import { NULL_METRICS, NULL_TRACER, observe, type MetricsCollector, type Tracer 
 import {
   GemStoneConfigurationError,
   GemStoneError,
+  type GemStoneInspection,
   type GciRuntime,
   type ResolvedSessionConfig,
   type SessionConfig,
@@ -365,17 +367,24 @@ export class Session implements AsyncDisposable {
     }
   }
 
-  async inspect(value: Oop): Promise<unknown> {
+  async inspect(value: Oop): Promise<GemStoneInspection> {
     const source = `
       | obj |
       obj := Object _objectForOop: ${value.toString()}.
-      {
-        'oop' -> obj asOop.
-        'class' -> obj class name asString.
-        'printString' -> obj printString.
-      } asDictionary
+      String streamContents: [:stream |
+        stream nextPutAll: (obj asOop asString); lf.
+        stream nextPutAll: (obj class name asString); lf.
+        stream nextPutAll: obj printString]
     `;
-    return this.eval(source);
+    return this.#observe("inspect", { oop: value.toString() }, async () => {
+      const result = await this.runtime.executeStr(source, OOP_NIL);
+      await this.#checkResult(result);
+      const rendered = await this.marshalOop(result);
+      if (typeof rendered !== "string") {
+        throw new GemStoneError("GemStone inspect helper returned a non-string result.");
+      }
+      return parseInspectionPayload(rendered);
+    });
   }
 
   async booleanOop(value: boolean): Promise<Oop> {
@@ -562,4 +571,25 @@ function validateFetchCount(value: number): number {
     throw new RangeError("fetchBytes count must be a non-negative safe integer.");
   }
   return value;
+}
+
+function parseInspectionPayload(payload: string): GemStoneInspection {
+  const normalized = payload.replace(/\r\n/g, "\n");
+  const firstBreak = normalized.indexOf("\n");
+  const secondBreak = firstBreak === -1 ? -1 : normalized.indexOf("\n", firstBreak + 1);
+  if (firstBreak === -1 || secondBreak === -1) {
+    throw new GemStoneError("GemStone inspect helper returned an invalid payload.");
+  }
+  const oopText = normalized.slice(0, firstBreak).trim();
+  let inspectedOop: Oop;
+  try {
+    inspectedOop = oop(oopText);
+  } catch {
+    throw new GemStoneError(`GemStone inspect helper returned an invalid OOP: ${oopText}`);
+  }
+  return {
+    oop: inspectedOop,
+    class: normalized.slice(firstBreak + 1, secondBreak),
+    printString: normalized.slice(secondBreak + 1),
+  };
 }

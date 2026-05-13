@@ -33,14 +33,16 @@ native package; the TypeScript package can be tested locally with a mock runtime
   `fetchSize()`, `fetchBytes()`, `arrayToOop()`, and retained `array()`
   wrappers.
 - Dictionary/global helpers: `dictionaryToOop()`, `strDictGet()`,
-  `strDictSet()`, `globalGet()`, and `globalSet()`.
+  `strDictSet()`, `globalGet()`, `globalSet()`, and
+  `globalRemove()`/`globalDelete()`.
 - `GsDict` wraps GemStone `StringKeyValueDictionary` objects with `get()`,
   `getObject()`, `set()`/`setAll()`, raw `setOop()`/`setAllOop()`,
   `remove()`/`delete()`, `has()`, `size()`, `isEmpty()`, `keys()`,
   `entries()`, `pick()`, required raw/value/object accessors, explicit send
   helpers, and inspection helpers.
 - `PersistentRoot` now has value helpers (`getValue()`, `setValue()`,
-  `getDict()`, `setDict()`), `remove()`/`delete()`, `has()`, `keys()`, `pick()`,
+  `setAllValue()`, `getDict()`, `setDict()`), raw `setAll()`,
+  `getObject()`, `remove()`/`delete()`, `has()`, `keys()`, `pick()`,
   `entries()`, and required raw/value/object/dictionary access built on the
   session marshalling layer.
 - Session pool release is reset-aware: dirty sessions are aborted before reuse,
@@ -117,9 +119,9 @@ GS_RUN_LIVE=1 npm run test:live
 ```
 
 The live smoke covers connect, execute, class-side sends, `performWith()`,
-string, float, and array marshalling, `GsDict` metadata, enumeration,
-required-read, and removal helpers, and `PersistentRoot` value, dictionary, key,
-pick, required-value, and removal helpers.
+string, float, and array marshalling, global removal, `GsDict` metadata,
+enumeration, required-read, and removal helpers, and `PersistentRoot` value,
+dictionary, key, pick, required-value, batch-value, and removal helpers.
 
 ## Example
 

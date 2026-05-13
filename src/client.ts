@@ -310,6 +310,21 @@ export class Session implements AsyncDisposable {
     });
   }
 
+  async globalRemove(name: string): Promise<boolean> {
+    return this.#observe("global_remove", { name }, async () => {
+      const userGlobals = await this.resolveSymbol("UserGlobals");
+      const key = await this.newSymbol(name);
+      const exists = await this.performValue(userGlobals, "includesKey:", key);
+      if (!toBoolean(exists, "UserGlobals includesKey:")) return false;
+      await this.perform(userGlobals, "removeKey:", key);
+      return true;
+    });
+  }
+
+  async globalDelete(name: string): Promise<boolean> {
+    return this.globalRemove(name);
+  }
+
   async fetchString(value: Oop): Promise<string> {
     return this.#observe("fetch_string", undefined, async () => {
       const size = await this.fetchSize(value);
@@ -683,6 +698,11 @@ function isPlainRecord(value: unknown): value is GemStoneDictionaryArgument {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
   const prototype = Object.getPrototypeOf(value);
   return prototype === Object.prototype || prototype === null;
+}
+
+function toBoolean(value: MarshalledValue, operation: string): boolean {
+  if (typeof value === "boolean") return value;
+  throw new TypeError(`${operation} must answer a boolean, got ${String(value)}.`);
 }
 
 function validateFetchStart(value: number): number {

@@ -739,6 +739,9 @@ test("globalSet and globalGet round-trip through UserGlobals", async () => {
 
   assertEqual(await session.globalGet("JsBridgeValue"), "ready");
   assert(runtime.calls.some((call) => call.method === "symDictAtObjPut"), "globalSet should write a symbol-keyed global");
+  assertEqual(await session.globalRemove("JsBridgeValue"), true);
+  assertEqual(await session.globalGet("JsBridgeValue"), null);
+  assertEqual(await session.globalDelete("JsBridgeValue"), false);
 
   await session.logout();
 });
@@ -748,12 +751,16 @@ test("PersistentRoot value helpers use session marshalling", async () => {
   const session = await Session.connect({ username: "u", password: "p", runtime });
   const root = new PersistentRoot(session);
 
-  await root.setValue("PersistentJsValue", { name: "Grace", active: true });
+  await root.setAllValue({
+    PersistentJsValue: { name: "Grace", active: true },
+    PersistentJsStatus: "ready",
+  });
   const dict = await root.getDict("PersistentJsValue");
 
   if (!dict) throw new Error("PersistentRoot should return a dictionary wrapper");
   assertEqual(await dict.get("name"), "Grace");
   assertEqual(await dict.get("active"), true);
+  assertEqual(await root.getValue("PersistentJsStatus"), "ready");
 
   await session.logout();
 });
@@ -766,13 +773,17 @@ test("PersistentRoot required helpers expose raw, value, and dictionary entries"
 
   await root.setValue("RootStatus", "ready");
   const savedDict = await root.setDict("RootDict", { name: "Ada" });
-  await root.set("RootObject", object);
+  await root.setAll({ RootObject: object });
 
   assertEqual(await root.has("RootStatus"), true);
   assertEqual(await root.has("MissingRootEntry"), false);
   assertEqual(await root.requireValue("RootStatus"), "ready");
   assertEqual(await root.requireOop("RootDict"), savedDict.oop);
   assertEqual(await (await root.requireDict("RootDict")).get("name"), "Ada");
+  const nullableObject = await root.getObject<{ status: string }>("RootObject");
+  if (!nullableObject) throw new Error("getObject should return a typed handle for existing root entries");
+  assertEqual(nullableObject.oop, object);
+  await nullableObject.release();
   const requiredObject = await root.requireObject<{ status: string }>("RootObject");
   assertEqual(requiredObject.oop, object);
   await requiredObject.release();

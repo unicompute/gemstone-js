@@ -42,10 +42,17 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
 
   const root = new PersistentRoot(session);
   const key = `GemstoneJsLive_${Date.now()}`;
+  const extraKey = `${key}_Extra`;
+  const globalKey = `${key}_Global`;
   const dictKey = `${key}_Dict`;
-  await root.setValue(key, "ok");
+  await session.globalSet(globalKey, "global");
+  assert.equal(await session.globalGet(globalKey), "global");
+  assert.equal(await session.globalRemove(globalKey), true);
+  assert.equal(await session.globalDelete(globalKey), false);
+  await root.setAllValue({ [key]: "ok", [extraKey]: "extra" });
   await root.setDict(dictKey, { status: "stored" });
   assert.equal(await root.getValue(key), "ok");
+  assert.equal(await root.getValue(extraKey), "extra");
   assert.equal(await root.has(key), true);
   assert.equal(await root.requireValue(key), "ok");
   assert.equal((await root.keys()).includes(key), true);
@@ -53,6 +60,7 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
   assert.equal(await (await root.requireDict(dictKey)).requireValue("status"), "stored");
   assert.equal(await root.remove(key), true);
   assert.equal(await root.has(key), false);
+  assert.equal(await root.delete(extraKey), true);
   assert.equal(await root.delete(dictKey), true);
   assert.equal(await root.delete(`${key}_Missing`), false);
 

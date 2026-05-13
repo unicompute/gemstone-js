@@ -18,6 +18,10 @@ export class PersistentRoot {
     return oop === null ? null : new TypedOop<T>(this.session, oop);
   }
 
+  async getObject<T = unknown>(name: string): Promise<TypedOop<T> | null> {
+    return this.get<T>(name);
+  }
+
   async getOop(name: string): Promise<Oop | null> {
     if (this.rootName === "UserGlobals") {
       return this.session.globalGetOop(name);
@@ -51,7 +55,16 @@ export class PersistentRoot {
     await this.session.runtime.symDictAtPut(root, name, oop);
   }
 
+  async setAll(values: Record<string, TypedOop<unknown> | ManagedOop<unknown> | Oop>): Promise<void> {
+    for (const [name, value] of Object.entries(values)) {
+      await this.set(name, value);
+    }
+  }
+
   async remove(name: string): Promise<boolean> {
+    if (this.rootName === "UserGlobals") {
+      return this.session.globalRemove(name);
+    }
     const root = await this.#root();
     const key = await this.session.newSymbol(name);
     const exists = await this.session.performValue(root, "includesKey:", key);
@@ -70,6 +83,12 @@ export class PersistentRoot {
       return;
     }
     await this.set(name, await this.session.argumentToOop(value));
+  }
+
+  async setAllValue(values: Record<string, GemStoneArgument>): Promise<void> {
+    for (const [name, value] of Object.entries(values)) {
+      await this.setValue(name, value);
+    }
   }
 
   async getDict(name: string): Promise<GsDict | null> {

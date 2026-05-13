@@ -272,6 +272,21 @@ test("renderGeneratedModule rejects invalid manifests", () => {
     functions: [],
   }));
   assertThrows(() => renderGeneratedModule({
+    imports: [{ from: "gemstone-js", defaultName: "GemStone", namespaceName: "GemStone" }],
+    functions: [],
+  }));
+  assertThrows(() => renderGeneratedModule({
+    imports: [{ from: "gemstone-js", defaultName: "Session", typeNames: ["Session"] }],
+    functions: [],
+  }));
+  assertThrows(() => renderGeneratedModule({
+    imports: [{ from: "gemstone-js", typeSpecifiers: [
+      { name: "Session", alias: "GSSession" },
+      { name: "TypedOop", alias: "GSSession" },
+    ] }],
+    functions: [],
+  }));
+  assertThrows(() => renderGeneratedModule({
     imports: [{ from: "gemstone-js", namespaceName: "GemStone", names: ["Session"] }],
     functions: [],
   }));

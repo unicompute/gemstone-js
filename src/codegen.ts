@@ -414,6 +414,15 @@ function assertOptionalNamedImportSpecArray(value: unknown, field: string): void
 
 function assertUniqueImportLocals(spec: GeneratedImportSpec): void {
   const seen = new Set<string>();
+  if (spec.defaultName) {
+    seen.add(spec.defaultName);
+  }
+  if (spec.namespaceName) {
+    if (seen.has(spec.namespaceName)) {
+      throw new RangeError(`Generated import entries must contain unique local names: ${spec.namespaceName}`);
+    }
+    seen.add(spec.namespaceName);
+  }
   for (const name of spec.names ?? []) {
     if (seen.has(name)) throw new RangeError(`Generated import entries must contain unique local names: ${name}`);
     seen.add(name);

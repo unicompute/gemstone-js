@@ -20,6 +20,7 @@ import {
   type Oop,
 } from "./oop.ts";
 import { NULL_METRICS, NULL_TRACER, observe, type MetricsCollector, type Tracer } from "./observability.ts";
+import { validateGemStoneGlobalName } from "./smalltalk-source.ts";
 import {
   GemStoneConfigurationError,
   GemStoneError,
@@ -29,7 +30,8 @@ import {
   type SessionConfig,
 } from "./types.ts";
 
-export type MarshalledValue = bigint | number | boolean | string | null | Oop;
+export type MarshalledArray = MarshalledValue[];
+export type MarshalledValue = bigint | number | boolean | string | null | Oop | MarshalledArray;
 export type GemStoneArrayArgument = readonly GemStoneArgument[];
 export type GemStoneDictionaryArgument = { readonly [key: string]: GemStoneArgument };
 export type GemStoneArgument =
@@ -247,6 +249,14 @@ export class Session implements AsyncDisposable {
     return this.typedOop<T[]>(await this.arrayToOop(values));
   }
 
+  async arrayOopToValues(array: Oop): Promise<MarshalledValue[]> {
+    return this.#arrayOopToValues(array, new Set());
+  }
+
+  async arrayValues(value: TypedOop<unknown[]> | ManagedOop<unknown[]> | Oop): Promise<MarshalledValue[]> {
+    return this.arrayOopToValues(typeof value === "bigint" ? value : value.oop);
+  }
+
   async dictionaryToOop(value: GemStoneDictionaryArgument): Promise<Oop> {
     const entries = Object.entries(value);
     return this.#observe("dictionary_to_oop", { entries: entries.length }, async () => {
@@ -294,9 +304,10 @@ export class Session implements AsyncDisposable {
   }
 
   async globalGetOop(name: string): Promise<Oop | null> {
-    return this.#observe("global_get", { name }, async () => {
+    const keyName = validateGemStoneGlobalName(name, "global name");
+    return this.#observe("global_get", { name: keyName }, async () => {
       const userGlobals = await this.resolveSymbol("UserGlobals");
-      const result = await this.runtime.symDictAt(userGlobals, name);
+      const result = await this.runtime.symDictAt(userGlobals, keyName);
       if (isIllegal(result.value) || result.value === OOP_NIL) return null;
       return result.value;
     });
@@ -348,9 +359,10 @@ export class Session implements AsyncDisposable {
   }
 
   async globalSet(name: string, value: GemStoneArgument): Promise<void> {
-    await this.#observe("global_set", { name }, async () => {
+    const keyName = validateGemStoneGlobalName(name, "global name");
+    await this.#observe("global_set", { name: keyName }, async () => {
       const userGlobals = await this.resolveSymbol("UserGlobals");
-      const key = await this.newSymbol(name);
+      const key = await this.newSymbol(keyName);
       await this.runtime.symDictAtObjPut(userGlobals, key, await this.argumentToOop(value));
     });
   }
@@ -362,9 +374,10 @@ export class Session implements AsyncDisposable {
   }
 
   async globalSetOop<T = unknown>(name: string, value: TypedOop<T> | ManagedOop<T> | Oop): Promise<void> {
-    await this.#observe("global_set_oop", { name }, async () => {
+    const keyName = validateGemStoneGlobalName(name, "global name");
+    await this.#observe("global_set_oop", { name: keyName }, async () => {
       const userGlobals = await this.resolveSymbol("UserGlobals");
-      const key = await this.newSymbol(name);
+      const key = await this.newSymbol(keyName);
       await this.runtime.symDictAtObjPut(userGlobals, key, typeof value === "bigint" ? value : value.oop);
     });
   }
@@ -376,9 +389,10 @@ export class Session implements AsyncDisposable {
   }
 
   async globalRemove(name: string): Promise<boolean> {
-    return this.#observe("global_remove", { name }, async () => {
+    const keyName = validateGemStoneGlobalName(name, "global name");
+    return this.#observe("global_remove", { name: keyName }, async () => {
       const userGlobals = await this.resolveSymbol("UserGlobals");
-      const key = await this.newSymbol(name);
+      const key = await this.newSymbol(keyName);
       const exists = await this.performValue(userGlobals, "includesKey:", key);
       if (!toBoolean(exists, "UserGlobals includesKey:")) return false;
       await this.perform(userGlobals, "removeKey:", key);
@@ -588,6 +602,43 @@ export class Session implements AsyncDisposable {
     return new Error(`UserGlobals has no entry named ${name}.`);
   }
 
+  async #arrayOopToValues(array: Oop, seen: Set<string>): Promise<MarshalledValue[]> {
+    const key = array.toString();
+    if (seen.has(key)) {
+      throw new GemStoneError("Cannot marshal cyclic GemStone Array.");
+    }
+    seen.add(key);
+    try {
+      const size = toSafeCollectionSize(await this.performValue(array, "size"), "GemStone Array");
+      const values: MarshalledValue[] = [];
+      for (let index = 1; index <= size; index += 1) {
+        const item = await this.perform(array, "at:", smallintToOop(index));
+        values.push(await this.#marshalArrayItem(item, seen));
+      }
+      return values;
+    } finally {
+      seen.delete(key);
+    }
+  }
+
+  async #marshalArrayItem(value: Oop, seen: Set<string>): Promise<MarshalledValue> {
+    if (await this.#isArrayOop(value)) {
+      return this.#arrayOopToValues(value, seen);
+    }
+    return this.marshalOop(value);
+  }
+
+  async #isArrayOop(value: Oop): Promise<boolean> {
+    if (isNil(value) || value === OOP_TRUE || value === OOP_FALSE || isSmallint(value) || isChar(value) || isIllegal(value)) {
+      return false;
+    }
+    try {
+      return await this.fetchClass(value) === await this.resolveSymbol("Array");
+    } catch {
+      return false;
+    }
+  }
+
   async #stringClassKeys(): Promise<Set<string>> {
     this.#stringClassOopKeys ??= this.#resolveStringClassKeys();
     return this.#stringClassOopKeys;
@@ -772,6 +823,17 @@ function isPlainRecord(value: unknown): value is GemStoneDictionaryArgument {
 function toBoolean(value: MarshalledValue, operation: string): boolean {
   if (typeof value === "boolean") return value;
   throw new TypeError(`${operation} must answer a boolean, got ${String(value)}.`);
+}
+
+function toSafeCollectionSize(value: MarshalledValue, collection: string): number {
+  if (typeof value === "bigint") {
+    if (value < 0n || value > BigInt(Number.MAX_SAFE_INTEGER)) {
+      throw new RangeError(`${collection} size is outside JavaScript's safe integer range: ${value}`);
+    }
+    return Number(value);
+  }
+  if (typeof value === "number" && Number.isSafeInteger(value) && value >= 0) return value;
+  throw new TypeError(`${collection} size must be a non-negative integer, got ${String(value)}.`);
 }
 
 function validateFetchStart(value: number): number {

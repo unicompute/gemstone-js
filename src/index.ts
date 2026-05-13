@@ -7,6 +7,7 @@ export {
   type GemStoneArrayArgument,
   type GemStoneArgument,
   type GemStoneDictionaryArgument,
+  type MarshalledArray,
   type MarshalledValue,
 } from "./client.ts";
 export {

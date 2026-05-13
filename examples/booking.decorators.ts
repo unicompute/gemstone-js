@@ -12,4 +12,13 @@ class BookingModel {
   static findBookingObject(session: Session, id: string): Promise<TypedOop<Booking>> {
     throw new Error("Decorator source is scanned for codegen only.");
   }
+
+  @GemStoneSelector("findWithTags:filters:")
+  static findBookingsByTags(
+    session: Session,
+    tags: readonly string[],
+    filters: Record<string, string | number | boolean>,
+  ): Promise<TypedOop<Booking>> {
+    throw new Error("Decorator source is scanned for codegen only.");
+  }
 }

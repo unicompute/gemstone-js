@@ -22,6 +22,7 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
 
   const array = await session.array(["gemstone-js live", 2, true]);
   assert.equal(await array.sendValue("size"), 3n);
+  assert.deepEqual(await session.arrayValues(array), ["gemstone-js live", 2n, true]);
   await array.release();
 
   const dict = await session.dictionary({ status: "ready", count: 2 });
@@ -31,6 +32,8 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
   assert.equal(await dict.isEmpty(), false);
   assert.deepEqual(new Set(await dict.keys()), new Set(["status", "count"]));
   assert.equal((await dict.entries()).status, "ready");
+  assert.deepEqual(new Set(await dict.values()), new Set(["ready", 2n]));
+  assert.deepEqual(new Map(await dict.items()).get("status"), "ready");
   assert.equal(await dict.requireValue("status"), "ready");
   assert.equal(await dict.remove("count"), true);
   assert.equal(await dict.has("count"), false);
@@ -45,15 +48,22 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
   const extraKey = `${key}_Extra`;
   const globalKey = `${key}_Global`;
   const globalExtraKey = `${key}_GlobalExtra`;
+  const globalObjectKey = `${key}_GlobalObject`;
   const dictKey = `${key}_Dict`;
   await session.globalSetAll({ [globalKey]: "global", [globalExtraKey]: "global-extra" });
+  await session.globalSetAllOop({ [globalObjectKey]: object });
   assert.equal(await session.globalHas(globalKey), true);
   assert.equal(await session.globalGet(globalKey), "global");
   assert.equal(await session.globalRequireValue(globalKey), "global");
+  const globalObject = await session.globalRequireObject(globalObjectKey);
+  assert.equal(globalObject.oop, object.oop);
+  await globalObject.release();
   assert.equal((await session.globalKeys()).includes(globalKey), true);
   assert.deepEqual(await session.globalPick([globalKey, `${globalKey}_Missing`]), { [globalKey]: "global", [`${globalKey}_Missing`]: null });
+  assert.equal((await session.globalEntries())[globalKey], "global");
   assert.equal(await session.globalRemove(globalKey), true);
   assert.equal(await session.globalDelete(globalExtraKey), true);
+  assert.equal(await session.globalDelete(globalObjectKey), true);
   assert.equal(await session.globalHas(globalKey), false);
   assert.equal(await session.globalDelete(globalKey), false);
   await root.setAllValue({ [key]: "ok", [extraKey]: "extra" });

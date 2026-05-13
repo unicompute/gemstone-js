@@ -71,6 +71,43 @@ test("GSCollection.searchOop unwraps result arrays without retaining handles", a
   await session.logout();
 });
 
+test("GSCollection limit helpers fetch bounded result arrays", async () => {
+  const arrays = new Map<Oop, Oop[]>();
+  let limitedResult = OOP_NIL;
+  const executeSources: string[] = [];
+  const runtime = new MockGciRuntime({
+    execute(source) {
+      executeSources.push(source);
+      return limitedResult;
+    },
+    perform(receiver, selector, args) {
+      return performArray(arrays, receiver, selector, args);
+    },
+  });
+  limitedResult = runtime.allocate();
+  const first = runtime.allocate();
+  const second = runtime.allocate();
+  arrays.set(limitedResult, [first, second]);
+
+  const session = await Session.connect({ username: "u", password: "p", runtime });
+  const collection = new GSCollection<{ name: string }>(session, "Bookings");
+
+  const results = await collection.limit("customer.name", "=", "Ada's booking", 2);
+  assertEqual(results.length, 2);
+  assertEqual(results[0].oop, first);
+  assertEqual(results[1].oop, second);
+  await Promise.all(results.map((result) => result.release()));
+
+  const rawResults = await collection.takeOop("status", "=", "ready", 2);
+  assertEqual(rawResults.join(","), [first, second].join(","));
+  assertEqual((await collection.limitOop("status", "=", "ready", 0)).length, 0);
+
+  assert(executeSources[0].includes("results copyFrom: 1 to: (2 min: results size)"), "limit should render a bounded copy");
+  assert(executeSources[1].includes("results copyFrom: 1 to: (2 min: results size)"), "takeOop should reuse the bounded query");
+  assertEqual(executeSources.length, 2);
+  await session.logout();
+});
+
 test("GSCollection first helpers return nullable first matches without array fetches", async () => {
   let first = OOP_NIL;
   const executeResults = [first, OOP_NIL];
@@ -209,6 +246,7 @@ test("GSCollection rejects unsafe query inputs before rendering Smalltalk", asyn
   assertThrows(() => new GSCollection(session, "Bookings; System abortTransaction"));
   await assertRejects(() => collection.search("customer; System abortTransaction", "=", "Ada"), RangeError);
   await assertRejects(() => collection.count("customer; System abortTransaction", "=", "Ada"), RangeError);
+  await assertRejects(() => collection.limit("customer.name", "=", "Ada", -1), RangeError);
   await assertRejects(async () => {
     for await (const _item of collection.iter(0)) {
       throw new Error("iterator should not yield");

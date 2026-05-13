@@ -30,8 +30,8 @@ native package; the TypeScript package can be tested locally with a mock runtime
   shared typed array helpers.
 - OOP helpers ported from `gemstone-rs/crates/gemstone-gci`.
 - Low-level allocation/fetch helpers: `newOop()`, `fetchClass()`,
-  `fetchSize()`, `fetchBytes()`, `arrayToOop()`, and retained `array()`
-  wrappers.
+  `fetchSize()`, `fetchBytes()`, `arrayToOop()`, `arrayOopToValues()`, and
+  retained `array()` wrappers.
 - Dictionary/global helpers: `dictionaryToOop()`, `strDictGet()`,
   `strDictSet()`, `globalGet()`, `globalGetObject()`, `globalHas()`,
   `globalKeys()`, `globalPick()`, `globalEntries()`, `globalSet()`/
@@ -40,8 +40,8 @@ native package; the TypeScript package can be tested locally with a mock runtime
 - `GsDict` wraps GemStone `StringKeyValueDictionary` objects with `get()`,
   `getObject()`, `set()`/`setAll()`, raw `setOop()`/`setAllOop()`,
   `remove()`/`delete()`, `has()`, `size()`, `isEmpty()`, `keys()`,
-  `entries()`, `pick()`, required raw/value/object accessors, explicit send
-  helpers, and inspection helpers.
+  `values()`, `items()`, `entries()`, `pick()`, required raw/value/object
+  accessors, explicit send helpers, and inspection helpers.
 - `PersistentRoot` now has value helpers (`getValue()`, `setValue()`,
   `setAllValue()`, `getDict()`, `setDict()`), raw `setAll()`,
   `getObject()`, `remove()`/`delete()`, `has()`, `keys()`, `pick()`,
@@ -62,14 +62,15 @@ native package; the TypeScript package can be tested locally with a mock runtime
   handles.
 - `GSCollection.search()` unwraps result arrays into typed handles,
   `GSCollection.searchOop()` returns raw handles, `first()`/`firstOop()` return
-  nullable first matches without materializing result arrays, `size()`/`isEmpty()`
-  expose collection metadata, `count()`/`exists()` answer predicate matches
-  without fetching handles, and `GSCollection.iter()` fetches collection chunks
-  while yielding individual objects. Equality-index helpers are available through
-  both explicit
+  nullable first matches without materializing result arrays, `limit()`/`take()`
+  fetch bounded result arrays, `size()`/`isEmpty()` expose collection metadata,
+  `count()`/`exists()` answer predicate matches without fetching handles, and
+  `GSCollection.iter()` fetches collection chunks while yielding individual
+  objects. Equality-index helpers are available through both explicit
   `createEqualityIndexOn()`/`removeEqualityIndexOn()` and higher-level
   `createIndex()`/`removeIndex()` calls. Source-rendering helpers validate
-  collection and persistent-root global names before emitting Smalltalk.
+  collection names, persistent-root names, and SymbolDictionary entry names
+  before emitting Smalltalk.
 - Pool, observability hooks, persistent-root, query, codegen, and Express,
   Fastify, and Hono adapter scaffolds.
 - Codegen helpers render wrappers that share the same JavaScript argument
@@ -121,10 +122,10 @@ GS_RUN_LIVE=1 npm run test:live
 ```
 
 The live smoke covers connect, execute, class-side sends, `performWith()`,
-string, float, and array marshalling, global lookup/enumeration/required/removal
-helpers, `GsDict` metadata, enumeration, required-read, and removal helpers,
-and `PersistentRoot` value, dictionary, key, pick, required-value, batch-value,
-and removal helpers.
+string, float, array marshalling/readback, global lookup/enumeration/required/raw
+set/removal helpers, `GsDict` metadata, enumeration, required-read, and removal
+helpers, and `PersistentRoot` value, dictionary, key, pick, required-value,
+batch-value, and removal helpers.
 
 ## Example
 

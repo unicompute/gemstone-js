@@ -62,6 +62,24 @@ export class GSCollection<T = unknown> {
     return result === OOP_NIL ? [] : this.#arrayOops(result);
   }
 
+  async limit(path: string, op: ComparisonOp, value: string | number | bigint | boolean, count: number): Promise<TypedOop<T>[]> {
+    const result = await this.#limitedResultArray(path, op, value, count);
+    return result === OOP_NIL ? [] : this.#typedOopsFromArray(result);
+  }
+
+  async limitOop(path: string, op: ComparisonOp, value: string | number | bigint | boolean, count: number): Promise<Oop[]> {
+    const result = await this.#limitedResultArray(path, op, value, count);
+    return result === OOP_NIL ? [] : this.#arrayOops(result);
+  }
+
+  async take(path: string, op: ComparisonOp, value: string | number | bigint | boolean, count: number): Promise<TypedOop<T>[]> {
+    return this.limit(path, op, value, count);
+  }
+
+  async takeOop(path: string, op: ComparisonOp, value: string | number | bigint | boolean, count: number): Promise<Oop[]> {
+    return this.limitOop(path, op, value, count);
+  }
+
   async first(path: string, op: ComparisonOp, value: string | number | bigint | boolean): Promise<TypedOop<T> | null> {
     const result = await this.firstOop(path, op, value);
     return result === null ? null : this.session.typedOop<T>(result);
@@ -99,6 +117,21 @@ export class GSCollection<T = unknown> {
       collection := ${this.name}.
       results := collection select: [:each | ${predicate}].
       results asArray
+    `;
+    return this.session.execute(source);
+  }
+
+  async #limitedResultArray(path: string, op: ComparisonOp, value: string | number | bigint | boolean, count: number): Promise<Oop> {
+    count = normalizeLimitCount(count);
+    if (count === 0) return OOP_NIL;
+    const predicate = await this.#predicate(path, op, value);
+    const source = `
+      | collection results |
+      collection := ${this.name}.
+      results := (collection select: [:each | ${predicate}]) asArray.
+      results size = 0
+        ifTrue: [nil]
+        ifFalse: [results copyFrom: 1 to: (${count} min: results size)]
     `;
     return this.session.execute(source);
   }
@@ -192,6 +225,13 @@ function selectorsForIndexKind(kind: GSCollectionIndexKind): { create: string; r
 function normalizeChunkSize(value: number): number {
   if (!Number.isSafeInteger(value) || value < 1) {
     throw new RangeError("GSCollection iterator chunkSize must be a positive safe integer.");
+  }
+  return value;
+}
+
+function normalizeLimitCount(value: number): number {
+  if (!Number.isSafeInteger(value) || value < 0) {
+    throw new RangeError("GSCollection limit count must be a non-negative safe integer.");
   }
   return value;
 }

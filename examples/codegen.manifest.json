@@ -33,6 +33,16 @@
       "sessionType": "Session",
       "returnType": "TypedOop<BookingRecord>",
       "returnKind": "object"
+    },
+    {
+      "exportedName": "findBookingsByTags",
+      "className": "Booking",
+      "selector": "findWithTags:filters:",
+      "argNames": ["tags", "filters"],
+      "argTypes": ["readonly string[]", "Record<string, string | number | boolean>"],
+      "sessionType": "Session",
+      "returnType": "TypedOop<BookingRecord>",
+      "returnKind": "object"
     }
   ]
 }

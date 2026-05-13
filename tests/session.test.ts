@@ -7,6 +7,7 @@ import {
   SessionPool,
   setGciRuntimeFactoryForTesting,
   setGciRuntimeForTesting,
+  oopToSmallint,
   smallintToOop,
   type Oop,
 } from "../src/index.ts";
@@ -406,6 +407,46 @@ test("performWith marshals JavaScript arrays as GemStone Arrays", async () => {
   await session.logout();
 });
 
+test("arrayOopToValues converts GemStone Arrays back to JavaScript values", async () => {
+  const arrays = new Map<Oop, Oop[]>();
+  const runtime = new MockGciRuntime({
+    perform(receiver, selector, args) {
+      const values = arrays.get(receiver);
+      if (!values) return OOP_NIL;
+      if (selector === "size") return smallintToOop(values.length);
+      if (selector === "at:") {
+        const index = Number(oopToSmallint(args[0]));
+        return values[index - 1] ?? OOP_NIL;
+      }
+      return OOP_NIL;
+    },
+  });
+  const arrayClass = runtime.classSymbol("Array");
+  const array = runtime.allocate();
+  const nested = runtime.allocate();
+  runtime.classByOop.set(array, arrayClass);
+  runtime.classByOop.set(nested, arrayClass);
+  const session = await Session.connect({ username: "u", password: "p", runtime });
+  const name = await session.newString("Ada");
+  arrays.set(nested, [smallintToOop(3), OOP_FALSE]);
+  arrays.set(array, [name, smallintToOop(2), OOP_NIL, nested]);
+
+  const values = await session.arrayOopToValues(array);
+  assertEqual(values[0], "Ada");
+  assertEqual(values[1], 2n);
+  assertEqual(values[2], null);
+  assert(Array.isArray(values[3]), "nested arrays should be recursively marshalled");
+  const nestedValues = values[3] as unknown[];
+  assertEqual(nestedValues[0], 3n);
+  assertEqual(nestedValues[1], false);
+
+  const wrapped = session.typedOop<unknown[]>(array);
+  const wrappedValues = await session.arrayValues(wrapped);
+  assertEqual(wrappedValues[0], "Ada");
+  await wrapped.release();
+  await session.logout();
+});
+
 test("ManagedOop.send marshals JavaScript arguments", async () => {
   const runtime = new MockGciRuntime();
   const session = await Session.connect({ username: "u", password: "p", runtime });
@@ -643,7 +684,14 @@ test("GsDict keys and entries list dictionary contents", async () => {
   const entries = await dict.entries();
   assertEqual(entries.name, "Ada");
   assertEqual(entries.city, "London");
-  assertEqual(keyListCalls, 2);
+  const values = await dict.values();
+  assertEqual(values.join(","), "Ada,London");
+  const items = await dict.items();
+  assertEqual(items[0][0], "name");
+  assertEqual(items[0][1], "Ada");
+  assertEqual(items[1][0], "city");
+  assertEqual(items[1][1], "London");
+  assertEqual(keyListCalls, 4);
 
   await session.logout();
 });
@@ -880,9 +928,14 @@ test("PersistentRoot.list returns root keys from GemStone helper output", async 
 test("PersistentRoot rejects unsafe root names before rendering Smalltalk", async () => {
   const runtime = new MockGciRuntime();
   const session = await Session.connect({ username: "u", password: "p", runtime });
+  const root = new PersistentRoot(session);
 
   assertThrows(() => new PersistentRoot(session, ""));
   assertThrows(() => new PersistentRoot(session, "UserGlobals; System abortTransaction"));
+  await assertRejects(() => session.globalSet("UserGlobals; System abortTransaction", "bad"), RangeError);
+  await assertRejects(() => session.globalGet("UserGlobals; System abortTransaction"), RangeError);
+  await assertRejects(() => root.setValue("RootEntry; System abortTransaction", "bad"), RangeError);
+  await assertRejects(() => root.getOop("RootEntry; System abortTransaction"), RangeError);
 
   await session.logout();
 });

@@ -11,3 +11,7 @@ export async function currentBookingStatus(session: Session): Promise<string> {
 export async function findBookingObject(session: Session, id: string): Promise<TypedOop<Booking>> {
   return session.classRef("Booking").sendObject("find:", id);
 }
+
+export async function findBookingsByTags(session: Session, tags: readonly string[], filters: Record<string, string | number | boolean>): Promise<TypedOop<Booking>> {
+  return session.classRef("Booking").sendObject("findWithTags:filters:", tags, filters);
+}

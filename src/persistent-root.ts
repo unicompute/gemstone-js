@@ -23,11 +23,12 @@ export class PersistentRoot {
   }
 
   async getOop(name: string): Promise<Oop | null> {
+    const keyName = validatePersistentRootEntryName(name);
     if (this.rootName === "UserGlobals") {
-      return this.session.globalGetOop(name);
+      return this.session.globalGetOop(keyName);
     }
     const root = await this.#root();
-    const result = await this.session.runtime.symDictAt(root, name);
+    const result = await this.session.runtime.symDictAt(root, keyName);
     if (isIllegal(result.value) || result.value === OOP_NIL) return null;
     return result.value;
   }
@@ -50,9 +51,10 @@ export class PersistentRoot {
   }
 
   async set<T = unknown>(name: string, value: TypedOop<T> | ManagedOop<T> | Oop): Promise<void> {
+    const keyName = validatePersistentRootEntryName(name);
     const root = await this.#root();
     const oop = typeof value === "bigint" ? value : value.oop;
-    await this.session.runtime.symDictAtPut(root, name, oop);
+    await this.session.runtime.symDictAtPut(root, keyName, oop);
   }
 
   async setAll(values: Record<string, TypedOop<unknown> | ManagedOop<unknown> | Oop>): Promise<void> {
@@ -62,11 +64,12 @@ export class PersistentRoot {
   }
 
   async remove(name: string): Promise<boolean> {
+    const keyName = validatePersistentRootEntryName(name);
     if (this.rootName === "UserGlobals") {
-      return this.session.globalRemove(name);
+      return this.session.globalRemove(keyName);
     }
     const root = await this.#root();
-    const key = await this.session.newSymbol(name);
+    const key = await this.session.newSymbol(keyName);
     const exists = await this.session.performValue(root, "includesKey:", key);
     if (!toBoolean(exists, "SymbolDictionary includesKey:")) return false;
     await this.session.perform(root, "removeKey:", key);
@@ -162,4 +165,8 @@ export class PersistentRoot {
 function toBoolean(value: MarshalledValue, operation: string): boolean {
   if (typeof value === "boolean") return value;
   throw new TypeError(`${operation} must answer a boolean, got ${String(value)}.`);
+}
+
+function validatePersistentRootEntryName(name: string): string {
+  return validateGemStoneGlobalName(name, "persistent root entry name");
 }

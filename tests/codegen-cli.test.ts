@@ -264,6 +264,52 @@ test("codegen scanner ignores imported names that only appear inside literal typ
   }
 });
 
+test("codegen scanner preserves imports used by typeof type queries", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "gemstone-js-codegen-scan-type-query-"));
+  try {
+    const sourcePath = join(dir, "type-query.ts");
+    await writeFile(sourcePath, [
+      "import { GemStoneClass, GemStoneSelector, type Session } from \"gemstone-js\";",
+      "import type { BookingSchema } from \"./booking-schema.ts\";",
+      "@GemStoneClass(\"Booking\")",
+      "class TypeQueryBookingModel {",
+      "  @GemStoneSelector(\"validateWith:\")",
+      "  static validateWith(session: Session, schema: typeof BookingSchema): Promise<boolean> {",
+      "    throw new Error(\"scanner fixture only\");",
+      "  }",
+      "}",
+      "",
+    ].join("\n"));
+
+    const { stdout } = await execNode([scanScript, sourcePath]);
+    const scanned = JSON.parse(stdout);
+
+    assert.deepEqual(scanned.imports, [
+      {
+        from: "gemstone-js",
+        typeNames: ["Session"],
+      },
+      {
+        from: "./booking-schema.ts",
+        typeNames: ["BookingSchema"],
+      },
+    ]);
+    assert.deepEqual(scanned.functions, [
+      {
+        exportedName: "validateWith",
+        className: "Booking",
+        selector: "validateWith:",
+        argNames: ["schema"],
+        argTypes: ["typeof BookingSchema"],
+        sessionType: "Session",
+        returnType: "boolean",
+      },
+    ]);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 test("codegen scanner resolves decorator/type aliases and skips overload signatures", async () => {
   const dir = await mkdtemp(join(tmpdir(), "gemstone-js-codegen-scan-alias-"));
   try {

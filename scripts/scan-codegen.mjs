@@ -359,6 +359,10 @@ function collectTypeNodeNames(typeNode, names) {
   visitTypeNode(typeNode);
 
   function visitTypeNode(node) {
+    if (ts.isTypeQueryNode(node)) {
+      addEntityNameRoot(node.exprName, names);
+      return;
+    }
     if (ts.isTypeReferenceNode(node)) {
       addEntityNameRoot(node.typeName, names);
       for (const arg of node.typeArguments ?? []) {

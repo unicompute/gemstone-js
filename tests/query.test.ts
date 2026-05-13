@@ -77,20 +77,22 @@ test("GSCollection all and page helpers unwrap collection arrays", async () => {
   const arrays = new Map<Oop, Oop[]>();
   const arraysBySource = new Map<string, Oop>();
   const executeSources: string[] = [];
+  const allArray = 0x9100n as Oop;
+  const pageArray = 0x9108n as Oop;
+  const first = 0x9110n as Oop;
+  const second = 0x9118n as Oop;
+  const third = 0x9120n as Oop;
   const runtime = new MockGciRuntime({
     execute(source) {
       executeSources.push(source);
+      if (source.includes("collection first")) return first;
+      if (source.includes("collection last")) return third;
       return arraysBySource.get(source) ?? arraysBySource.get("page") ?? OOP_NIL;
     },
     perform(receiver, selector, args) {
       return performArray(arrays, receiver, selector, args);
     },
   });
-  const allArray = runtime.allocate();
-  const pageArray = runtime.allocate();
-  const first = runtime.allocate();
-  const second = runtime.allocate();
-  const third = runtime.allocate();
   arrays.set(allArray, [first, second, third]);
   arrays.set(pageArray, [second, third]);
   arraysBySource.set("Bookings asArray", allArray);
@@ -116,11 +118,27 @@ test("GSCollection all and page helpers unwrap collection arrays", async () => {
   assertEqual(pageRaw.join(","), [second, third].join(","));
   assertEqual((await collection.pageOop(1, 0)).length, 0);
 
+  const firstItem = await collection.firstItem();
+  if (!firstItem) throw new Error("firstItem should return the first collection handle");
+  assertEqual(firstItem.oop, first);
+  await firstItem.release();
+
+  assertEqual(await collection.firstItemOop(), first);
+
+  const lastItem = await collection.lastItem();
+  if (!lastItem) throw new Error("lastItem should return the last collection handle");
+  assertEqual(lastItem.oop, third);
+  await lastItem.release();
+
+  assertEqual(await collection.lastItemOop(), third);
+
   assertEqual(executeSources[0], "Bookings asArray");
   assertEqual(executeSources[1], "Bookings asArray");
   assert(executeSources[2].includes("collection copyFrom: 2 to: (3 min: collection size)"), "page should render bounded copy");
   assert(executeSources[3].includes("collection copyFrom: 2 to: (3 min: collection size)"), "pageOop should reuse bounded copy");
-  assertEqual(executeSources.length, 4);
+  assert(executeSources[4].includes("collection first"), "firstItem should render a first lookup");
+  assert(executeSources[6].includes("collection last"), "lastItem should render a last lookup");
+  assertEqual(executeSources.length, 8);
   await session.logout();
 });
 

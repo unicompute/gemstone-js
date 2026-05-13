@@ -117,6 +117,10 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
   const query = new GSCollection(session, queryKey);
   assert.equal((await query.allOop()).length, 3);
   assert.equal((await query.pageOop(2, 2)).length, 2);
+  const firstQueryItem = await query.firstItem();
+  assert.notEqual(firstQueryItem, null);
+  await firstQueryItem?.release();
+  assert.notEqual(await query.lastItemOop(), null);
   const queuedAssoc = await session.execute("'queued' -> 4");
   await query.addOop(queuedAssoc);
   assert.equal(await query.size(), 4);

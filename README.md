@@ -69,6 +69,8 @@ native package; the TypeScript package can be tested locally with a mock runtime
 - `GSCollection.search()` unwraps result arrays into typed handles,
   `GSCollection.searchOop()` returns raw handles, `all()`/`allOop()` read the
   collection as object handles, `page()`/`pageOop()` fetch bounded array pages,
+  `firstItem()`/`lastItem()` and raw `firstItemOop()`/`lastItemOop()` read
+  collection endpoints without predicate scans,
   `add()`/`addAll()` and raw `addOop()`/`addAllOop()` append values,
   `includes()`/`contains()` and raw `includesOop()`/`containsOop()` check
   collection membership,

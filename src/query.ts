@@ -173,6 +173,24 @@ export class GSCollection<T = unknown> {
     return result === OOP_NIL ? [] : this.#arrayOops(result);
   }
 
+  async firstItem(): Promise<TypedOop<T> | null> {
+    const result = await this.firstItemOop();
+    return result === null ? null : this.session.typedOop<T>(result);
+  }
+
+  async firstItemOop(): Promise<Oop | null> {
+    return this.#edgeItemOop("first");
+  }
+
+  async lastItem(): Promise<TypedOop<T> | null> {
+    const result = await this.lastItemOop();
+    return result === null ? null : this.session.typedOop<T>(result);
+  }
+
+  async lastItemOop(): Promise<Oop | null> {
+    return this.#edgeItemOop("last");
+  }
+
   async search(path: string, op: ComparisonOp, value: string | number | bigint | boolean): Promise<TypedOop<T>[]> {
     const result = await this.#searchResultArray(path, op, value);
     return result === OOP_NIL ? [] : this.#typedOopsFromArray(result);
@@ -271,6 +289,18 @@ export class GSCollection<T = unknown> {
         ifFalse: [collection copyFrom: ${start} to: (${end} min: collection size)]
     `;
     return this.session.execute(source);
+  }
+
+  async #edgeItemOop(selector: "first" | "last"): Promise<Oop | null> {
+    const source = `
+      | collection |
+      collection := ${this.name} asArray.
+      collection isEmpty
+        ifTrue: [nil]
+        ifFalse: [collection ${selector}]
+    `;
+    const result = await this.session.execute(source);
+    return result === OOP_NIL ? null : result;
   }
 
   async #searchResultArray(path: string, op: ComparisonOp, value: string | number | bigint | boolean): Promise<Oop> {

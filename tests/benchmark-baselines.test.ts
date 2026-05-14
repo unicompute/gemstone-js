@@ -130,6 +130,25 @@ test("baseline registration copies external reports and prunes manifests", async
   });
   assert.equal(duplicate.addedToManifest, false);
 
+  const sameMetadata = join(fixture.path, "external", "same-metadata.json");
+  await writeReport(sameMetadata, report({ results: [result("gci", "execute", 101, 1)] }));
+  assert.throws(
+    () => registerBenchmarkBaseline({ reportPath: sameMetadata, manifestPath: manifest, copyTo: "baseline-duplicate.json" }),
+    /metadata already exists/,
+  );
+
+  const duplicateAllowedIo = fakeIo();
+  assert.equal(await runBenchmarkRegisterCli([
+    sameMetadata,
+    "--manifest",
+    manifest,
+    "--copy-to",
+    "baseline-duplicate.json",
+    "--allow-duplicate-metadata",
+    "--json",
+  ], duplicateAllowedIo), 0);
+  assert.equal(JSON.parse(duplicateAllowedIo.stdoutText()).registeredPath, "baseline-duplicate.json");
+
   await writeJson(manifest, {
     schema_version: BASELINE_MANIFEST_SCHEMA_VERSION,
     baselines: ["baseline-macos-arm64.json", "missing.json", "baseline-macos-arm64.json"],

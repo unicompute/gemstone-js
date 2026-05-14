@@ -80,6 +80,10 @@ npm run benchmark:register -- benchmark-report.json --copy-to baseline-macos-arm
 npm run benchmark:register -- --manifest .github/benchmarks/index.json --prune-missing
 ```
 
+Registration rejects a new baseline when another manifest entry already has the
+same comparable metadata. Use `--allow-duplicate-metadata` only when
+intentionally keeping multiple baselines for the same environment.
+
 The comparison command supports global, suite-level, and operation-level
 regression thresholds. Operation thresholds take precedence over suite
 thresholds, and suite thresholds take precedence over the global threshold.

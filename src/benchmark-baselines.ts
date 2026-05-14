@@ -126,6 +126,7 @@ export interface RegisterBaselineOptions {
   reportPath: string;
   manifestPath: string;
   copyTo?: string | null;
+  allowDuplicateMetadata?: boolean;
 }
 
 export interface PruneBaselineManifestOptions {
@@ -327,22 +328,26 @@ export function selectBenchmarkBaseline(options: { candidateReportPath: string; 
 export function registerBenchmarkBaseline(options: RegisterBaselineOptions): BaselineRegistrationReport {
   const sourceReportPath = resolve(options.reportPath);
   if (!existsSync(sourceReportPath)) throw new BenchmarkBaselineError(`Benchmark report not found: ${sourceReportPath}`);
-  loadBenchmarkReport(sourceReportPath);
+  const sourceReport = loadBenchmarkReport(sourceReportPath);
 
   const manifestPath = resolve(options.manifestPath);
   mkdirSync(dirname(manifestPath), { recursive: true });
   const payload = loadBaselineManifestPayload(manifestPath);
   const entries = payload.baselines;
   const targetPath = resolveBaselineTarget(sourceReportPath, manifestPath, options.copyTo ?? null);
+  const registeredPath = relativeOrAbsolute(targetPath, manifestPath);
+  const existing = new Set(entries.map((entry) => entryPathText(entry)));
+  const addedToManifest = !existing.has(registeredPath);
+  if (addedToManifest && options.allowDuplicateMetadata !== true) {
+    assertNoDuplicateBaselineMetadata(sourceReport, targetPath, entries, manifestPath);
+  }
+
   const copied = sourceReportPath !== targetPath;
   if (copied) {
     mkdirSync(dirname(targetPath), { recursive: true });
     copyFileSync(sourceReportPath, targetPath);
   }
 
-  const registeredPath = relativeOrAbsolute(targetPath, manifestPath);
-  const existing = new Set(entries.map((entry) => entryPathText(entry)));
-  const addedToManifest = !existing.has(registeredPath);
   if (addedToManifest) {
     entries.push(registeredPath);
     writeJson(manifestPath, payload);
@@ -504,6 +509,7 @@ export async function runBenchmarkRegisterCli(argv: readonly string[], io: Bench
         reportPath: options.report,
         manifestPath: options.manifest,
         copyTo: options.copyTo,
+        allowDuplicateMetadata: options.allowDuplicateMetadata,
       });
     }
     if (options.pruneMissing || options.dropPaths.length) {
@@ -629,6 +635,24 @@ function duplicateBaselineMetadataGroups(
     else groups.set(key, { metadata, paths: [path] });
   }
   return [...groups.values()].filter((group) => group.paths.length > 1);
+}
+
+function assertNoDuplicateBaselineMetadata(
+  sourceReport: BenchmarkReport,
+  targetPath: string,
+  entries: readonly unknown[],
+  manifestPath: string,
+): void {
+  const sourceMetadata = metadataSnapshot(sourceReport);
+  for (const entry of entries) {
+    const pathText = entryPathText(entry);
+    const existingPath = absoluteEntryPath(pathText, manifestPath);
+    if (existingPath === targetPath || !existsSync(existingPath)) continue;
+    const existingReport = loadBenchmarkReport(existingPath);
+    if (metadataEqual(metadataSnapshot(existingReport), sourceMetadata)) {
+      throw new BenchmarkBaselineError(`Benchmark baseline metadata already exists at ${existingPath}; use --allow-duplicate-metadata to register another baseline for the same environment.`);
+    }
+  }
 }
 
 function loadBaselineManifest(path: string): string[] {
@@ -830,6 +854,7 @@ function parseRegisterArgs(argv: readonly string[]): {
   report?: string;
   manifest: string;
   copyTo?: string;
+  allowDuplicateMetadata: boolean;
   dropPaths: string[];
   pruneMissing: boolean;
   json: boolean;
@@ -840,6 +865,7 @@ function parseRegisterArgs(argv: readonly string[]): {
     report: undefined as string | undefined,
     manifest: ".github/benchmarks/index.json",
     copyTo: undefined as string | undefined,
+    allowDuplicateMetadata: false,
     dropPaths: [] as string[],
     pruneMissing: false,
     json: false,
@@ -851,6 +877,7 @@ function parseRegisterArgs(argv: readonly string[]): {
     if (arg === "-h" || arg === "--help") options.help = true;
     else if (arg === "--manifest") options.manifest = requiredValue(argv, ++index, arg);
     else if (arg === "--copy-to") options.copyTo = requiredValue(argv, ++index, arg);
+    else if (arg === "--allow-duplicate-metadata") options.allowDuplicateMetadata = true;
     else if (arg === "--drop-path") options.dropPaths.push(requiredValue(argv, ++index, arg));
     else if (arg === "--prune-missing") options.pruneMissing = true;
     else if (arg === "--json") options.json = true;
@@ -895,7 +922,7 @@ function benchmarkRegisterUsage(): string {
     "Usage: gemstone-js-benchmark-register [report.json] [options]",
     "",
     "Options: --manifest <index.json> --copy-to <path> --drop-path <path>",
-    "         --prune-missing --json --output <path>",
+    "         --allow-duplicate-metadata --prune-missing --json --output <path>",
     "",
   ].join("\n");
 }

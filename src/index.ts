@@ -139,6 +139,13 @@ export {
   type RenderGeneratedFunctionOptions,
   type RenderGeneratedModuleOptions,
 } from "./codegen.ts";
+export {
+  ValueConverter,
+  ValueConverterRegistry,
+  dateAsIsoStringConverter,
+  scalarValueConverterRegistry,
+  type ValueConverterOptions,
+} from "./converters.ts";
 export { PersistentRoot } from "./persistent-root.ts";
 export { GsDict } from "./gsdict.ts";
 export { OrderedCollection } from "./ordered-collection.ts";

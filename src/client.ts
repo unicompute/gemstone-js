@@ -3,6 +3,7 @@ import { serializeGciRuntime } from "./runtime/serialized.ts";
 import { GsDict } from "./gsdict.ts";
 import { OrderedCollection } from "./ordered-collection.ts";
 import { RcCounter, RcKeyValueDictionary, RcQueue } from "./reduced-conflict.ts";
+import { ValueConverterRegistry } from "./converters.ts";
 import {
   OOP_FALSE,
   OOP_ILLEGAL,
@@ -57,6 +58,7 @@ export type GemStoneArgument =
   | bigint
   | boolean
   | null
+  | object
   | GemStoneArrayArgument
   | GemStoneDictionaryArgument;
 type MaybePromise<T> = T | Promise<T>;
@@ -65,6 +67,7 @@ type OopHandle<T = unknown> = TypedOop<T> | ManagedOop<T> | Oop;
 export class Session implements AsyncDisposable {
   readonly config: ResolvedSessionConfig;
   readonly runtime: GciRuntime;
+  readonly valueConverters: ValueConverterRegistry;
   #sessionId: number;
   #loggedIn = true;
   #managedOopCounts = new Map<Oop, number>();
@@ -73,6 +76,7 @@ export class Session implements AsyncDisposable {
   private constructor(runtime: GciRuntime, config: ResolvedSessionConfig, sessionId: number) {
     this.runtime = runtime;
     this.config = config;
+    this.valueConverters = config.valueConverters?.copy() ?? new ValueConverterRegistry();
     this.#sessionId = sessionId;
   }
 
@@ -196,6 +200,8 @@ export class Session implements AsyncDisposable {
     }
     if (typeof value === "string") return this.newString(value);
     if (typeof value === "bigint") return smallintToOop(value);
+    const converter = this.valueConverters.converterFor(value);
+    if (converter) return converter.toOop(this, value);
     if (Array.isArray(value)) return this.arrayToOop(value);
     if (isPlainRecord(value)) return this.dictionaryToOop(value);
     throw new TypeError(`Cannot convert ${typeof value} to GemStone OOP.`);
@@ -1721,6 +1727,7 @@ export function resolveSessionConfig(config: SessionConfig = {}): ResolvedSessio
     libPath: fromEnv.libPath,
     tracer: fromEnv.tracer,
     metrics: fromEnv.metrics,
+    valueConverters: fromEnv.valueConverters,
     slowQueryThresholdMs: fromEnv.slowQueryThresholdMs,
   };
 }

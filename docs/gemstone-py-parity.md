@@ -32,6 +32,9 @@ npm provenance checks, and the native session-thread spike.
   lifecycle with configurable transaction and response-status policy.
 - Raw execute/eval, value marshalling, typed object handles, and managed
   export-set handles.
+- Explicit opt-in value converter registry with named converter lookup,
+  to-OOP/from-OOP helpers, batch conversion, and built-in ISO-string `Date`
+  conversion.
 - Class-side sends through an explicit class reference object.
 - Persistent roots for `UserGlobals`, `Globals`, `Published`, and
   `SessionMethods`.

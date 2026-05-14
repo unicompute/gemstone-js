@@ -1,5 +1,6 @@
 import type { Oop } from "./oop.ts";
 import type { MetricsCollector, Tracer } from "./observability.ts";
+import type { ValueConverterRegistry } from "./converters.ts";
 
 export type RuntimeName = "node" | "deno" | "bun" | "mock";
 
@@ -53,6 +54,7 @@ export interface SessionConfig {
   runtime?: GciRuntime;
   tracer?: Tracer;
   metrics?: MetricsCollector;
+  valueConverters?: ValueConverterRegistry;
   slowQueryThresholdMs?: number;
 }
 
@@ -68,6 +70,7 @@ export interface ResolvedSessionConfig {
   libPath?: string;
   tracer?: Tracer;
   metrics?: MetricsCollector;
+  valueConverters?: ValueConverterRegistry;
   slowQueryThresholdMs?: number;
 }
 

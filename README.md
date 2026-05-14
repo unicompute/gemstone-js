@@ -19,6 +19,11 @@ native package; the TypeScript package can be tested locally with a mock runtime
   SmallIntegers or Floats, bigints become SmallIntegers, booleans/null become
   immediate OOPs, arrays become GemStone `Array` objects, plain objects become
   `StringKeyValueDictionary`, and managed handles pass their retained OOP.
+- Opt-in value converters mirror gemstone-py's explicit converter registry:
+  `ValueConverter`, `ValueConverterRegistry`, `dateAsIsoStringConverter()`, and
+  `scalarValueConverterRegistry()` let sessions marshal richer JavaScript values
+  such as `Date` through the standard `performWith()`, array, and dictionary
+  paths.
 - `Session.classRef()` gives an explicit typed class handle for class-side
   sends, object-returning sends, allocation, and wrapping returned OOPs without
   hiding async remote calls behind JavaScript property access. Class names use

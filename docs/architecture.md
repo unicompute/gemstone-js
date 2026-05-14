@@ -165,6 +165,12 @@ The first implementation slice follows `../plan.js.txt`:
 - `src/runtime/serialized.ts` serializes all session-bound calls and reactivates
   the session id before dispatching into GCI. This is the current safety layer
   before a dedicated native session thread lands.
+- `ValueConverterRegistry` is an opt-in layer above default argument
+  marshalling. A session copies the configured registry, checks converters before
+  falling back to built-in array/dictionary/object handling, and can round-trip
+  converter-selected OOPs by converter name. The built-in scalar registry starts
+  with ISO-string `Date` support, matching gemstone-py's explicit converter
+  model without changing default persistence semantics.
 - `src/testing/mock-runtime.ts` lets the high-level API be tested without a live
   GemStone instance.
 

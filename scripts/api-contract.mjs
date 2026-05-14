@@ -15,6 +15,7 @@ const REQUIRED_BIN_ENTRIES = {
   "gemstone-js-benchmark-validate": "./scripts/benchmark-validate.mjs",
   "gemstone-js-benchmarks": "./scripts/benchmarks.mjs",
   "gemstone-js-bootstrap": "./scripts/bootstrap.mjs",
+  "gemstone-js-examples": "./scripts/examples.mjs",
   "gemstone-js-inspect": "./scripts/inspect.mjs",
   "gemstone-js-migrations": "./scripts/migrations.mjs",
 };

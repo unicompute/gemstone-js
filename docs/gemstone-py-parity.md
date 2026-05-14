@@ -31,6 +31,8 @@ npm provenance checks, and the native session-thread spike.
 - Express, Fastify, and Hono adapters wired through the shared request-scope
   lifecycle with configurable transaction and response-status policy, plus
   committed example services for each adapter.
+- Packaged examples are discoverable through `gemstone-js-examples`, mirroring
+  gemstone-py's installed example catalog pattern in JavaScript form.
 - Raw execute/eval, value marshalling, typed object handles, and managed
   export-set handles.
 - Explicit opt-in value converter registry with named converter lookup,

@@ -27,6 +27,8 @@ const checksumCheck = readFileSync("scripts/check-checksums.mjs", "utf8");
 const checksumWriter = readFileSync("scripts/write-checksums.mjs", "utf8");
 const checksumVerifier = readFileSync("scripts/verify-checksums.mjs", "utf8");
 const apiContract = readFileSync("scripts/api-contract.mjs", "utf8");
+const examplesCatalog = readFileSync("scripts/examples-catalog.mjs", "utf8");
+const examplesCli = readFileSync("scripts/examples.mjs", "utf8");
 const examplesCheck = readFileSync("scripts/check-examples.mjs", "utf8");
 const installedApiContractCheck = readFileSync("scripts/check-installed-api-contract.mjs", "utf8");
 const publicSurfaceCheck = readFileSync("scripts/check-public-surface.mjs", "utf8");
@@ -56,6 +58,8 @@ const requiredScripts = {
   "bootstrap": "node scripts/bootstrap.mjs",
   "codegen:check": "node scripts/codegen.mjs --check examples/codegen.manifest.json examples/codegen.generated.ts",
   "codegen:scan:check": "node scripts/scan-codegen.mjs --module --check --out examples/booking.decorators.generated.ts examples/booking.decorators.ts",
+  "examples": "node scripts/examples.mjs",
+  "examples:json": "node scripts/examples.mjs --json",
   "examples:check": "node scripts/check-examples.mjs",
   "inspect": "node scripts/inspect.mjs",
   "migrations": "node scripts/migrations.mjs",
@@ -76,6 +80,9 @@ if (packageJson.bin?.["gemstone-js-inspect"] !== "./scripts/inspect.mjs") {
 }
 if (packageJson.bin?.["gemstone-js-bootstrap"] !== "./scripts/bootstrap.mjs") {
   throw new Error("package.json bin.gemstone-js-bootstrap must point at ./scripts/bootstrap.mjs.");
+}
+if (packageJson.bin?.["gemstone-js-examples"] !== "./scripts/examples.mjs") {
+  throw new Error("package.json bin.gemstone-js-examples must point at ./scripts/examples.mjs.");
 }
 if (packageJson.bin?.["gemstone-js-benchmark-baselines"] !== "./scripts/benchmark-baselines.mjs") {
   throw new Error("package.json bin.gemstone-js-benchmark-baselines must point at ./scripts/benchmark-baselines.mjs.");
@@ -147,6 +154,8 @@ const required = [
   "scripts/check-package.mjs",
   "scripts/check-public-surface.mjs",
   "scripts/codegen.mjs",
+  "scripts/examples-catalog.mjs",
+  "scripts/examples.mjs",
   "scripts/inspect.mjs",
   "scripts/migrations.mjs",
   "scripts/public-surface.expected.json",
@@ -255,9 +264,15 @@ for (const exportName of ["SessionConfig", "GciRuntime", "TransactionPolicy", "V
 if (!apiContract.includes("await import(moduleSpecifier)") || !apiContract.includes("missingValueExports")) {
   throw new Error("scripts/api-contract.mjs must import and compare runtime value exports.");
 }
+if (!examplesCatalog.includes("web-express") || !examplesCatalog.includes("quickstart")) {
+  throw new Error("scripts/examples-catalog.mjs must include packaged basic and web examples.");
+}
+if (!examplesCli.includes("--show") || !examplesCli.includes("--path") || !examplesCli.includes("exampleCatalog")) {
+  throw new Error("scripts/examples.mjs must list and show catalog examples.");
+}
 if (
   !examplesCheck.includes("--experimental-strip-types")
-  || !examplesCheck.includes("examples/web-express.ts")
+  || !examplesCheck.includes("exampleCatalog")
   || !examplesCheck.includes("JSON.parse")
 ) {
   throw new Error("scripts/check-examples.mjs must syntax-check TypeScript examples and parse JSON examples.");

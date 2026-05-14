@@ -29,6 +29,11 @@ Each example uses a shared `SessionPool`, exposes `/health/gemstone`, writes an
 shutdown:
 
 ```sh
+gemstone-js-examples
+gemstone-js-examples --show web-express
+```
+
+```sh
 npm install express
 node --experimental-strip-types examples/web-express.ts
 ```

@@ -60,8 +60,21 @@ try {
     throw new Error(`Installed bin entry count mismatch:\n${contractOutput}`);
   }
 
+  const examplesOutput = execFileSync(process.execPath, [
+    join(packageRoot, "scripts", "examples.mjs"),
+    "--json",
+  ], {
+    encoding: "utf8",
+    cwd: packageRoot,
+    stdio: "pipe",
+  });
+  const examples = JSON.parse(examplesOutput);
+  if (!examples.some((entry) => entry.name === "web-express") || !examples.some((entry) => entry.name === "quickstart")) {
+    throw new Error(`Installed example catalog is missing required examples:\n${examplesOutput}`);
+  }
+
   console.log(
-    `Installed API contract check passed: ${report.packageName}@${report.version} (${report.actualValueExports} runtime value exports, ${report.actualBinEntries} bins).`,
+    `Installed API contract check passed: ${report.packageName}@${report.version} (${report.actualValueExports} runtime value exports, ${report.actualBinEntries} bins, ${examples.length} examples).`,
   );
 } finally {
   rmSync(tempRoot, { recursive: true, force: true });

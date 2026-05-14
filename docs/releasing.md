@@ -19,10 +19,10 @@ The workflow uploads the npm tarball as a GitHub Actions artifact so the exact
 package contents can be inspected before publishing. CI also uploads
 `SHA256SUMS.txt` for the generated tarball after verifying it. The
 `npm run verify` step includes `npm run examples:check` and
-`npm run public-surface:check` so packaged examples and export-barrel changes
-are checked before packaging, and `npm run api-contract` so the runtime package
-entrypoint, package metadata, schema exports, and CLI bin targets are compared
-with the committed API contract.
+`npm run public-surface:check` so packaged examples, the example catalog, and
+export-barrel changes are checked before packaging, and `npm run api-contract`
+so the runtime package entrypoint, package metadata, schema exports, and CLI bin
+targets are compared with the committed API contract.
 
 ## Artifact Inspection
 
@@ -47,7 +47,8 @@ editor files. Verify that both checked-in generated files are present:
 present, and that the public API contract file
 `scripts/public-surface.expected.json` is present. The extracted-artifact
 check also verifies that published CLI bin targets exist and keep their Node
-shebangs.
+shebangs, and that the installed example catalog includes the web and quickstart
+examples.
 
 ## Publish Checklist
 

@@ -1,9 +1,9 @@
 # Framework Adapters
 
-`gemstone-js` keeps framework integration thin. Express, Fastify, and Hono all
-delegate request lifetime to `RequestScope`, so transaction policy, pool
-release, abort-on-error, abort-on-status, and owned-session logout stay in one
-place.
+`gemstone-js` keeps framework integration thin. Express, Fastify, Fetch API,
+and Hono all delegate request lifetime to `RequestScope`, so transaction
+policy, pool release, abort-on-error, abort-on-status, and owned-session logout
+stay in one place.
 
 ## Request Lifecycle
 
@@ -14,6 +14,7 @@ request context:
 | --- | --- | --- |
 | Express | `req.gemstoneSession` | `req.gemstoneScope` |
 | Fastify | `request.gemstoneSession` | `request.gemstoneScope` |
+| Fetch API | `context.session` | `context.scope` |
 | Hono | `c.get("gemstoneSession")` | `c.get("gemstoneScope")` |
 
 By default, successful responses commit and failed responses abort. A response
@@ -44,6 +45,10 @@ node --experimental-strip-types examples/web-fastify.ts
 ```
 
 ```sh
+node --experimental-strip-types examples/web-fetch.ts
+```
+
+```sh
 npm install hono @hono/node-server
 node --experimental-strip-types examples/web-hono.ts
 ```
@@ -59,6 +64,8 @@ the optional framework packages to be installed.
 Pass an existing `SessionPool` when the framework owns process lifetime and
 needs explicit startup/shutdown hooks. Passing pool options directly to the
 adapter is useful for small services where the adapter can own the pool.
+The Fetch adapter returns an app function with `.pool` and `.close()` so small
+Node services can still warm and close the owned pool explicitly.
 
 Do not retry an already-running HTTP request scope after a commit conflict
 unless the entire request body and external side effects can be replayed. Use

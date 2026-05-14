@@ -260,6 +260,14 @@ export {
 } from "./scope.ts";
 export { gemstoneExpress, type ExpressGemStoneOptions } from "./adapters/express.ts";
 export { gemstoneFastify, type FastifyGemStoneOptions } from "./adapters/fastify.ts";
+export {
+  gemstoneFetch,
+  withGemStoneFetch,
+  type FetchGemStoneOptions,
+  type GemStoneFetchApp,
+  type GemStoneFetchContext,
+  type GemStoneFetchHandler,
+} from "./adapters/fetch.ts";
 export { gemstoneHono, type HonoGemStoneOptions } from "./adapters/hono.ts";
 export {
   NULL_METRICS,

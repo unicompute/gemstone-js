@@ -28,9 +28,9 @@ npm provenance checks, and the native session-thread spike.
 - Framework-neutral request/transaction scopes for lazy session acquisition,
   commit-on-success, abort-on-error/status, pool release, and owned-session
   logout.
-- Express, Fastify, and Hono adapters wired through the shared request-scope
-  lifecycle with configurable transaction and response-status policy, plus
-  committed example services for each adapter.
+- Express, Fastify, Fetch API, and Hono adapters wired through the shared
+  request-scope lifecycle with configurable transaction and response-status
+  policy, plus committed example services for each adapter.
 - Packaged examples are discoverable through `gemstone-js-examples`, mirroring
   gemstone-py's installed example catalog pattern in JavaScript form. The
   catalog now includes quickstart, data helper, query, migration, ObjectLog,

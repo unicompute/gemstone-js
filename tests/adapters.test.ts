@@ -1,7 +1,9 @@
 import {
   gemstoneExpress,
   gemstoneFastify,
+  gemstoneFetch,
   gemstoneHono,
+  withGemStoneFetch,
 } from "../src/index.ts";
 
 const registeredTests: Array<() => Promise<void>> = [];
@@ -124,6 +126,81 @@ test("Hono middleware honors custom server error status", async () => {
   assertEqual(lease.session.calls.join(","), "commit");
 });
 
+test("Fetch adapter commits returned successful responses", async () => {
+  const lease = new FakeLease();
+  const pool = new FakePool(lease);
+  const app = gemstoneFetch(async (_request, context) => {
+    assertEqual(context.session, lease.session as never);
+    return new Response("ok", { status: 200 });
+  }, { pool: pool as never });
+
+  const response = await app(new Request("http://example.test/health"));
+  await app.close();
+
+  assertEqual(response.status, 200);
+  assertEqual(lease.session.calls.join(","), "commit");
+  assertEqual(lease.releaseOptions[0]?.clean, true);
+  assertEqual(pool.closeCalls, 1);
+});
+
+test("Fetch adapter aborts returned client errors by default", async () => {
+  const lease = new FakeLease();
+  const app = gemstoneFetch(async () => new Response("missing", { status: 404 }), {
+    pool: new FakePool(lease) as never,
+  });
+
+  const response = await app(new Request("http://example.test/missing"));
+
+  assertEqual(response.status, 404);
+  assertEqual(lease.session.calls.join(","), "abort");
+  assertEqual(lease.releaseOptions[0]?.clean, true);
+});
+
+test("Fetch adapter honors custom server error status", async () => {
+  const lease = new FakeLease();
+  await withGemStoneFetch(
+    new Request("http://example.test/not-found"),
+    { pool: new FakePool(lease) as never, serverErrorStatus: 500 },
+    async () => new Response("not found", { status: 404 }),
+  );
+
+  assertEqual(lease.session.calls.join(","), "commit");
+});
+
+test("Fetch adapter finalizes thrown Responses by status", async () => {
+  const lease = new FakeLease();
+  const app = gemstoneFetch(async () => {
+    throw new Response("redirect", { status: 302 });
+  }, {
+    pool: new FakePool(lease) as never,
+  });
+
+  await assertRejects(() => app(new Request("http://example.test/redirect")));
+
+  assertEqual(lease.session.calls.join(","), "commit");
+  assertEqual(lease.releaseOptions[0]?.clean, true);
+});
+
+test("Fetch adapter aborts thrown application errors and validates returned values", async () => {
+  const errorLease = new FakeLease();
+  const errorApp = gemstoneFetch(async () => {
+    throw new Error("handler failed");
+  }, { pool: new FakePool(errorLease) as never });
+
+  await assertRejects(() => errorApp(new Request("http://example.test/error")));
+
+  assertEqual(errorLease.session.calls.join(","), "abort");
+
+  const invalidLease = new FakeLease();
+  const invalidApp = gemstoneFetch(async () => "ok" as never, {
+    pool: new FakePool(invalidLease) as never,
+  });
+
+  await assertRejects(() => invalidApp(new Request("http://example.test/invalid")));
+
+  assertEqual(invalidLease.session.calls.join(","), "abort");
+});
+
 class FakeSession {
   calls: string[] = [];
   commitError: Error | undefined;
@@ -151,6 +228,7 @@ class FakeLease {
 
 class FakePool {
   readonly lease: FakeLease;
+  closeCalls = 0;
 
   constructor(lease: FakeLease) {
     this.lease = lease;
@@ -160,7 +238,9 @@ class FakePool {
     return this.lease;
   }
 
-  async close(): Promise<void> {}
+  async close(): Promise<void> {
+    this.closeCalls += 1;
+  }
 }
 
 class FakeResponse {

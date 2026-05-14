@@ -35,6 +35,10 @@
       "types": "./src/adapters/fastify.ts",
       "import": "./src/adapters/fastify.ts"
     },
+    "./adapters/fetch": {
+      "types": "./src/adapters/fetch.ts",
+      "import": "./src/adapters/fetch.ts"
+    },
     "./adapters/hono": {
       "types": "./src/adapters/hono.ts",
       "import": "./src/adapters/hono.ts"

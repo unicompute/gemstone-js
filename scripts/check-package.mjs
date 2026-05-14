@@ -46,6 +46,18 @@ for (const schemaExport of [
     throw new Error(`package.json must export ${schemaExport}.`);
   }
 }
+for (const [name, target] of Object.entries({
+  "./adapters": "./src/adapters/index.ts",
+  "./adapters/express": "./src/adapters/express.ts",
+  "./adapters/fastify": "./src/adapters/fastify.ts",
+  "./adapters/fetch": "./src/adapters/fetch.ts",
+  "./adapters/hono": "./src/adapters/hono.ts",
+})) {
+  const entry = packageJson.exports?.[name];
+  if (entry?.types !== target || entry?.import !== target) {
+    throw new Error(`package.json must export ${name} import/types at ${target}.`);
+  }
+}
 const requiredScripts = {
   "api-contract": "node scripts/api-contract.mjs",
   "api-contract:json": "node scripts/api-contract.mjs --json",
@@ -143,6 +155,7 @@ const required = [
   "examples/query.ts",
   "examples/web-express.ts",
   "examples/web-fastify.ts",
+  "examples/web-fetch.ts",
   "examples/web-hono.ts",
   "package.json",
   "schemas/benchmark-baseline-manifest.schema.json",
@@ -186,6 +199,7 @@ const required = [
   "src/adapters/index.ts",
   "src/adapters/express.ts",
   "src/adapters/fastify.ts",
+  "src/adapters/fetch.ts",
   "src/adapters/hono.ts",
   "src/native-module.d.ts",
 ];
@@ -230,6 +244,7 @@ assertSnippets(
   [
     "examples/web-express.ts",
     "examples/web-fastify.ts",
+    "examples/web-fetch.ts",
     "examples/web-hono.ts",
     "transactionPolicy: \"abortOnExit\"",
     "RequestScope",
@@ -271,7 +286,7 @@ for (const exportName of ["SessionConfig", "GciRuntime", "TransactionPolicy", "V
 if (!apiContract.includes("await import(moduleSpecifier)") || !apiContract.includes("missingValueExports")) {
   throw new Error("scripts/api-contract.mjs must import and compare runtime value exports.");
 }
-for (const name of ["quickstart", "gstore", "persistent-root", "query", "migrations", "object-log", "web-express"]) {
+for (const name of ["quickstart", "gstore", "persistent-root", "query", "migrations", "object-log", "web-express", "web-fetch"]) {
   if (!examplesCatalog.includes(name)) {
     throw new Error(`scripts/examples-catalog.mjs must include packaged example: ${name}.`);
   }
@@ -299,10 +314,12 @@ if (
   !installedApiContractCheck.includes("--pack-destination")
   || !installedApiContractCheck.includes("--strip-components")
   || !installedApiContractCheck.includes("scripts\", \"api-contract.mjs")
+  || !installedApiContractCheck.includes("gemstone-js/adapters/fetch")
+  || !installedApiContractCheck.includes("web-fetch")
   || !installedApiContractCheck.includes("assertInstalledBins")
   || !installedApiContractCheck.includes("Node shebang")
 ) {
-  throw new Error("scripts/check-installed-api-contract.mjs must pack, extract, and validate installed API contract CLI bins.");
+  throw new Error("scripts/check-installed-api-contract.mjs must pack, extract, and validate installed API contract, adapter subpaths, examples, and CLI bins.");
 }
 
 if (!checksumCheck.includes("write-checksums.mjs")) {

@@ -457,6 +457,10 @@
       "from": "./adapters/fastify.ts"
     },
     {
+      "name": "gemstoneFetch",
+      "from": "./adapters/fetch.ts"
+    },
+    {
       "name": "gemstoneHono",
       "from": "./adapters/hono.ts"
     },
@@ -701,6 +705,10 @@
       "from": "./migrations.ts"
     },
     {
+      "name": "withGemStoneFetch",
+      "from": "./adapters/fetch.ts"
+    },
+    {
       "name": "withSessionScope",
       "from": "./scope.ts"
     }
@@ -839,6 +847,10 @@
       "from": "./adapters/fastify.ts"
     },
     {
+      "name": "FetchGemStoneOptions",
+      "from": "./adapters/fetch.ts"
+    },
+    {
       "name": "GSCollectionIndexKind",
       "from": "./query.ts"
     },
@@ -893,6 +905,18 @@
     {
       "name": "GemStoneDumpValue",
       "from": "./types.ts"
+    },
+    {
+      "name": "GemStoneFetchApp",
+      "from": "./adapters/fetch.ts"
+    },
+    {
+      "name": "GemStoneFetchContext",
+      "from": "./adapters/fetch.ts"
+    },
+    {
+      "name": "GemStoneFetchHandler",
+      "from": "./adapters/fetch.ts"
     },
     {
       "name": "GemStoneIndexedFieldInspection",

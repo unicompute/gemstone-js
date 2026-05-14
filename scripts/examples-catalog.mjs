@@ -80,6 +80,12 @@ export const exampleCatalog = [
     requires: ["fastify"],
   },
   {
+    name: "web-fetch",
+    path: "examples/web-fetch.ts",
+    kind: "web",
+    description: "Dependency-free Fetch API service with pooled request sessions, health, and ObjectLog routes.",
+  },
+  {
     name: "web-hono",
     path: "examples/web-hono.ts",
     kind: "web",

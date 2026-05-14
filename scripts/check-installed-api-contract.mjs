@@ -72,6 +72,13 @@ try {
   if (!examples.some((entry) => entry.name === "web-express") || !examples.some((entry) => entry.name === "quickstart")) {
     throw new Error(`Installed example catalog is missing required examples:\n${examplesOutput}`);
   }
+  if (!examples.some((entry) => entry.name === "web-fetch")) {
+    throw new Error(`Installed example catalog is missing the Fetch adapter example:\n${examplesOutput}`);
+  }
+  const fetchAdapter = await import("gemstone-js/adapters/fetch");
+  if (typeof fetchAdapter.gemstoneFetch !== "function" || typeof fetchAdapter.withGemStoneFetch !== "function") {
+    throw new Error("Installed Fetch adapter subpath must export gemstoneFetch and withGemStoneFetch.");
+  }
 
   console.log(
     `Installed API contract check passed: ${report.packageName}@${report.version} (${report.actualValueExports} runtime value exports, ${report.actualBinEntries} bins, ${examples.length} examples).`,

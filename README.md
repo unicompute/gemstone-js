@@ -151,13 +151,13 @@ native package; the TypeScript package can be tested locally with a mock runtime
   `withSessionScope()` provide the framework-neutral request/session lifecycle
   layer used by web adapters: lazy session acquisition, commit-on-success,
   abort-on-error/status, clean pool release, and owned-session logout.
-- Express, Fastify, and Hono adapters now delegate request teardown through the
-  shared scope layer, expose the active `gemstoneScope`, and accept
+- Express, Fastify, Fetch API, and Hono adapters now delegate request teardown
+  through the shared scope layer, expose the active `gemstoneScope`, and accept
   `transactionPolicy`/`serverErrorStatus` options while preserving the existing
   default abort-on-4xx behavior.
   Runnable adapter examples live in `examples/web-express.ts`,
-  `examples/web-fastify.ts`, and `examples/web-hono.ts`; see
-  `docs/framework-adapters.md`.
+  `examples/web-fastify.ts`, `examples/web-fetch.ts`, and
+  `examples/web-hono.ts`; see `docs/framework-adapters.md`.
 - `gemstone-js-examples` lists packaged examples, filters them by kind, prints
   JSON for tooling, and can show an example file directly from the installed npm
   package. The packaged catalog includes quickstart, data helpers, query

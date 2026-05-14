@@ -161,8 +161,110 @@ test("SessionPool validates numeric configuration", () => {
   assertThrows(() => new SessionPool({ minSize: -1 }));
   assertThrows(() => new SessionPool({ minSize: 2, maxSize: 1 }));
   assertThrows(() => new SessionPool({ idleTimeoutMs: -1 }));
+  assertThrows(() => new SessionPool({ maxSessionAgeMs: -1 }));
+  assertThrows(() => new SessionPool({ maxSessionUses: 0 }));
   assertThrows(() => new SessionPool({ acquireTimeoutMs: Number.POSITIVE_INFINITY }));
   assertThrows(() => new SessionPool({ validationIntervalMs: -1 }));
+});
+
+test("SessionPool recycles sessions after maxSessionUses", async () => {
+  const runtimes: MockGciRuntime[] = [];
+  setGciRuntimeFactoryForTesting(() => {
+    const runtime = new MockGciRuntime();
+    runtimes.push(runtime);
+    return runtime;
+  });
+  try {
+    const pool = new SessionPool({ username: "u", password: "p", maxSize: 1, maxSessionUses: 1 });
+
+    const first = await pool.acquire();
+    await first.release({ clean: true });
+    const second = await pool.acquire();
+
+    assert(first.session !== second.session, "session should be recycled after one checkout");
+    assertEqual(runtimes.length, 2);
+    assertEqual(pool.stats().recycleUseDiscards, 1);
+    assertEqual(pool.stats().evictedTotal, 1);
+
+    await second.release({ clean: true });
+    await pool.close();
+  } finally {
+    setGciRuntimeFactoryForTesting(undefined);
+  }
+});
+
+test("SessionPool recycles sessions after maxSessionAgeMs", async () => {
+  const runtimes: MockGciRuntime[] = [];
+  setGciRuntimeFactoryForTesting(() => {
+    const runtime = new MockGciRuntime();
+    runtimes.push(runtime);
+    return runtime;
+  });
+  try {
+    const pool = new SessionPool({ username: "u", password: "p", maxSize: 1, maxSessionAgeMs: 0 });
+
+    const first = await pool.acquire();
+    await first.release({ clean: true });
+    const second = await pool.acquire();
+
+    assert(first.session !== second.session, "session should be recycled after reaching max age");
+    assertEqual(runtimes.length, 2);
+    assertEqual(pool.stats().recycleAgeDiscards, 1);
+    assertEqual(pool.stats().evictedTotal, 1);
+
+    await second.release({ clean: true });
+    await pool.close();
+  } finally {
+    setGciRuntimeFactoryForTesting(undefined);
+  }
+});
+
+test("SessionPool discards sessions that fail custom health checks", async () => {
+  const runtimes: MockGciRuntime[] = [];
+  setGciRuntimeFactoryForTesting(() => {
+    const runtime = new MockGciRuntime();
+    runtimes.push(runtime);
+    return runtime;
+  });
+  try {
+    const pool = new SessionPool({
+      username: "u",
+      password: "p",
+      maxSize: 1,
+      healthCheck: () => false,
+    });
+
+    const lease = await pool.acquire();
+    await lease.release({ clean: true });
+
+    assertEqual(pool.stats().idle, 0);
+    assertEqual(pool.stats().validationFailures, 1);
+    assertEqual(pool.stats().evictedTotal, 1);
+
+    await pool.close();
+  } finally {
+    setGciRuntimeFactoryForTesting(undefined);
+  }
+});
+
+test("SessionPool reports idle-timeout discards", async () => {
+  const runtime = new MockGciRuntime();
+  setGciRuntimeForTesting(runtime);
+  try {
+    const pool = new SessionPool({ username: "u", password: "p", maxSize: 1, idleTimeoutMs: 0 });
+
+    const lease = await pool.acquire();
+    await lease.release({ clean: true });
+
+    assertEqual(await pool.sweepIdle(), 1);
+    assertEqual(pool.stats().idle, 0);
+    assertEqual(pool.stats().idleTimeoutDiscards, 1);
+    assertEqual(pool.stats().evictedTotal, 1);
+
+    await pool.close();
+  } finally {
+    setGciRuntimeForTesting(undefined);
+  }
 });
 
 test("SessionPool warm is idempotent for target capacity", async () => {

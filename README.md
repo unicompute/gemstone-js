@@ -134,7 +134,8 @@ native package; the TypeScript package can be tested locally with a mock runtime
   failed resets are discarded, waiters are served with replacement sessions, and
   close rejects pending acquires. Explicit validation queries run without
   needing a separate interval option, `warm()` is idempotent for target
-  capacity, and `withSession()` wraps sync or async acquire/use/release
+  capacity, custom health checks and max-age/max-use recycling match production
+  provider patterns, and `withSession()` wraps sync or async acquire/use/release
   callback flows.
 - Result marshalling now converts GemStone `String` and `Symbol` objects back
   into JavaScript strings via `fetchString()` and class detection. Float OOPs are

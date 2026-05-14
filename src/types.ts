@@ -193,6 +193,9 @@ export interface PoolStats {
   createdTotal: number;
   evictedTotal: number;
   validationFailures: number;
+  recycleAgeDiscards: number;
+  recycleUseDiscards: number;
+  idleTimeoutDiscards: number;
   acquireWaitsTotal: number;
   acquireWaitMsTotal: number;
 }

@@ -5,6 +5,9 @@ export interface PoolConfig extends SessionConfig {
   minSize?: number;
   maxSize?: number;
   idleTimeoutMs?: number;
+  maxSessionAgeMs?: number;
+  maxSessionUses?: number;
+  healthCheck?: (session: Session) => MaybePromise<boolean>;
   validationQuery?: string;
   validationIntervalMs?: number;
   acquireTimeoutMs?: number;
@@ -47,8 +50,14 @@ export class PooledSession implements AsyncDisposable {
 
 interface IdleSession {
   session: Session;
+  metadata: SessionMetadata;
+}
+
+interface SessionMetadata {
+  createdAt: number;
   lastUsedAt: number;
   validatedAt: number;
+  useCount: number;
 }
 
 interface Waiter {
@@ -65,11 +74,15 @@ export class SessionPool implements AsyncDisposable {
   #createdTotal = 0;
   #evictedTotal = 0;
   #validationFailures = 0;
+  #recycleAgeDiscards = 0;
+  #recycleUseDiscards = 0;
+  #idleTimeoutDiscards = 0;
   #acquireWaitsTotal = 0;
   #acquireWaitMsTotal = 0;
   #closed = false;
   #waiters: Waiter[] = [];
   #sweeper: ReturnType<typeof setInterval> | undefined;
+  #metadata = new WeakMap<Session, SessionMetadata>();
 
   constructor(config: PoolConfig = {}) {
     const minSize = config.minSize ?? 0;
@@ -79,6 +92,12 @@ export class SessionPool implements AsyncDisposable {
     if (minSize > maxSize) throw new RangeError("SessionPool minSize cannot exceed maxSize.");
     if (config.idleTimeoutMs !== undefined && (!Number.isFinite(config.idleTimeoutMs) || config.idleTimeoutMs < 0)) {
       throw new RangeError("SessionPool idleTimeoutMs must be a non-negative finite number.");
+    }
+    if (config.maxSessionAgeMs !== undefined && (!Number.isFinite(config.maxSessionAgeMs) || config.maxSessionAgeMs < 0)) {
+      throw new RangeError("SessionPool maxSessionAgeMs must be a non-negative finite number.");
+    }
+    if (config.maxSessionUses !== undefined && (!Number.isSafeInteger(config.maxSessionUses) || config.maxSessionUses < 1)) {
+      throw new RangeError("SessionPool maxSessionUses must be a positive safe integer.");
     }
     if (config.acquireTimeoutMs !== undefined && (!Number.isFinite(config.acquireTimeoutMs) || config.acquireTimeoutMs < 0)) {
       throw new RangeError("SessionPool acquireTimeoutMs must be a non-negative finite number.");
@@ -98,7 +117,7 @@ export class SessionPool implements AsyncDisposable {
     let warmed = 0;
     while (this.#created < target) {
       const session = await this.#createSession();
-      this.#idle.push({ session, lastUsedAt: Date.now(), validatedAt: 0 });
+      this.#idle.push({ session, metadata: this.#metadataFor(session) });
       warmed += 1;
     }
     return warmed;
@@ -111,7 +130,13 @@ export class SessionPool implements AsyncDisposable {
 
     const idle = this.#idle.pop();
     if (idle) {
-      if (await this.#validateIfNeeded(idle)) {
+      const recycleReason = this.#recycleReason(idle.metadata);
+      if (recycleReason) {
+        await this.#discard(idle.session, recycleReason);
+        return this.acquire(timeoutMs);
+      }
+      if (await this.#validateIfNeeded(idle.session, idle.metadata)) {
+        this.#markCheckedOut(idle.metadata);
         this.#recordAcquireWait(started);
         return new PooledSession(this, idle.session);
       }
@@ -121,6 +146,7 @@ export class SessionPool implements AsyncDisposable {
 
     if (this.#created < this.config.maxSize) {
       const session = await this.#createSession();
+      this.#markCheckedOut(this.#metadataFor(session));
       this.#recordAcquireWait(started);
       return new PooledSession(this, session);
     }
@@ -170,9 +196,17 @@ export class SessionPool implements AsyncDisposable {
       return;
     }
 
-    const idle = { session, lastUsedAt: Date.now(), validatedAt: 0 };
-    if (!await this.#validateIfNeeded(idle)) {
+    const metadata = this.#metadataFor(session);
+    metadata.lastUsedAt = Date.now();
+    if (!await this.#validateIfNeeded(session, metadata)) {
       await this.#discard(session);
+      await this.#serveWaiters();
+      return;
+    }
+
+    const recycleReason = this.#recycleReason(metadata);
+    if (recycleReason) {
+      await this.#discard(session, recycleReason);
       await this.#serveWaiters();
       return;
     }
@@ -183,8 +217,7 @@ export class SessionPool implements AsyncDisposable {
       return;
     }
 
-    idle.lastUsedAt = Date.now();
-    if (idle.validatedAt === 0) idle.validatedAt = Date.now();
+    const idle = { session, metadata };
     this.#idle.push(idle);
   }
 
@@ -195,9 +228,9 @@ export class SessionPool implements AsyncDisposable {
     let swept = 0;
     for (const idle of this.#idle) {
       const canEvict = this.#created > this.config.minSize;
-      if (canEvict && now - idle.lastUsedAt >= this.config.idleTimeoutMs) {
+      if (canEvict && now - idle.metadata.lastUsedAt >= this.config.idleTimeoutMs) {
         swept += 1;
-        await this.#discard(idle.session);
+        await this.#discard(idle.session, "idleTimeout");
       } else {
         keep.push(idle);
       }
@@ -215,6 +248,9 @@ export class SessionPool implements AsyncDisposable {
       createdTotal: this.#createdTotal,
       evictedTotal: this.#evictedTotal,
       validationFailures: this.#validationFailures,
+      recycleAgeDiscards: this.#recycleAgeDiscards,
+      recycleUseDiscards: this.#recycleUseDiscards,
+      idleTimeoutDiscards: this.#idleTimeoutDiscards,
       acquireWaitsTotal: this.#acquireWaitsTotal,
       acquireWaitMsTotal: this.#acquireWaitMsTotal,
     };
@@ -242,16 +278,27 @@ export class SessionPool implements AsyncDisposable {
     this.#created += 1;
     this.#createdTotal += 1;
     try {
-      return await Session.connect(this.config);
+      const session = await Session.connect(this.config);
+      this.#metadata.set(session, {
+        createdAt: Date.now(),
+        lastUsedAt: Date.now(),
+        validatedAt: 0,
+        useCount: 0,
+      });
+      return session;
     } catch (error) {
       this.#created -= 1;
       throw error;
     }
   }
 
-  async #discard(session: Session): Promise<void> {
+  async #discard(session: Session, reason?: SessionRecycleReason): Promise<void> {
     this.#created = Math.max(this.#created - 1, 0);
     this.#evictedTotal += 1;
+    if (reason === "maxAge") this.#recycleAgeDiscards += 1;
+    if (reason === "maxUses") this.#recycleUseDiscards += 1;
+    if (reason === "idleTimeout") this.#idleTimeoutDiscards += 1;
+    this.#metadata.delete(session);
     await session.logout().catch(() => {});
   }
 
@@ -264,13 +311,18 @@ export class SessionPool implements AsyncDisposable {
     }
   }
 
-  async #validateIfNeeded(idle: IdleSession): Promise<boolean> {
+  async #validateIfNeeded(session: Session, metadata: SessionMetadata): Promise<boolean> {
+    const healthCheck = this.config.healthCheck;
     const query = this.config.validationQuery;
-    if (!query || this.config.validationIntervalMs === undefined) return true;
-    if (Date.now() - idle.validatedAt < this.config.validationIntervalMs) return true;
+    if (!healthCheck && (!query || this.config.validationIntervalMs === undefined)) return true;
+    if (Date.now() - metadata.validatedAt < (this.config.validationIntervalMs ?? 0)) return true;
     try {
-      await idle.session.execute(query);
-      idle.validatedAt = Date.now();
+      if (healthCheck && !await healthCheck(session)) {
+        this.#validationFailures += 1;
+        return false;
+      }
+      if (query) await session.execute(query);
+      metadata.validatedAt = Date.now();
       return true;
     } catch {
       this.#validationFailures += 1;
@@ -293,6 +345,7 @@ export class SessionPool implements AsyncDisposable {
 
   #resolveWaiter(waiter: Waiter, session: Session): void {
     if (waiter.timer) clearTimeout(waiter.timer);
+    this.#markCheckedOut(this.#metadataFor(session));
     this.#recordAcquireWait(waiter.started);
     waiter.resolve(new PooledSession(this, session));
   }
@@ -314,7 +367,32 @@ export class SessionPool implements AsyncDisposable {
   #ensureOpen(): void {
     if (this.#closed) throw new Error("SessionPool is closed.");
   }
+
+  #metadataFor(session: Session): SessionMetadata {
+    const metadata = this.#metadata.get(session);
+    if (metadata) return metadata;
+    const createdAt = Date.now();
+    const created = { createdAt, lastUsedAt: createdAt, validatedAt: 0, useCount: 0 };
+    this.#metadata.set(session, created);
+    return created;
+  }
+
+  #markCheckedOut(metadata: SessionMetadata): void {
+    metadata.useCount += 1;
+  }
+
+  #recycleReason(metadata: SessionMetadata): SessionRecycleReason | undefined {
+    if (this.config.maxSessionAgeMs !== undefined && Date.now() - metadata.createdAt >= this.config.maxSessionAgeMs) {
+      return "maxAge";
+    }
+    if (this.config.maxSessionUses !== undefined && metadata.useCount >= this.config.maxSessionUses) {
+      return "maxUses";
+    }
+    return undefined;
+  }
 }
+
+type SessionRecycleReason = "idleTimeout" | "maxAge" | "maxUses";
 
 function normalizeWarmTarget(count: number, maxSize: number): number {
   if (!Number.isSafeInteger(count) || count < 0) {

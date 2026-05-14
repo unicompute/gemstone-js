@@ -145,9 +145,12 @@ The first implementation slice follows `../plan.js.txt`:
 - Framework adapters treat failed commit/abort cleanup as a broken session and
   discard the lease instead of returning it to the pool.
 - `SessionPool.warm()` targets total pool capacity and `stats()` includes
-  pending acquires so saturated pools can be observed. `withSession()` gives
-  applications a callback helper that always releases the lease and preserves
-  callback errors if cleanup fails.
+  pending acquires, recycle discards, idle-timeout discards, and validation
+  failures so saturated pools can be observed. `maxSessionAgeMs`,
+  `maxSessionUses`, and custom `healthCheck` callbacks provide the same
+  production recycling hooks as gemstone-py's session providers. `withSession()`
+  gives applications a callback helper that always releases the lease and
+  preserves callback errors if cleanup fails.
 - `InMemoryMetrics` and `InMemoryTracer` provide dependency-free observability
   recorders for tests while the OpenTelemetry adapter maps to real spans.
 - `src/runtime/serialized.ts` serializes all session-bound calls and reactivates

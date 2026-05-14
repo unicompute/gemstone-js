@@ -59,6 +59,12 @@ The first implementation slice follows `../plan.js.txt`:
   required global/root accessors. `PersistentRoot.userGlobals()`,
   `globals()`, `published()`, and `sessionMethods()` mirror the named
   SymbolDictionary constructors in gemstone-py.
+- `OrderedCollection` mirrors gemstone-py's plain GemStone ordered sequence
+  wrapper while keeping JavaScript's async style explicit. It wraps an existing
+  OOP or creates `OrderedCollection new`, exposes value/raw/object accessors,
+  uses zero-based indexed reads with negative indexes, and keeps mutation
+  visible as direct sends such as `add:`, `addAll:`, `removeFirst`, and
+  `removeLast`.
 - `GStore` builds on `PersistentRoot` and `GsDict` rather than adding another
   storage layer. Each named store is a `StringKeyValueDictionary` under
   `UserGlobals.GStoreRoot`; values are JSON strings, transaction callbacks use

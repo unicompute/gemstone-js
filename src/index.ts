@@ -141,6 +141,7 @@ export {
 } from "./codegen.ts";
 export { PersistentRoot } from "./persistent-root.ts";
 export { GsDict } from "./gsdict.ts";
+export { OrderedCollection } from "./ordered-collection.ts";
 export {
   RcCounter,
   RcKeyValueDictionary,

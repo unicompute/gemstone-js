@@ -3,6 +3,22 @@
 `gemstone-js` intentionally mirrors the practical parts of `gemstone-py` while
 keeping a JavaScript-first async API.
 
+## Current Comparison
+
+`gemstone-js` is now close to `gemstone-py` for core database work: sessions,
+raw OOP handling, persistent roots, dictionaries, ordered collections, query
+helpers, migrations, bootstrap, ObjectLog, inspection, code generation,
+benchmarks, package verification, and optional native GCI access are all
+represented.
+
+`gemstone-py` is still the more mature application stack. It has the broader
+example set, synchronous and asynchronous Python APIs, transaction retry and
+conflict-diagnostic helpers, Flask/Django/FastAPI/Litestar integrations, and a
+VS Code workbench. `gemstone-js` is stronger where TypeScript matters: typed
+generated wrappers, JSON Schemas for manifests/artifacts, explicit async
+handles, Node/Deno/Bun runtime boundaries, npm provenance checks, and the
+native session-thread spike.
+
 ## Aligned Surface
 
 - Environment-based session configuration and explicit login/logout lifecycle.
@@ -23,6 +39,9 @@ keeping a JavaScript-first async API.
   command-line wrappers for saved report artifacts.
 - `StringKeyValueDictionary` helpers with key, item, value, pick, require,
   replace, clear, nested dictionary, raw OOP, and object-handle variants.
+- `OrderedCollection` wrappers for persistent ordered sequences, with explicit
+  async value/raw/object accessors in JavaScript instead of Python magic
+  methods.
 - Reduced-conflict wrappers for `RcCounter`, `RcKeyValueDictionary`, and
   `RcQueue`, including the gemstone-py-style `RCCounter`, `RCHash`, and
   `RCQueue` aliases plus session factory helpers.

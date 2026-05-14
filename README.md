@@ -90,6 +90,12 @@ native package; the TypeScript package can be tested locally with a mock runtime
   `requireAll*()` bulk variants built on the session marshalling layer. Static
   constructors expose `UserGlobals`, `Globals`, `Published`, and
   `SessionMethods` roots using the same names as gemstone-py.
+- `OrderedCollection` wraps live GemStone ordered sequences with
+  `session.orderedCollection()` creation, `wrapOrderedCollection()` for existing
+  OOPs, append/extend/remove/clear operations, nullable zero-based indexed
+  access including negative indexes, first/last/pop/shift helpers, value/raw
+  OOP/object readback, async iteration, reverse value iteration, and direct
+  send/inspect helpers.
 - `GStore` provides a session-bound, named JSON key/value store under
   `UserGlobals.GStoreRoot`, with async transaction callbacks, read-only
   snapshots, delete/remove helpers, and commit-conflict retry for conflict-like

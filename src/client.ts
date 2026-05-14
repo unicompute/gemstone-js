@@ -1,6 +1,7 @@
 import { createGciRuntime } from "./runtime/index.ts";
 import { serializeGciRuntime } from "./runtime/serialized.ts";
 import { GsDict } from "./gsdict.ts";
+import { OrderedCollection } from "./ordered-collection.ts";
 import { RcCounter, RcKeyValueDictionary, RcQueue } from "./reduced-conflict.ts";
 import {
   OOP_FALSE,
@@ -849,6 +850,16 @@ export class Session implements AsyncDisposable {
 
   dict(oop: Oop): GsDict {
     return new GsDict(this, oop);
+  }
+
+  async orderedCollection<T = unknown>(values: readonly GemStoneArgument[] = []): Promise<OrderedCollection<T>> {
+    const collection = await OrderedCollection.create<T>(this);
+    if (values.length) await collection.extend(values);
+    return collection;
+  }
+
+  wrapOrderedCollection<T = unknown>(oop: Oop): OrderedCollection<T> {
+    return new OrderedCollection<T>(this, oop);
   }
 
   async rcCounter(): Promise<RcCounter> {

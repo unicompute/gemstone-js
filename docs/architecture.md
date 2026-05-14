@@ -141,9 +141,10 @@ The first implementation slice follows `../plan.js.txt`:
   against `scripts/public-surface.expected.json`. This keeps the public barrel
   explicit and makes API changes reviewable.
 - `gemstone-js-api-contract` imports the package self-reference and compares
-  runtime value exports against the committed public-surface contract. The
-  checker deliberately does not create a session, so it can run against local or
-  installed artifacts without `@gemstone-js/native`.
+  runtime value exports, package metadata, schema exports, and CLI bin targets
+  against the committed public-surface contract. The checker deliberately does
+  not create a session, so it can run against local or installed artifacts
+  without `@gemstone-js/native`.
 - `Session.inspect()`, bounded recursive `dump()`, and `describeClass()` ask
   GemStone for compact string payloads and parse them locally, avoiding a
   dependency on dictionary marshalling for debug metadata.

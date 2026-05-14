@@ -235,15 +235,22 @@ for (const exportName of ["SessionConfig", "GciRuntime", "TransactionPolicy", "V
 if (!apiContract.includes("await import(moduleSpecifier)") || !apiContract.includes("missingValueExports")) {
   throw new Error("scripts/api-contract.mjs must import and compare runtime value exports.");
 }
-if (!apiContract.includes("--json") || !apiContract.includes("typeExportsInContract")) {
-  throw new Error("scripts/api-contract.mjs must support JSON reports with source type export counts.");
+if (
+  !apiContract.includes("--json")
+  || !apiContract.includes("typeExportsInContract")
+  || !apiContract.includes("REQUIRED_BIN_ENTRIES")
+  || !apiContract.includes("REQUIRED_SCHEMA_EXPORTS")
+) {
+  throw new Error("scripts/api-contract.mjs must support JSON reports with source, bin, and schema export counts.");
 }
 if (
   !installedApiContractCheck.includes("--pack-destination")
   || !installedApiContractCheck.includes("--strip-components")
   || !installedApiContractCheck.includes("scripts\", \"api-contract.mjs")
+  || !installedApiContractCheck.includes("assertInstalledBins")
+  || !installedApiContractCheck.includes("Node shebang")
 ) {
-  throw new Error("scripts/check-installed-api-contract.mjs must pack, extract, and run the installed API contract CLI.");
+  throw new Error("scripts/check-installed-api-contract.mjs must pack, extract, and validate installed API contract CLI bins.");
 }
 
 if (!checksumCheck.includes("write-checksums.mjs")) {

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -32,6 +32,9 @@ try {
     stdio: "pipe",
   });
 
+  const packageJson = JSON.parse(readFileSync(join(packageRoot, "package.json"), "utf8"));
+  assertInstalledBins(packageRoot, packageJson.bin ?? {});
+
   const contractOutput = execFileSync(process.execPath, [
     join(packageRoot, "scripts", "api-contract.mjs"),
     "--json",
@@ -50,10 +53,36 @@ try {
   if (report.packageName !== "gemstone-js") {
     throw new Error(`Installed API contract reported unexpected package name:\n${contractOutput}`);
   }
+  if (report.packageFailures.length > 0 || report.binTargetMismatches.length > 0 || report.schemaExportMismatches.length > 0) {
+    throw new Error(`Installed package metadata contract failed:\n${contractOutput}`);
+  }
+  if (report.actualBinEntries !== report.expectedBinEntries) {
+    throw new Error(`Installed bin entry count mismatch:\n${contractOutput}`);
+  }
 
   console.log(
-    `Installed API contract check passed: ${report.packageName}@${report.version} (${report.actualValueExports} runtime value exports).`,
+    `Installed API contract check passed: ${report.packageName}@${report.version} (${report.actualValueExports} runtime value exports, ${report.actualBinEntries} bins).`,
   );
 } finally {
   rmSync(tempRoot, { recursive: true, force: true });
+}
+
+function assertInstalledBins(root, binEntries) {
+  const names = Object.keys(binEntries);
+  if (names.length === 0) {
+    throw new Error("Installed package has no bin entries.");
+  }
+  for (const [name, relativePath] of Object.entries(binEntries)) {
+    if (!relativePath.startsWith("./scripts/")) {
+      throw new Error(`Installed bin ${name} must point under ./scripts/, found ${relativePath}.`);
+    }
+    const absolutePath = join(root, relativePath);
+    if (!existsSync(absolutePath)) {
+      throw new Error(`Installed bin ${name} target is missing: ${relativePath}.`);
+    }
+    const firstLine = readFileSync(absolutePath, "utf8").split(/\r?\n/, 1)[0];
+    if (firstLine !== "#!/usr/bin/env node") {
+      throw new Error(`Installed bin ${name} target must have a Node shebang: ${relativePath}.`);
+    }
+  }
 }

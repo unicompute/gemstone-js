@@ -66,8 +66,8 @@ npm provenance checks, and the native session-thread spike.
 - ObjectLog entry writes, batched fetch parsing, level filters, size, clear, and
   delete helpers.
 - Observability hooks, framework adapters, code generation, package verification,
-  public export contract checks, installed-artifact API probes, and opt-in live
-  smoke coverage.
+  public export contract checks, installed-artifact API/bin/schema probes, and
+  opt-in live smoke coverage.
 
 ## JavaScript-Specific Choices
 

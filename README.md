@@ -226,9 +226,9 @@ native package; the TypeScript package can be tested locally with a mock runtime
   against a committed TypeScript-compiler-derived API contract so accidental
   breaking public exports fail local and release checks.
 - `gemstone-js-api-contract --json` imports the package entrypoint and verifies
-  that runtime value exports match the committed source contract, giving release
-  smoke checks a package-installed API probe similar to gemstone-py's
-  `api_contract` command.
+  that runtime value exports, package metadata, schema exports, and CLI bin
+  targets match the committed source contract, giving release smoke checks a
+  package-installed API probe similar to gemstone-py's `api_contract` command.
 - `Session.performObjectWith()` and `sendValue()` aliases make value, raw OOP,
   and retained object-returning sends explicit at both session and class-ref
   layers.
@@ -243,10 +243,11 @@ npm run verify
 
 Node 24 can execute the `.ts` tests directly using built-in type stripping.
 The local verify path checks both checked-in generated outputs, the public API
-surface contract, the runtime package API contract, and the checksum helper
-self-test, then uses `npm pack --dry-run` with a disposable cache to verify
-that the publishable tarball includes docs/examples while excluding tests and
-local build metadata.
+surface contract, the runtime package API contract, CLI bin/schema metadata,
+and the checksum helper self-test, then uses `npm pack --dry-run` with a
+disposable cache to verify that the publishable tarball includes docs/examples
+while excluding tests and local build metadata. It also packs and extracts the
+tarball to verify installed API and bin wiring.
 
 Live GemStone checks are opt-in:
 

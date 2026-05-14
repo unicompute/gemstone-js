@@ -11,6 +11,7 @@ import {
   BENCHMARK_COMPARISON_SCHEMA_VERSION,
   BENCHMARK_REPORT_SCHEMA_PATH,
   BENCHMARK_REPORT_SCHEMA_VERSION,
+  BENCHMARK_VALIDATION_SCHEMA_VERSION,
   compareBenchmarkReports,
   formatBenchmarkComparison,
   loadBenchmarkReport,
@@ -19,13 +20,16 @@ import {
   runBenchmarkBaselinesCli,
   runBenchmarkCompareCli,
   runBenchmarkRegisterCli,
+  runBenchmarkValidateCli,
   selectBenchmarkBaseline,
+  validateBenchmarkArtifacts,
   type BenchmarkReport,
 } from "../src/index.ts";
 
 const compareScript = fileURLToPath(new URL("../scripts/benchmark-compare.mjs", import.meta.url));
 const baselinesScript = fileURLToPath(new URL("../scripts/benchmark-baselines.mjs", import.meta.url));
 const registerScript = fileURLToPath(new URL("../scripts/benchmark-register.mjs", import.meta.url));
+const validateScript = fileURLToPath(new URL("../scripts/benchmark-validate.mjs", import.meta.url));
 
 test("benchmark comparison reports regressions and threshold precedence", async () => {
   await using fixture = await tempFixture();
@@ -178,10 +182,41 @@ test("benchmark CLIs render JSON and threshold exit codes", async () => {
   assert.equal(JSON.parse(registerIo.stdoutText()).addedToManifest, true);
 });
 
+test("benchmark validation validates reports and manifest baselines", async () => {
+  await using fixture = await tempFixture();
+  const baseline = join(fixture.path, "baseline.json");
+  const candidate = join(fixture.path, "candidate.json");
+  const manifest = join(fixture.path, "index.json");
+  await writeReport(baseline, report({ results: [result("gci", "execute", 100, 1)] }));
+  await writeReport(candidate, report({ results: [result("gci", "execute", 90, 1)] }));
+  await writeJson(manifest, { schema_version: BASELINE_MANIFEST_SCHEMA_VERSION, baselines: ["baseline.json"] });
+
+  const validation = validateBenchmarkArtifacts({ reportPaths: [candidate], manifestPath: manifest });
+  assert.equal(validation.schemaVersion, BENCHMARK_VALIDATION_SCHEMA_VERSION);
+  assert.equal(validation.validatedReportCount, 2);
+  assert.equal(validation.validatedManifestEntryCount, 1);
+  assert.equal(validation.manifestBaselinePaths[0], baseline);
+
+  const io = fakeIo();
+  assert.equal(await runBenchmarkValidateCli([candidate, "--manifest", manifest, "--json"], io), 0);
+  const payload = JSON.parse(io.stdoutText());
+  assert.equal(payload.validatedReportCount, 2);
+  assert.match(payload.message, /Validated 2 benchmark report/);
+
+  const skipIo = fakeIo();
+  assert.equal(await runBenchmarkValidateCli(["--manifest", manifest, "--skip-manifest-reports", "--json"], skipIo), 0);
+  assert.equal(JSON.parse(skipIo.stdoutText()).validatedReportCount, 0);
+
+  const usageIo = fakeIo();
+  assert.equal(await runBenchmarkValidateCli([], usageIo), 2);
+  assert.match(usageIo.stderrText(), /Expected at least one report path/);
+});
+
 test("benchmark CLI scripts print help without file IO", async () => {
   assert.match((await execNode([compareScript, "--help"])).stdout, /gemstone-js-benchmark-compare/);
   assert.match((await execNode([baselinesScript, "--help"])).stdout, /gemstone-js-benchmark-baselines/);
   assert.match((await execNode([registerScript, "--help"])).stdout, /gemstone-js-benchmark-register/);
+  assert.match((await execNode([validateScript, "--help"])).stdout, /gemstone-js-benchmark-validate/);
 });
 
 test("benchmark artifact schemas track report and manifest versions", async () => {

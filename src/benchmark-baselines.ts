@@ -7,6 +7,7 @@ export const BASELINE_MANIFEST_SCHEMA_VERSION = 1;
 export const BASELINE_SELECTION_SCHEMA_VERSION = 1;
 export const BASELINE_REGISTRATION_SCHEMA_VERSION = 1;
 export const BASELINE_MAINTENANCE_SCHEMA_VERSION = 1;
+export const BENCHMARK_VALIDATION_SCHEMA_VERSION = 1;
 export const BENCHMARK_REPORT_SCHEMA_PATH = "./schemas/benchmark-report.schema.json";
 export const BASELINE_MANIFEST_SCHEMA_PATH = "./schemas/benchmark-baseline-manifest.schema.json";
 
@@ -131,6 +132,22 @@ export interface PruneBaselineManifestOptions {
   manifestPath: string;
   dropPaths?: readonly string[];
   removeMissing?: boolean;
+}
+
+export interface ValidateBenchmarkArtifactsOptions {
+  reportPaths?: readonly string[];
+  manifestPath?: string | null;
+  validateManifestReports?: boolean;
+}
+
+export interface BenchmarkArtifactValidationReport {
+  schemaVersion: number;
+  reportPaths: string[];
+  manifestPath: string | null;
+  manifestBaselinePaths: string[];
+  validatedReportCount: number;
+  validatedManifestEntryCount: number;
+  message: string;
 }
 
 export interface BenchmarkCliIo {
@@ -374,6 +391,34 @@ export function pruneBenchmarkBaselineManifest(options: PruneBaselineManifestOpt
   };
 }
 
+export function validateBenchmarkArtifacts(options: ValidateBenchmarkArtifactsOptions): BenchmarkArtifactValidationReport {
+  const reportPaths = (options.reportPaths ?? []).map((path) => resolve(path));
+  const manifestPath = options.manifestPath ? resolve(options.manifestPath) : null;
+  if (reportPaths.length === 0 && manifestPath === null) {
+    throw new BenchmarkBaselineError("At least one benchmark report path or manifestPath is required.");
+  }
+
+  const manifestBaselinePaths = manifestPath ? loadBaselineManifest(manifestPath) : [];
+  const validateManifestReports = options.validateManifestReports ?? true;
+  const pathsToValidate = uniqueStrings([
+    ...reportPaths,
+    ...(validateManifestReports ? manifestBaselinePaths : []),
+  ]);
+  for (const path of pathsToValidate) loadBenchmarkReport(path);
+
+  const messageParts = [`Validated ${pathsToValidate.length} benchmark report(s).`];
+  if (manifestPath) messageParts.push(`Validated manifest with ${manifestBaselinePaths.length} baseline entr${manifestBaselinePaths.length === 1 ? "y" : "ies"}.`);
+  return {
+    schemaVersion: BENCHMARK_VALIDATION_SCHEMA_VERSION,
+    reportPaths: pathsToValidate,
+    manifestPath,
+    manifestBaselinePaths,
+    validatedReportCount: pathsToValidate.length,
+    validatedManifestEntryCount: manifestBaselinePaths.length,
+    message: messageParts.join(" "),
+  };
+}
+
 export async function runBenchmarkCompareCli(argv: readonly string[], io: BenchmarkCliIo): Promise<number> {
   try {
     const options = parseCompareArgs(argv);
@@ -387,6 +432,23 @@ export async function runBenchmarkCompareCli(argv: readonly string[], io: Benchm
     return report.comparable && report.thresholdExceeded ? 2 : 0;
   } catch (error) {
     io.stderr.write(`gemstone-js-benchmark-compare: ${errorMessage(error)}\n`);
+    return error instanceof BenchmarkCliUsageError ? 2 : 1;
+  }
+}
+
+export async function runBenchmarkValidateCli(argv: readonly string[], io: BenchmarkCliIo): Promise<number> {
+  try {
+    const options = parseValidateArgs(argv);
+    if (options.help) {
+      io.stdout.write(benchmarkValidateUsage());
+      return 0;
+    }
+    const report = validateBenchmarkArtifacts(options);
+    const output = options.json ? `${JSON.stringify(report, null, 2)}\n` : `${report.message}\n`;
+    writeCliOutput(options.output, output, io);
+    return 0;
+  } catch (error) {
+    io.stderr.write(`gemstone-js-benchmark-validate: ${errorMessage(error)}\n`);
     return error instanceof BenchmarkCliUsageError ? 2 : 1;
   }
 }
@@ -533,6 +595,10 @@ function exceededOperations(rows: readonly BenchmarkComparisonRow[]): string[] {
   return exceeded;
 }
 
+function uniqueStrings(values: readonly string[]): string[] {
+  return [...new Set(values)];
+}
+
 function loadBaselineManifest(path: string): string[] {
   const payload = loadBaselineManifestPayload(path);
   return payload.baselines.map((entry, index) => {
@@ -672,6 +738,40 @@ function parseCompareArgs(argv: readonly string[]): CompareBenchmarkReportsOptio
   return options;
 }
 
+function parseValidateArgs(argv: readonly string[]): ValidateBenchmarkArtifactsOptions & {
+  help: boolean;
+  reportPaths: string[];
+  json: boolean;
+  output?: string;
+} {
+  const options: ValidateBenchmarkArtifactsOptions & {
+    help: boolean;
+    reportPaths: string[];
+    json: boolean;
+    output?: string;
+  } = {
+    help: false,
+    reportPaths: [],
+    manifestPath: null,
+    validateManifestReports: true,
+    json: false,
+  };
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
+    if (arg === "-h" || arg === "--help") options.help = true;
+    else if (arg === "--manifest") options.manifestPath = requiredValue(argv, ++index, arg);
+    else if (arg === "--skip-manifest-reports") options.validateManifestReports = false;
+    else if (arg === "--json") options.json = true;
+    else if (arg === "--output") options.output = requiredValue(argv, ++index, arg);
+    else if (arg.startsWith("-")) throw new BenchmarkCliUsageError(`Unexpected argument: ${arg}`);
+    else options.reportPaths.push(arg);
+  }
+  if (!options.help && options.reportPaths.length === 0 && !options.manifestPath) {
+    throw new BenchmarkCliUsageError("Expected at least one report path or --manifest.");
+  }
+  return options;
+}
+
 function parseBaselinesArgs(argv: readonly string[]): { help: boolean; candidateReport: string; manifest: string; json: boolean; output?: string } {
   const options = { help: false, candidateReport: "", manifest: ".github/benchmarks/index.json", json: false, output: undefined as string | undefined };
   const positional: string[] = [];
@@ -742,6 +842,15 @@ function benchmarkCompareUsage(): string {
 function benchmarkBaselinesUsage(): string {
   return [
     "Usage: gemstone-js-benchmark-baselines <candidate.json> [--manifest <index.json>] [--json] [--output <path>]",
+    "",
+  ].join("\n");
+}
+
+function benchmarkValidateUsage(): string {
+  return [
+    "Usage: gemstone-js-benchmark-validate [report.json ...] [options]",
+    "",
+    "Options: --manifest <index.json> --skip-manifest-reports --json --output <path>",
     "",
   ].join("\n");
 }

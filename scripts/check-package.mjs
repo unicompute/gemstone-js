@@ -42,6 +42,7 @@ const requiredScripts = {
   "benchmark:baselines": "node scripts/benchmark-baselines.mjs",
   "benchmark:compare": "node scripts/benchmark-compare.mjs",
   "benchmark:register": "node scripts/benchmark-register.mjs",
+  "benchmark:validate": "node scripts/benchmark-validate.mjs",
   "benchmarks": "node scripts/benchmarks.mjs",
   "bootstrap": "node scripts/bootstrap.mjs",
   "codegen:check": "node scripts/codegen.mjs --check examples/codegen.manifest.json examples/codegen.generated.ts",
@@ -72,6 +73,9 @@ if (packageJson.bin?.["gemstone-js-benchmark-compare"] !== "./scripts/benchmark-
 }
 if (packageJson.bin?.["gemstone-js-benchmark-register"] !== "./scripts/benchmark-register.mjs") {
   throw new Error("package.json bin.gemstone-js-benchmark-register must point at ./scripts/benchmark-register.mjs.");
+}
+if (packageJson.bin?.["gemstone-js-benchmark-validate"] !== "./scripts/benchmark-validate.mjs") {
+  throw new Error("package.json bin.gemstone-js-benchmark-validate must point at ./scripts/benchmark-validate.mjs.");
 }
 if (packageJson.bin?.["gemstone-js-benchmarks"] !== "./scripts/benchmarks.mjs") {
   throw new Error("package.json bin.gemstone-js-benchmarks must point at ./scripts/benchmarks.mjs.");
@@ -111,6 +115,7 @@ const required = [
   "scripts/benchmark-baselines.mjs",
   "scripts/benchmark-compare.mjs",
   "scripts/benchmark-register.mjs",
+  "scripts/benchmark-validate.mjs",
   "scripts/benchmarks.mjs",
   "scripts/bootstrap.mjs",
   "scripts/check-checksums.mjs",

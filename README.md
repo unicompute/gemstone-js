@@ -105,9 +105,9 @@ native package; the TypeScript package can be tested locally with a mock runtime
   persistence suites, then validate saved reports, compare baseline/candidate
   artifacts with global, suite, and operation regression thresholds, select
   matching committed baselines by metadata, and register/prune baseline
-  manifests through `gemstone-js-benchmark-compare`,
-  `gemstone-js-benchmark-baselines`, and `gemstone-js-benchmark-register`; see
-  `docs/benchmarks.md`.
+  manifests through `gemstone-js-benchmark-validate`,
+  `gemstone-js-benchmark-compare`, `gemstone-js-benchmark-baselines`, and
+  `gemstone-js-benchmark-register`; see `docs/benchmarks.md`.
 - Reduced-conflict wrappers expose GemStone `RcCounter`,
   `RcKeyValueDictionary`, and `RcQueue` through `RcCounter`,
   `RcKeyValueDictionary`, and `RcQueue`, with gemstone-py-compatible aliases
@@ -259,6 +259,7 @@ environment as `Session.configFromEnv()`:
 
 ```sh
 npm run benchmarks -- --suite gci --entries 100000 --json --output benchmark-report.json
+npm run benchmark:validate -- benchmark-report.json
 npm run benchmark:compare -- baseline.json candidate.json --max-regression-pct 10
 npm run benchmark:baselines -- candidate.json --manifest .github/benchmarks/index.json
 npm run benchmark:register -- candidate.json --manifest .github/benchmarks/index.json

@@ -44,6 +44,7 @@ Generate reports with `gemstone-js-benchmarks`:
 ```sh
 npm run benchmarks -- --suite gci --entries 100000 --json --output benchmark-report.json
 npm run benchmarks -- --suite persistent_root --suite gstore --entries 500 --json --output live-report.json
+npm run benchmark:validate -- benchmark-report.json
 ```
 
 The default suite list is `gci`, `persistent_root`, `gscollection`, `gstore`,
@@ -62,6 +63,7 @@ npm run benchmark:compare -- baseline.json candidate.json --json --output benchm
 Select a committed baseline whose metadata matches a candidate:
 
 ```sh
+npm run benchmark:validate -- benchmark-report.json --manifest .github/benchmarks/index.json
 npm run benchmark:baselines -- benchmark-report.json --manifest .github/benchmarks/index.json
 ```
 

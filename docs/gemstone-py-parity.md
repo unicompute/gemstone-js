@@ -8,8 +8,8 @@ keeping a JavaScript-first async API.
 `gemstone-js` is now close to `gemstone-py` for core database work: sessions,
 raw OOP handling, persistent roots, dictionaries, ordered collections, query
 helpers, migrations, bootstrap, ObjectLog, inspection, code generation,
-benchmarks, package verification, public API contract checks, and optional
-native GCI access are all represented.
+benchmarks, package verification, source/runtime API contract checks, and
+optional native GCI access are all represented.
 
 `gemstone-py` is still the more mature application stack. It has the broader
 example set, synchronous and asynchronous Python APIs, Flask/Django/FastAPI/
@@ -66,7 +66,8 @@ npm provenance checks, and the native session-thread spike.
 - ObjectLog entry writes, batched fetch parsing, level filters, size, clear, and
   delete helpers.
 - Observability hooks, framework adapters, code generation, package verification,
-  public export contract checks, and opt-in live smoke coverage.
+  public export contract checks, installed-artifact API probes, and opt-in live
+  smoke coverage.
 
 ## JavaScript-Specific Choices
 

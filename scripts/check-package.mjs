@@ -25,6 +25,8 @@ const releasingDocs = readFileSync("docs/releasing.md", "utf8");
 const checksumCheck = readFileSync("scripts/check-checksums.mjs", "utf8");
 const checksumWriter = readFileSync("scripts/write-checksums.mjs", "utf8");
 const checksumVerifier = readFileSync("scripts/verify-checksums.mjs", "utf8");
+const apiContract = readFileSync("scripts/api-contract.mjs", "utf8");
+const installedApiContractCheck = readFileSync("scripts/check-installed-api-contract.mjs", "utf8");
 const publicSurfaceCheck = readFileSync("scripts/check-public-surface.mjs", "utf8");
 const publicSurfaceContract = JSON.parse(readFileSync("scripts/public-surface.expected.json", "utf8"));
 
@@ -41,6 +43,9 @@ for (const schemaExport of [
   }
 }
 const requiredScripts = {
+  "api-contract": "node scripts/api-contract.mjs",
+  "api-contract:json": "node scripts/api-contract.mjs --json",
+  "api-contract:installed": "node scripts/check-installed-api-contract.mjs",
   "benchmark:baselines": "node scripts/benchmark-baselines.mjs",
   "benchmark:compare": "node scripts/benchmark-compare.mjs",
   "benchmark:register": "node scripts/benchmark-register.mjs",
@@ -56,7 +61,7 @@ const requiredScripts = {
   "checksum:check": "node scripts/check-checksums.mjs",
   "checksum:verify": "node scripts/verify-checksums.mjs",
   "pack:check": "node scripts/check-package.mjs",
-  "verify": "npm run typecheck && npm run codegen:check && npm run codegen:scan:check && npm run public-surface:check && npm test && npm run checksum:check && npm run pack:check",
+  "verify": "npm run typecheck && npm run codegen:check && npm run codegen:scan:check && npm run public-surface:check && npm run api-contract && npm test && npm run checksum:check && npm run pack:check && npm run api-contract:installed",
 };
 for (const [name, command] of Object.entries(requiredScripts)) {
   if (packageJson.scripts?.[name] !== command) {
@@ -84,6 +89,9 @@ if (packageJson.bin?.["gemstone-js-benchmark-validate"] !== "./scripts/benchmark
 if (packageJson.bin?.["gemstone-js-benchmarks"] !== "./scripts/benchmarks.mjs") {
   throw new Error("package.json bin.gemstone-js-benchmarks must point at ./scripts/benchmarks.mjs.");
 }
+if (packageJson.bin?.["gemstone-js-api-contract"] !== "./scripts/api-contract.mjs") {
+  throw new Error("package.json bin.gemstone-js-api-contract must point at ./scripts/api-contract.mjs.");
+}
 if (packageJson.bin?.["gemstone-js-migrations"] !== "./scripts/migrations.mjs") {
   throw new Error("package.json bin.gemstone-js-migrations must point at ./scripts/migrations.mjs.");
 }
@@ -97,6 +105,7 @@ runRequiredCheck("decorated-source codegen output", [
   "examples/booking.decorators.ts",
 ]);
 runRequiredCheck("public surface contract", ["scripts/check-public-surface.mjs"]);
+runRequiredCheck("runtime API contract", ["scripts/api-contract.mjs"]);
 
 const required = [
   "LICENSE",
@@ -117,6 +126,7 @@ const required = [
   "schemas/benchmark-baseline-manifest.schema.json",
   "schemas/benchmark-report.schema.json",
   "schemas/codegen-manifest.schema.json",
+  "scripts/api-contract.mjs",
   "scripts/benchmark-baselines.mjs",
   "scripts/benchmark-compare.mjs",
   "scripts/benchmark-register.mjs",
@@ -124,6 +134,7 @@ const required = [
   "scripts/benchmarks.mjs",
   "scripts/bootstrap.mjs",
   "scripts/check-checksums.mjs",
+  "scripts/check-installed-api-contract.mjs",
   "scripts/check-package.mjs",
   "scripts/check-public-surface.mjs",
   "scripts/codegen.mjs",
@@ -194,6 +205,8 @@ assertSnippets(
   [
     "npm run verify",
     "npm run public-surface:check",
+    "npm run api-contract:installed",
+    "gemstone-js-api-contract --json",
     "SHA256SUMS.txt",
     "node scripts/verify-checksums.mjs SHA256SUMS.txt",
     "shasum -a 256 -c SHA256SUMS.txt",
@@ -218,6 +231,19 @@ for (const exportName of ["SessionConfig", "GciRuntime", "TransactionPolicy", "V
   if (!publicSurfaceContract.types?.some((entry) => entry.name === exportName)) {
     throw new Error(`scripts/public-surface.expected.json is missing type export: ${exportName}`);
   }
+}
+if (!apiContract.includes("await import(moduleSpecifier)") || !apiContract.includes("missingValueExports")) {
+  throw new Error("scripts/api-contract.mjs must import and compare runtime value exports.");
+}
+if (!apiContract.includes("--json") || !apiContract.includes("typeExportsInContract")) {
+  throw new Error("scripts/api-contract.mjs must support JSON reports with source type export counts.");
+}
+if (
+  !installedApiContractCheck.includes("--pack-destination")
+  || !installedApiContractCheck.includes("--strip-components")
+  || !installedApiContractCheck.includes("scripts\", \"api-contract.mjs")
+) {
+  throw new Error("scripts/check-installed-api-contract.mjs must pack, extract, and run the installed API contract CLI.");
 }
 
 if (!checksumCheck.includes("write-checksums.mjs")) {

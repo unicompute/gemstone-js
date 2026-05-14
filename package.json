@@ -49,6 +49,7 @@
     "gemstone-js-benchmark-register": "./scripts/benchmark-register.mjs",
     "gemstone-js-benchmark-validate": "./scripts/benchmark-validate.mjs",
     "gemstone-js-benchmarks": "./scripts/benchmarks.mjs",
+    "gemstone-js-api-contract": "./scripts/api-contract.mjs",
     "gemstone-js-bootstrap": "./scripts/bootstrap.mjs",
     "gemstone-js-inspect": "./scripts/inspect.mjs",
     "gemstone-js-migrations": "./scripts/migrations.mjs"
@@ -58,6 +59,7 @@
     "docs",
     "examples",
     "schemas",
+    "scripts/api-contract.mjs",
     "scripts/benchmark-baselines.mjs",
     "scripts/benchmark-compare.mjs",
     "scripts/benchmark-register.mjs",
@@ -65,6 +67,7 @@
     "scripts/benchmarks.mjs",
     "scripts/bootstrap.mjs",
     "scripts/check-checksums.mjs",
+    "scripts/check-installed-api-contract.mjs",
     "scripts/check-package.mjs",
     "scripts/check-public-surface.mjs",
     "scripts/codegen.mjs",
@@ -85,6 +88,9 @@
     "benchmark:compare": "node scripts/benchmark-compare.mjs",
     "benchmark:register": "node scripts/benchmark-register.mjs",
     "benchmark:validate": "node scripts/benchmark-validate.mjs",
+    "api-contract": "node scripts/api-contract.mjs",
+    "api-contract:json": "node scripts/api-contract.mjs --json",
+    "api-contract:installed": "node scripts/check-installed-api-contract.mjs",
     "benchmarks": "node scripts/benchmarks.mjs",
     "bootstrap": "node scripts/bootstrap.mjs",
     "pack:check": "node scripts/check-package.mjs",
@@ -99,7 +105,7 @@
     "checksum:check": "node scripts/check-checksums.mjs",
     "checksum:verify": "node scripts/verify-checksums.mjs",
     "test:live": "GS_RUN_LIVE=1 node --test tests/live.test.ts",
-    "verify": "npm run typecheck && npm run codegen:check && npm run codegen:scan:check && npm run public-surface:check && npm test && npm run checksum:check && npm run pack:check"
+    "verify": "npm run typecheck && npm run codegen:check && npm run codegen:scan:check && npm run public-surface:check && npm run api-contract && npm test && npm run checksum:check && npm run pack:check && npm run api-contract:installed"
   },
   "optionalDependencies": {
     "@gemstone-js/native": "0.1.0-alpha.0"

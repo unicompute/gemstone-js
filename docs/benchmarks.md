@@ -77,12 +77,15 @@ Register or maintain committed baseline artifacts:
 ```sh
 npm run benchmark:register -- benchmark-report.json --manifest .github/benchmarks/index.json
 npm run benchmark:register -- benchmark-report.json --copy-to baseline-macos-arm64.json
+npm run benchmark:register -- benchmark-report.json --copy-to baseline-macos-arm64.json --replace-duplicate-metadata
 npm run benchmark:register -- --manifest .github/benchmarks/index.json --prune-missing
 ```
 
 Registration rejects a new baseline when another manifest entry already has the
-same comparable metadata. Use `--allow-duplicate-metadata` only when
-intentionally keeping multiple baselines for the same environment.
+same comparable metadata. Use `--replace-duplicate-metadata` to rotate the
+manifest entry for that environment to the newly registered artifact. Use
+`--allow-duplicate-metadata` only when intentionally keeping multiple baselines
+for the same environment.
 
 The comparison command supports global, suite-level, and operation-level
 regression thresholds. Operation thresholds take precedence over suite

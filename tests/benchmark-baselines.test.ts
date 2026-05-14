@@ -136,6 +136,31 @@ test("baseline registration copies external reports and prunes manifests", async
     () => registerBenchmarkBaseline({ reportPath: sameMetadata, manifestPath: manifest, copyTo: "baseline-duplicate.json" }),
     /metadata already exists/,
   );
+  assert.throws(
+    () => registerBenchmarkBaseline({
+      reportPath: sameMetadata,
+      manifestPath: manifest,
+      copyTo: "baseline-duplicate.json",
+      allowDuplicateMetadata: true,
+      replaceDuplicateMetadata: true,
+    }),
+    /cannot both be true/,
+  );
+
+  const replaceIo = fakeIo();
+  assert.equal(await runBenchmarkRegisterCli([
+    sameMetadata,
+    "--manifest",
+    manifest,
+    "--copy-to",
+    "baseline-replacement.json",
+    "--replace-duplicate-metadata",
+    "--json",
+  ], replaceIo), 0);
+  const replacePayload = JSON.parse(replaceIo.stdoutText());
+  assert.equal(replacePayload.registeredPath, "baseline-replacement.json");
+  assert.deepEqual(replacePayload.removedDuplicatePaths, ["baseline-macos-arm64.json"]);
+  assert.deepEqual(JSON.parse(await readFile(manifest, "utf8")).baselines, ["baseline-replacement.json"]);
 
   const duplicateAllowedIo = fakeIo();
   assert.equal(await runBenchmarkRegisterCli([
@@ -148,6 +173,18 @@ test("baseline registration copies external reports and prunes manifests", async
     "--json",
   ], duplicateAllowedIo), 0);
   assert.equal(JSON.parse(duplicateAllowedIo.stdoutText()).registeredPath, "baseline-duplicate.json");
+
+  const conflictingFlagsIo = fakeIo();
+  assert.equal(await runBenchmarkRegisterCli([
+    sameMetadata,
+    "--manifest",
+    manifest,
+    "--copy-to",
+    "ignored.json",
+    "--allow-duplicate-metadata",
+    "--replace-duplicate-metadata",
+  ], conflictingFlagsIo), 2);
+  assert.match(conflictingFlagsIo.stderrText(), /cannot be used together/);
 
   await writeJson(manifest, {
     schema_version: BASELINE_MANIFEST_SCHEMA_VERSION,

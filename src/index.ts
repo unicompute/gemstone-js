@@ -233,6 +233,21 @@ export {
   type PooledSessionReleaseOptions,
   type PoolWithSessionOptions,
 } from "./pool.ts";
+export {
+  RequestScope,
+  TransactionScope,
+  requestFailed,
+  sessionScope,
+  withSessionScope,
+  type RequestFailureOptions,
+  type RequestScopeFinalizeOptions,
+  type RequestScopeOptions,
+  type TransactionFinalization,
+  type TransactionFinalizationAction,
+  type TransactionPolicy,
+  type TransactionScopeOptions,
+  type TransactionSession,
+} from "./scope.ts";
 export { gemstoneExpress, type ExpressGemStoneOptions } from "./adapters/express.ts";
 export { gemstoneFastify, type FastifyGemStoneOptions } from "./adapters/fastify.ts";
 export { gemstoneHono, type HonoGemStoneOptions } from "./adapters/hono.ts";

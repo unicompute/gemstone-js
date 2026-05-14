@@ -12,7 +12,8 @@ native package; the TypeScript package can be tested locally with a mock runtime
 
 - Async-first API: `Session.connect()`, `execute()`, `perform()`,
   typed/managed execute helpers, `withTransaction()` with sync or async
-  callbacks, and `AsyncDisposable` support.
+  callbacks, framework-neutral `RequestScope`/`TransactionScope` helpers, and
+  `AsyncDisposable` support.
 - High-level argument marshalling through `performWith()` and
   `ManagedOop.send()`: strings become GemStone strings, numbers become
   SmallIntegers or Floats, bigints become SmallIntegers, booleans/null become
@@ -138,6 +139,10 @@ native package; the TypeScript package can be tested locally with a mock runtime
   provider patterns, `snapshot()` and `eventListener` expose provider-style
   operational events, and `withSession()` wraps sync or async
   acquire/use/release callback flows.
+- `RequestScope`, `TransactionScope`, `requestFailed()`, `sessionScope()`, and
+  `withSessionScope()` provide the framework-neutral request/session lifecycle
+  layer used by web adapters: lazy session acquisition, commit-on-success,
+  abort-on-error/status, clean pool release, and owned-session logout.
 - Result marshalling now converts GemStone `String` and `Symbol` objects back
   into JavaScript strings via `fetchString()` and class detection. Float OOPs are
   converted when the runtime reports that `GciOopToFlt_` succeeded.

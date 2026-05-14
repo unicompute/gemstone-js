@@ -144,6 +144,11 @@ The first implementation slice follows `../plan.js.txt`:
   handles, class refs, and retained handles.
 - Framework adapters treat failed commit/abort cleanup as a broken session and
   discard the lease instead of returning it to the pool.
+- `TransactionScope` and `RequestScope` mirror gemstone-py's framework-neutral
+  web core in async JavaScript form. They centralize request failure detection,
+  commit-on-success, abort-on-exit/error/status, clean pool release, and owned
+  session logout so framework adapters can share lifecycle policy instead of
+  duplicating transaction teardown logic.
 - `SessionPool.warm()` targets total pool capacity and `stats()` includes
   pending acquires, recycle discards, idle-timeout discards, and validation
   failures so saturated pools can be observed. `maxSessionAgeMs`,

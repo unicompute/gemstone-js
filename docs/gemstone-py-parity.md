@@ -25,6 +25,9 @@ npm provenance checks, and the native session-thread spike.
   queries, custom health checks, idle-timeout eviction, and max-age/max-use
   recycling, plus provider-style snapshots, lifecycle events, metrics, and
   spans.
+- Framework-neutral request/transaction scopes for lazy session acquisition,
+  commit-on-success, abort-on-error/status, pool release, and owned-session
+  logout.
 - Raw execute/eval, value marshalling, typed object handles, and managed
   export-set handles.
 - Class-side sends through an explicit class reference object.

@@ -29,7 +29,8 @@ npm provenance checks, and the native session-thread spike.
   commit-on-success, abort-on-error/status, pool release, and owned-session
   logout.
 - Express, Fastify, and Hono adapters wired through the shared request-scope
-  lifecycle with configurable transaction and response-status policy.
+  lifecycle with configurable transaction and response-status policy, plus
+  committed example services for each adapter.
 - Raw execute/eval, value marshalling, typed object handles, and managed
   export-set handles.
 - Explicit opt-in value converter registry with named converter lookup,

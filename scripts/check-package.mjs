@@ -21,6 +21,7 @@ const fileSet = new Set(files);
 const packageJson = JSON.parse(readFileSync("package.json", "utf8"));
 const nativeDeclaration = readFileSync("src/native-module.d.ts", "utf8");
 const ciWorkflow = readFileSync(".github/workflows/ci.yml", "utf8");
+const frameworkDocs = readFileSync("docs/framework-adapters.md", "utf8");
 const releasingDocs = readFileSync("docs/releasing.md", "utf8");
 const checksumCheck = readFileSync("scripts/check-checksums.mjs", "utf8");
 const checksumWriter = readFileSync("scripts/write-checksums.mjs", "utf8");
@@ -112,6 +113,7 @@ const required = [
   "README.md",
   "docs/architecture.md",
   "docs/benchmarks.md",
+  "docs/framework-adapters.md",
   "docs/gemstone-py-parity.md",
   "docs/migrations.md",
   "docs/naming.md",
@@ -122,6 +124,9 @@ const required = [
   "examples/codegen.generated.ts",
   "examples/codegen.manifest.json",
   "examples/quickstart.ts",
+  "examples/web-express.ts",
+  "examples/web-fastify.ts",
+  "examples/web-hono.ts",
   "package.json",
   "schemas/benchmark-baseline-manifest.schema.json",
   "schemas/benchmark-report.schema.json",
@@ -197,6 +202,17 @@ assertSnippets(
     "node scripts/verify-checksums.mjs SHA256SUMS.txt",
     "SHA256SUMS.txt",
     "actions/upload-artifact@v4",
+  ],
+);
+assertSnippets(
+  "docs/framework-adapters.md",
+  frameworkDocs,
+  [
+    "examples/web-express.ts",
+    "examples/web-fastify.ts",
+    "examples/web-hono.ts",
+    "transactionPolicy: \"abortOnExit\"",
+    "RequestScope",
   ],
 );
 assertSnippets(

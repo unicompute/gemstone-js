@@ -155,6 +155,9 @@ native package; the TypeScript package can be tested locally with a mock runtime
   shared scope layer, expose the active `gemstoneScope`, and accept
   `transactionPolicy`/`serverErrorStatus` options while preserving the existing
   default abort-on-4xx behavior.
+  Runnable adapter examples live in `examples/web-express.ts`,
+  `examples/web-fastify.ts`, and `examples/web-hono.ts`; see
+  `docs/framework-adapters.md`.
 - Result marshalling now converts GemStone `String` and `Symbol` objects back
   into JavaScript strings via `fetchString()` and class detection. Float OOPs are
   converted when the runtime reports that `GciOopToFlt_` succeeded.

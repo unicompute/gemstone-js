@@ -160,6 +160,8 @@ The first implementation slice follows `../plan.js.txt`:
   attach the active scope to the request/context, default to abort-on-4xx
   semantics, and expose `transactionPolicy`/`serverErrorStatus` options for
   framework-specific policy tuning.
+  `docs/framework-adapters.md` and the `examples/web-*.ts` files show the
+  shared pool, health-check, ObjectLog, and shutdown patterns.
 - `SessionPool.warm()` targets total pool capacity and `stats()` includes
   pending acquires, recycle discards, idle-timeout discards, and validation
   failures so saturated pools can be observed. `maxSessionAgeMs`,

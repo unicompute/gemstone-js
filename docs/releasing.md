@@ -42,8 +42,9 @@ codegen scripts, API contract scripts, `README.md`, `LICENSE`, and
 contain `tests/`, `tsconfig*.json`, optional native binaries, local caches, or
 editor files. Verify that both checked-in generated files are present:
 `examples/codegen.generated.ts` and
-`examples/booking.decorators.generated.ts`, and that the public API contract
-file `scripts/public-surface.expected.json` is present. The extracted-artifact
+`examples/booking.decorators.generated.ts`, that the web adapter examples are
+present, and that the public API contract file
+`scripts/public-surface.expected.json` is present. The extracted-artifact
 check also verifies that published CLI bin targets exist and keep their Node
 shebangs.
 

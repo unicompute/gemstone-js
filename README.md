@@ -143,6 +143,10 @@ native package; the TypeScript package can be tested locally with a mock runtime
   `withSessionScope()` provide the framework-neutral request/session lifecycle
   layer used by web adapters: lazy session acquisition, commit-on-success,
   abort-on-error/status, clean pool release, and owned-session logout.
+- Express, Fastify, and Hono adapters now delegate request teardown through the
+  shared scope layer, expose the active `gemstoneScope`, and accept
+  `transactionPolicy`/`serverErrorStatus` options while preserving the existing
+  default abort-on-4xx behavior.
 - Result marshalling now converts GemStone `String` and `Symbol` objects back
   into JavaScript strings via `fetchString()` and class detection. Float OOPs are
   converted when the runtime reports that `GciOopToFlt_` succeeded.
@@ -185,7 +189,7 @@ native package; the TypeScript package can be tested locally with a mock runtime
   collection names, persistent-root names, and SymbolDictionary entry names
   before emitting Smalltalk; see `docs/naming.md` for the shared policy.
 - Pool, observability hooks, persistent-root, query, codegen, and Express,
-  Fastify, and Hono adapter scaffolds.
+  Fastify, and Hono adapters.
 - Codegen helpers render wrappers that share the same JavaScript argument
   marshalling as hand-written calls and can return marshalled values, raw OOPs,
   or retained typed object handles. Generated selectors are checked for keyword

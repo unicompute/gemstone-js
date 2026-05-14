@@ -19,7 +19,7 @@ test("Hono middleware discards the lease when aborting an application error fail
   assertEqual(lease.releaseOptions[0]?.discard, true);
 });
 
-test("Fastify onResponse discards the lease when commit fails", async () => {
+test("Fastify onResponse aborts after failed commits before releasing cleanly", async () => {
   const lease = new FakeLease();
   lease.session.commitError = new Error("commit failed");
   const hooks = new Map<string, Function>();
@@ -34,7 +34,28 @@ test("Fastify onResponse discards the lease when commit fails", async () => {
   await hooks.get("onRequest")?.(request);
   await assertRejects(() => hooks.get("onResponse")?.(request, { statusCode: 200 }) as Promise<void>);
 
-  assertEqual(lease.session.calls.join(","), "commit");
+  assertEqual(lease.session.calls.join(","), "commit,abort");
+  assertEqual(lease.releaseOptions[0]?.clean, true);
+  assertEqual(lease.releaseOptions[0]?.discard, false);
+});
+
+test("Fastify onResponse discards the lease when commit cleanup abort fails", async () => {
+  const lease = new FakeLease();
+  lease.session.commitError = new Error("commit failed");
+  lease.session.abortError = new Error("abort failed");
+  const hooks = new Map<string, Function>();
+  await gemstoneFastify({
+    decorateRequest() {},
+    addHook(name: string, fn: Function) {
+      hooks.set(name, fn);
+    },
+  }, { pool: new FakePool(lease) as never });
+
+  const request: Record<string, unknown> = {};
+  await hooks.get("onRequest")?.(request);
+  await assertRejects(() => hooks.get("onResponse")?.(request, { statusCode: 200 }) as Promise<void>);
+
+  assertEqual(lease.session.calls.join(","), "commit,abort");
   assertEqual(lease.releaseOptions[0]?.discard, true);
 });
 
@@ -72,6 +93,35 @@ test("Express middleware commits successful responses and releases cleanly", asy
   assertEqual(nextCalls, 1);
   assertEqual(lease.session.calls.join(","), "commit");
   assertEqual(lease.releaseOptions[0]?.clean, true);
+});
+
+test("Express middleware exposes request scope and aborts default client errors", async () => {
+  const lease = new FakeLease();
+  const res = new FakeResponse(404);
+  const req: Record<string, unknown> = {};
+  const middleware = gemstoneExpress({ pool: new FakePool(lease) as never });
+
+  await middleware(req, res, (error?: unknown) => {
+    if (error) throw error;
+  });
+  await res.emit("finish");
+
+  assertEqual(req.gemstoneSession, lease.session);
+  assertEqual(Boolean(req.gemstoneScope), true);
+  assertEqual(lease.session.calls.join(","), "abort");
+  assertEqual(lease.releaseOptions[0]?.clean, true);
+});
+
+test("Hono middleware honors custom server error status", async () => {
+  const lease = new FakeLease();
+  const context = new FakeHonoContext(499);
+  const middleware = gemstoneHono({ pool: new FakePool(lease) as never, serverErrorStatus: 500 });
+
+  await middleware(context, async () => {});
+
+  assertEqual(context.values.get("gemstoneSession"), lease.session);
+  assertEqual(Boolean(context.values.get("gemstoneScope")), true);
+  assertEqual(lease.session.calls.join(","), "commit");
 });
 
 class FakeSession {
@@ -131,6 +181,19 @@ class FakeResponse {
     for (const handler of this.#handlers.get(name) ?? []) {
       await handler();
     }
+  }
+}
+
+class FakeHonoContext {
+  readonly values = new Map<string, unknown>();
+  readonly res: { status: number };
+
+  constructor(status: number) {
+    this.res = { status };
+  }
+
+  set(key: string, value: unknown): void {
+    this.values.set(key, value);
   }
 }
 

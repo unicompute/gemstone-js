@@ -66,9 +66,11 @@
     "scripts/bootstrap.mjs",
     "scripts/check-checksums.mjs",
     "scripts/check-package.mjs",
+    "scripts/check-public-surface.mjs",
     "scripts/codegen.mjs",
     "scripts/inspect.mjs",
     "scripts/migrations.mjs",
+    "scripts/public-surface.expected.json",
     "scripts/scan-codegen.mjs",
     "scripts/verify-checksums.mjs",
     "scripts/write-checksums.mjs",
@@ -92,10 +94,12 @@
     "codegen:scan:check": "node scripts/scan-codegen.mjs --module --check --out examples/booking.decorators.generated.ts examples/booking.decorators.ts",
     "inspect": "node scripts/inspect.mjs",
     "migrations": "node scripts/migrations.mjs",
+    "public-surface:check": "node scripts/check-public-surface.mjs",
+    "public-surface:write": "node scripts/check-public-surface.mjs --write",
     "checksum:check": "node scripts/check-checksums.mjs",
     "checksum:verify": "node scripts/verify-checksums.mjs",
     "test:live": "GS_RUN_LIVE=1 node --test tests/live.test.ts",
-    "verify": "npm run typecheck && npm run codegen:check && npm run codegen:scan:check && npm test && npm run checksum:check && npm run pack:check"
+    "verify": "npm run typecheck && npm run codegen:check && npm run codegen:scan:check && npm run public-surface:check && npm test && npm run checksum:check && npm run pack:check"
   },
   "optionalDependencies": {
     "@gemstone-js/native": "0.1.0-alpha.0"

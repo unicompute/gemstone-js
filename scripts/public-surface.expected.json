@@ -1,0 +1,1166 @@
+{
+  "source": "src/index.ts",
+  "values": [
+    {
+      "name": "BASELINE_MAINTENANCE_SCHEMA_VERSION",
+      "from": "./benchmark-baselines.ts"
+    },
+    {
+      "name": "BASELINE_MANIFEST_SCHEMA_PATH",
+      "from": "./benchmark-baselines.ts"
+    },
+    {
+      "name": "BASELINE_MANIFEST_SCHEMA_VERSION",
+      "from": "./benchmark-baselines.ts"
+    },
+    {
+      "name": "BASELINE_REGISTRATION_SCHEMA_VERSION",
+      "from": "./benchmark-baselines.ts"
+    },
+    {
+      "name": "BASELINE_SELECTION_SCHEMA_VERSION",
+      "from": "./benchmark-baselines.ts"
+    },
+    {
+      "name": "BENCHMARK_COMPARISON_SCHEMA_VERSION",
+      "from": "./benchmark-baselines.ts"
+    },
+    {
+      "name": "BENCHMARK_REPORT_SCHEMA_PATH",
+      "from": "./benchmark-baselines.ts"
+    },
+    {
+      "name": "BENCHMARK_REPORT_SCHEMA_VERSION",
+      "from": "./benchmark-baselines.ts"
+    },
+    {
+      "name": "BENCHMARK_VALIDATION_SCHEMA_VERSION",
+      "from": "./benchmark-baselines.ts"
+    },
+    {
+      "name": "BOOTSTRAP_ARTIFACTS",
+      "from": "./bootstrap.ts"
+    },
+    {
+      "name": "BOOTSTRAP_MARKER_KEY",
+      "from": "./bootstrap.ts"
+    },
+    {
+      "name": "BOOTSTRAP_VERSION",
+      "from": "./bootstrap.ts"
+    },
+    {
+      "name": "BenchmarkBaselineError",
+      "from": "./benchmark-baselines.ts"
+    },
+    {
+      "name": "BenchmarkCliUsageError",
+      "from": "./benchmark-baselines.ts"
+    },
+    {
+      "name": "BenchmarkRunError",
+      "from": "./benchmarks.ts"
+    },
+    {
+      "name": "BenchmarksCliUsageError",
+      "from": "./benchmarks.ts"
+    },
+    {
+      "name": "BootstrapCliUsageError",
+      "from": "./bootstrap.ts"
+    },
+    {
+      "name": "COMPARABLE_METADATA_FIELDS",
+      "from": "./benchmark-baselines.ts"
+    },
+    {
+      "name": "CommitConflictError",
+      "from": "./transactions.ts"
+    },
+    {
+      "name": "DEFAULT_BENCHMARK_ENTRIES",
+      "from": "./benchmarks.ts"
+    },
+    {
+      "name": "DEFAULT_BENCHMARK_SEARCH_RUNS",
+      "from": "./benchmarks.ts"
+    },
+    {
+      "name": "DEFAULT_BENCHMARK_SUITES",
+      "from": "./benchmarks.ts"
+    },
+    {
+      "name": "DEFAULT_MIGRATION_LOCK",
+      "from": "./migrations.ts"
+    },
+    {
+      "name": "DEFAULT_MIGRATION_LOCK_STALE_AFTER_SECONDS",
+      "from": "./migrations.ts"
+    },
+    {
+      "name": "DEFAULT_MIGRATION_ROOT",
+      "from": "./migrations.ts"
+    },
+    {
+      "name": "GSCollection",
+      "from": "./query.ts"
+    },
+    {
+      "name": "GSTORE_ROOT",
+      "from": "./gstore.ts"
+    },
+    {
+      "name": "GStore",
+      "from": "./gstore.ts"
+    },
+    {
+      "name": "GStoreAbortTransaction",
+      "from": "./gstore.ts"
+    },
+    {
+      "name": "GStoreError",
+      "from": "./gstore.ts"
+    },
+    {
+      "name": "GStoreTransaction",
+      "from": "./gstore.ts"
+    },
+    {
+      "name": "GemStoneClass",
+      "from": "./codegen.ts"
+    },
+    {
+      "name": "GemStoneClassRef",
+      "from": "./client.ts"
+    },
+    {
+      "name": "GemStoneConfigurationError",
+      "from": "./types.ts"
+    },
+    {
+      "name": "GemStoneError",
+      "from": "./types.ts"
+    },
+    {
+      "name": "GemStoneSelector",
+      "from": "./codegen.ts"
+    },
+    {
+      "name": "GsDict",
+      "from": "./gsdict.ts"
+    },
+    {
+      "name": "InMemoryMetrics",
+      "from": "./observability.ts"
+    },
+    {
+      "name": "InMemoryTracer",
+      "from": "./observability.ts"
+    },
+    {
+      "name": "ManagedOop",
+      "from": "./client.ts"
+    },
+    {
+      "name": "MigrationError",
+      "from": "./migrations.ts"
+    },
+    {
+      "name": "MigrationsCliUsageError",
+      "from": "./migrations.ts"
+    },
+    {
+      "name": "NULL_METRICS",
+      "from": "./observability.ts"
+    },
+    {
+      "name": "NULL_SPAN",
+      "from": "./observability.ts"
+    },
+    {
+      "name": "NULL_SPAN_CONTEXT",
+      "from": "./observability.ts"
+    },
+    {
+      "name": "NULL_TRACER",
+      "from": "./observability.ts"
+    },
+    {
+      "name": "NullMetrics",
+      "from": "./observability.ts"
+    },
+    {
+      "name": "NullTracer",
+      "from": "./observability.ts"
+    },
+    {
+      "name": "OBJECT_LOG_LEVELS",
+      "from": "./object-log.ts"
+    },
+    {
+      "name": "OFFLINE_BENCHMARK_SUITES",
+      "from": "./benchmarks.ts"
+    },
+    {
+      "name": "OOP_ASCII_NUL",
+      "from": "./oop.ts"
+    },
+    {
+      "name": "OOP_FALSE",
+      "from": "./oop.ts"
+    },
+    {
+      "name": "OOP_ILLEGAL",
+      "from": "./oop.ts"
+    },
+    {
+      "name": "OOP_NIL",
+      "from": "./oop.ts"
+    },
+    {
+      "name": "OOP_TRUE",
+      "from": "./oop.ts"
+    },
+    {
+      "name": "ObjectLog",
+      "from": "./object-log.ts"
+    },
+    {
+      "name": "OpenTelemetryTracer",
+      "from": "./observability.ts"
+    },
+    {
+      "name": "OrderedCollection",
+      "from": "./ordered-collection.ts"
+    },
+    {
+      "name": "PersistentRoot",
+      "from": "./persistent-root.ts"
+    },
+    {
+      "name": "PooledSession",
+      "from": "./pool.ts"
+    },
+    {
+      "name": "RCCounter",
+      "from": "./reduced-conflict.ts",
+      "imported": "RcCounter"
+    },
+    {
+      "name": "RCHash",
+      "from": "./reduced-conflict.ts",
+      "imported": "RcKeyValueDictionary"
+    },
+    {
+      "name": "RCQueue",
+      "from": "./reduced-conflict.ts",
+      "imported": "RcQueue"
+    },
+    {
+      "name": "RcCounter",
+      "from": "./reduced-conflict.ts"
+    },
+    {
+      "name": "RcKeyValueDictionary",
+      "from": "./reduced-conflict.ts"
+    },
+    {
+      "name": "RcQueue",
+      "from": "./reduced-conflict.ts"
+    },
+    {
+      "name": "RecordingMigrationSession",
+      "from": "./migrations.ts"
+    },
+    {
+      "name": "RequestScope",
+      "from": "./scope.ts"
+    },
+    {
+      "name": "SerializedGciRuntime",
+      "from": "./runtime/serialized.ts"
+    },
+    {
+      "name": "Session",
+      "from": "./client.ts"
+    },
+    {
+      "name": "SessionPool",
+      "from": "./pool.ts"
+    },
+    {
+      "name": "TransactionRetry",
+      "from": "./transactions.ts"
+    },
+    {
+      "name": "TransactionScope",
+      "from": "./scope.ts"
+    },
+    {
+      "name": "TypedOop",
+      "from": "./client.ts"
+    },
+    {
+      "name": "ValueConverter",
+      "from": "./converters.ts"
+    },
+    {
+      "name": "ValueConverterRegistry",
+      "from": "./converters.ts"
+    },
+    {
+      "name": "abortNestedTransaction",
+      "from": "./transactions.ts"
+    },
+    {
+      "name": "acquireMigrationLock",
+      "from": "./migrations.ts"
+    },
+    {
+      "name": "appliedMigrations",
+      "from": "./migrations.ts"
+    },
+    {
+      "name": "auditBootstrap",
+      "from": "./bootstrap.ts"
+    },
+    {
+      "name": "beginNestedTransaction",
+      "from": "./transactions.ts"
+    },
+    {
+      "name": "benchmarksCliUsage",
+      "from": "./benchmarks.ts"
+    },
+    {
+      "name": "boolToOop",
+      "from": "./oop.ts"
+    },
+    {
+      "name": "bootstrapCliUsage",
+      "from": "./bootstrap.ts"
+    },
+    {
+      "name": "bootstrapGemStone",
+      "from": "./bootstrap.ts"
+    },
+    {
+      "name": "bootstrapSource",
+      "from": "./bootstrap.ts"
+    },
+    {
+      "name": "buildBenchmarkReport",
+      "from": "./benchmarks.ts"
+    },
+    {
+      "name": "charToOop",
+      "from": "./oop.ts"
+    },
+    {
+      "name": "classInstanceToDictionaryArgument",
+      "from": "./converters.ts"
+    },
+    {
+      "name": "commitNestedTransaction",
+      "from": "./transactions.ts"
+    },
+    {
+      "name": "commitWithConflictDetails",
+      "from": "./transactions.ts"
+    },
+    {
+      "name": "compareBenchmarkCandidateWithManifest",
+      "from": "./benchmark-baselines.ts"
+    },
+    {
+      "name": "compareBenchmarkReports",
+      "from": "./benchmark-baselines.ts"
+    },
+    {
+      "name": "createGciRuntime",
+      "from": "./runtime/index.ts"
+    },
+    {
+      "name": "currentVersion",
+      "from": "./migrations.ts"
+    },
+    {
+      "name": "dateAsIsoStringConverter",
+      "from": "./converters.ts"
+    },
+    {
+      "name": "decodeEscapedField",
+      "from": "./smalltalk-source.ts"
+    },
+    {
+      "name": "describeCommitConflict",
+      "from": "./transactions.ts"
+    },
+    {
+      "name": "downgrade",
+      "from": "./migrations.ts"
+    },
+    {
+      "name": "escapeSmalltalkStringLiteral",
+      "from": "./smalltalk-source.ts"
+    },
+    {
+      "name": "escapedFieldEncoderSource",
+      "from": "./smalltalk-source.ts"
+    },
+    {
+      "name": "formatBenchmarkComparison",
+      "from": "./benchmark-baselines.ts"
+    },
+    {
+      "name": "formatBenchmarkResults",
+      "from": "./benchmarks.ts"
+    },
+    {
+      "name": "formatBootstrapPlan",
+      "from": "./bootstrap.ts"
+    },
+    {
+      "name": "formatBootstrapResult",
+      "from": "./bootstrap.ts"
+    },
+    {
+      "name": "formatBootstrapStatuses",
+      "from": "./bootstrap.ts"
+    },
+    {
+      "name": "formatCommitConflict",
+      "from": "./transactions.ts"
+    },
+    {
+      "name": "formatConflictDiagnostics",
+      "from": "./transactions.ts"
+    },
+    {
+      "name": "formatMigrationPlan",
+      "from": "./migrations.ts"
+    },
+    {
+      "name": "formatMigrationResult",
+      "from": "./migrations.ts"
+    },
+    {
+      "name": "formatMigrationStatus",
+      "from": "./migrations.ts"
+    },
+    {
+      "name": "gemstoneExpress",
+      "from": "./adapters/express.ts"
+    },
+    {
+      "name": "gemstoneFastify",
+      "from": "./adapters/fastify.ts"
+    },
+    {
+      "name": "gemstoneHono",
+      "from": "./adapters/hono.ts"
+    },
+    {
+      "name": "getGciRuntime",
+      "from": "./runtime/index.ts"
+    },
+    {
+      "name": "inferGeneratedReturnKind",
+      "from": "./codegen.ts"
+    },
+    {
+      "name": "inferSelector",
+      "from": "./codegen.ts"
+    },
+    {
+      "name": "isBoolean",
+      "from": "./oop.ts"
+    },
+    {
+      "name": "isChar",
+      "from": "./oop.ts"
+    },
+    {
+      "name": "isIllegal",
+      "from": "./oop.ts"
+    },
+    {
+      "name": "isNil",
+      "from": "./oop.ts"
+    },
+    {
+      "name": "isSmalldouble",
+      "from": "./oop.ts"
+    },
+    {
+      "name": "isSmallint",
+      "from": "./oop.ts"
+    },
+    {
+      "name": "loadBenchmarkReport",
+      "from": "./benchmark-baselines.ts"
+    },
+    {
+      "name": "marshalImmediateOop",
+      "from": "./oop.ts"
+    },
+    {
+      "name": "metadataFor",
+      "from": "./codegen.ts"
+    },
+    {
+      "name": "migrationStatus",
+      "from": "./migrations.ts"
+    },
+    {
+      "name": "migrationStepsFromManifest",
+      "from": "./migrations.ts"
+    },
+    {
+      "name": "migrationsCliUsage",
+      "from": "./migrations.ts"
+    },
+    {
+      "name": "nestedTransaction",
+      "from": "./transactions.ts"
+    },
+    {
+      "name": "objectForOopSource",
+      "from": "./smalltalk-source.ts"
+    },
+    {
+      "name": "objectToDictionaryArgument",
+      "from": "./converters.ts"
+    },
+    {
+      "name": "observe",
+      "from": "./observability.ts"
+    },
+    {
+      "name": "oop",
+      "from": "./oop.ts"
+    },
+    {
+      "name": "oopToBool",
+      "from": "./oop.ts"
+    },
+    {
+      "name": "oopToChar",
+      "from": "./oop.ts"
+    },
+    {
+      "name": "oopToHex",
+      "from": "./oop.ts"
+    },
+    {
+      "name": "oopToSmallint",
+      "from": "./oop.ts"
+    },
+    {
+      "name": "parseObjectLogEntries",
+      "from": "./object-log.ts"
+    },
+    {
+      "name": "planDowngrade",
+      "from": "./migrations.ts"
+    },
+    {
+      "name": "planUpgrade",
+      "from": "./migrations.ts"
+    },
+    {
+      "name": "pruneBenchmarkBaselineManifest",
+      "from": "./benchmark-baselines.ts"
+    },
+    {
+      "name": "rawOop",
+      "from": "./oop.ts"
+    },
+    {
+      "name": "registerBenchmarkBaseline",
+      "from": "./benchmark-baselines.ts"
+    },
+    {
+      "name": "releaseMigrationLock",
+      "from": "./migrations.ts"
+    },
+    {
+      "name": "renderGeneratedFunction",
+      "from": "./codegen.ts"
+    },
+    {
+      "name": "renderGeneratedModule",
+      "from": "./codegen.ts"
+    },
+    {
+      "name": "requestFailed",
+      "from": "./scope.ts"
+    },
+    {
+      "name": "resolveSessionConfig",
+      "from": "./client.ts"
+    },
+    {
+      "name": "retryingTransaction",
+      "from": "./transactions.ts"
+    },
+    {
+      "name": "runBenchmarkBaselinesCli",
+      "from": "./benchmark-baselines.ts"
+    },
+    {
+      "name": "runBenchmarkCompareCli",
+      "from": "./benchmark-baselines.ts"
+    },
+    {
+      "name": "runBenchmarkRegisterCli",
+      "from": "./benchmark-baselines.ts"
+    },
+    {
+      "name": "runBenchmarkSuite",
+      "from": "./benchmarks.ts"
+    },
+    {
+      "name": "runBenchmarkValidateCli",
+      "from": "./benchmark-baselines.ts"
+    },
+    {
+      "name": "runBenchmarksCli",
+      "from": "./benchmarks.ts"
+    },
+    {
+      "name": "runBootstrapCli",
+      "from": "./bootstrap.ts"
+    },
+    {
+      "name": "runMigrationsCli",
+      "from": "./migrations.ts"
+    },
+    {
+      "name": "runTransactionWithRetry",
+      "from": "./transactions.ts"
+    },
+    {
+      "name": "scalarValueConverterRegistry",
+      "from": "./converters.ts"
+    },
+    {
+      "name": "selectBenchmarkBaseline",
+      "from": "./benchmark-baselines.ts"
+    },
+    {
+      "name": "selectedBenchmarkSuitesRequireLive",
+      "from": "./benchmarks.ts"
+    },
+    {
+      "name": "sendGenerated",
+      "from": "./codegen.ts"
+    },
+    {
+      "name": "serializeGciRuntime",
+      "from": "./runtime/serialized.ts"
+    },
+    {
+      "name": "sessionScope",
+      "from": "./scope.ts"
+    },
+    {
+      "name": "setGciRuntimeFactoryForTesting",
+      "from": "./runtime/index.ts"
+    },
+    {
+      "name": "setGciRuntimeForTesting",
+      "from": "./runtime/index.ts"
+    },
+    {
+      "name": "smallintToOop",
+      "from": "./oop.ts"
+    },
+    {
+      "name": "upgrade",
+      "from": "./migrations.ts"
+    },
+    {
+      "name": "validateBenchmarkArtifacts",
+      "from": "./benchmark-baselines.ts"
+    },
+    {
+      "name": "validateGemStoneGlobalName",
+      "from": "./smalltalk-source.ts"
+    },
+    {
+      "name": "validateGeneratedFunctionOptions",
+      "from": "./codegen.ts"
+    },
+    {
+      "name": "validateGeneratedModuleOptions",
+      "from": "./codegen.ts"
+    },
+    {
+      "name": "validateMigrationState",
+      "from": "./migrations.ts"
+    },
+    {
+      "name": "withSessionScope",
+      "from": "./scope.ts"
+    }
+  ],
+  "types": [
+    {
+      "name": "ArrayOopReadbackOptions",
+      "from": "./client.ts"
+    },
+    {
+      "name": "ArrayReadbackOptions",
+      "from": "./client.ts"
+    },
+    {
+      "name": "BaselineManifestMaintenanceReport",
+      "from": "./benchmark-baselines.ts"
+    },
+    {
+      "name": "BaselineRegistrationReport",
+      "from": "./benchmark-baselines.ts"
+    },
+    {
+      "name": "BaselineSelectionReport",
+      "from": "./benchmark-baselines.ts"
+    },
+    {
+      "name": "BenchmarkArtifactValidationReport",
+      "from": "./benchmark-baselines.ts"
+    },
+    {
+      "name": "BenchmarkCliIo",
+      "from": "./benchmark-baselines.ts"
+    },
+    {
+      "name": "BenchmarkComparisonReport",
+      "from": "./benchmark-baselines.ts"
+    },
+    {
+      "name": "BenchmarkComparisonRow",
+      "from": "./benchmark-baselines.ts"
+    },
+    {
+      "name": "BenchmarkComparisonStatus",
+      "from": "./benchmark-baselines.ts"
+    },
+    {
+      "name": "BenchmarkDuplicateMetadataGroup",
+      "from": "./benchmark-baselines.ts"
+    },
+    {
+      "name": "BenchmarkMetadataField",
+      "from": "./benchmark-baselines.ts"
+    },
+    {
+      "name": "BenchmarkReport",
+      "from": "./benchmark-baselines.ts"
+    },
+    {
+      "name": "BenchmarkReportOptions",
+      "from": "./benchmarks.ts"
+    },
+    {
+      "name": "BenchmarkResultRow",
+      "from": "./benchmark-baselines.ts"
+    },
+    {
+      "name": "BenchmarkRunOptions",
+      "from": "./benchmarks.ts"
+    },
+    {
+      "name": "BenchmarkSessionFactory",
+      "from": "./benchmarks.ts"
+    },
+    {
+      "name": "BenchmarkSuiteName",
+      "from": "./benchmarks.ts"
+    },
+    {
+      "name": "BenchmarkThresholdScope",
+      "from": "./benchmark-baselines.ts"
+    },
+    {
+      "name": "BenchmarksCliIo",
+      "from": "./benchmarks.ts"
+    },
+    {
+      "name": "BootstrapArtifact",
+      "from": "./bootstrap.ts"
+    },
+    {
+      "name": "BootstrapArtifactStatus",
+      "from": "./bootstrap.ts"
+    },
+    {
+      "name": "BootstrapCliIo",
+      "from": "./bootstrap.ts"
+    },
+    {
+      "name": "BootstrapCliSession",
+      "from": "./bootstrap.ts"
+    },
+    {
+      "name": "BootstrapOptions",
+      "from": "./bootstrap.ts"
+    },
+    {
+      "name": "BootstrapResult",
+      "from": "./bootstrap.ts"
+    },
+    {
+      "name": "CompareBenchmarkCandidateWithManifestOptions",
+      "from": "./benchmark-baselines.ts"
+    },
+    {
+      "name": "CompareBenchmarkReportsOptions",
+      "from": "./benchmark-baselines.ts"
+    },
+    {
+      "name": "ComparisonOp",
+      "from": "./query.ts"
+    },
+    {
+      "name": "ConflictDiagnostics",
+      "from": "./transactions.ts"
+    },
+    {
+      "name": "ConflictObject",
+      "from": "./transactions.ts"
+    },
+    {
+      "name": "ExpressGemStoneOptions",
+      "from": "./adapters/express.ts"
+    },
+    {
+      "name": "FastifyGemStoneOptions",
+      "from": "./adapters/fastify.ts"
+    },
+    {
+      "name": "GSCollectionIndexKind",
+      "from": "./query.ts"
+    },
+    {
+      "name": "GSCollectionIndexOptions",
+      "from": "./query.ts"
+    },
+    {
+      "name": "GStoreJsonValue",
+      "from": "./gstore.ts"
+    },
+    {
+      "name": "GStoreTransactionOptions",
+      "from": "./gstore.ts"
+    },
+    {
+      "name": "GciErrorInfo",
+      "from": "./types.ts"
+    },
+    {
+      "name": "GciRuntime",
+      "from": "./types.ts"
+    },
+    {
+      "name": "GemStoneArgument",
+      "from": "./client.ts"
+    },
+    {
+      "name": "GemStoneArrayArgument",
+      "from": "./client.ts"
+    },
+    {
+      "name": "GemStoneArrayIndexMap",
+      "from": "./client.ts"
+    },
+    {
+      "name": "GemStoneClassDescription",
+      "from": "./types.ts"
+    },
+    {
+      "name": "GemStoneClassMetadata",
+      "from": "./codegen.ts"
+    },
+    {
+      "name": "GemStoneDictionaryArgument",
+      "from": "./client.ts"
+    },
+    {
+      "name": "GemStoneDumpOptions",
+      "from": "./types.ts"
+    },
+    {
+      "name": "GemStoneDumpValue",
+      "from": "./types.ts"
+    },
+    {
+      "name": "GemStoneIndexedFieldInspection",
+      "from": "./types.ts"
+    },
+    {
+      "name": "GemStoneInspection",
+      "from": "./types.ts"
+    },
+    {
+      "name": "GemStoneObjectDump",
+      "from": "./types.ts"
+    },
+    {
+      "name": "GemStoneObjectReference",
+      "from": "./types.ts"
+    },
+    {
+      "name": "GemStoneSlotInspection",
+      "from": "./types.ts"
+    },
+    {
+      "name": "GeneratedImportSpec",
+      "from": "./codegen.ts"
+    },
+    {
+      "name": "GeneratedNamedImportSpec",
+      "from": "./codegen.ts"
+    },
+    {
+      "name": "GeneratedReturnKind",
+      "from": "./codegen.ts"
+    },
+    {
+      "name": "HonoGemStoneOptions",
+      "from": "./adapters/hono.ts"
+    },
+    {
+      "name": "LoginOptions",
+      "from": "./types.ts"
+    },
+    {
+      "name": "MarshalledArray",
+      "from": "./client.ts"
+    },
+    {
+      "name": "MarshalledDictionary",
+      "from": "./client.ts"
+    },
+    {
+      "name": "MarshalledValue",
+      "from": "./client.ts"
+    },
+    {
+      "name": "MetricLabels",
+      "from": "./observability.ts"
+    },
+    {
+      "name": "MetricsCollector",
+      "from": "./observability.ts"
+    },
+    {
+      "name": "MigrationCallback",
+      "from": "./migrations.ts"
+    },
+    {
+      "name": "MigrationInput",
+      "from": "./migrations.ts"
+    },
+    {
+      "name": "MigrationLock",
+      "from": "./migrations.ts"
+    },
+    {
+      "name": "MigrationLockOptions",
+      "from": "./migrations.ts"
+    },
+    {
+      "name": "MigrationRecord",
+      "from": "./migrations.ts"
+    },
+    {
+      "name": "MigrationResult",
+      "from": "./migrations.ts"
+    },
+    {
+      "name": "MigrationRunOptions",
+      "from": "./migrations.ts"
+    },
+    {
+      "name": "MigrationStatus",
+      "from": "./migrations.ts"
+    },
+    {
+      "name": "MigrationStep",
+      "from": "./migrations.ts"
+    },
+    {
+      "name": "MigrationsCliIo",
+      "from": "./migrations.ts"
+    },
+    {
+      "name": "ObjectLogAddOptions",
+      "from": "./object-log.ts"
+    },
+    {
+      "name": "ObjectLogEntry",
+      "from": "./object-log.ts"
+    },
+    {
+      "name": "ObjectLogLevelName",
+      "from": "./object-log.ts"
+    },
+    {
+      "name": "ObjectLogPriority",
+      "from": "./object-log.ts"
+    },
+    {
+      "name": "ObjectToDictionaryOptions",
+      "from": "./converters.ts"
+    },
+    {
+      "name": "Oop",
+      "from": "./oop.ts"
+    },
+    {
+      "name": "PoolConfig",
+      "from": "./pool.ts"
+    },
+    {
+      "name": "PoolDiscardReason",
+      "from": "./pool.ts"
+    },
+    {
+      "name": "PoolEvent",
+      "from": "./pool.ts"
+    },
+    {
+      "name": "PoolEventName",
+      "from": "./pool.ts"
+    },
+    {
+      "name": "PoolSnapshot",
+      "from": "./pool.ts"
+    },
+    {
+      "name": "PoolStats",
+      "from": "./types.ts"
+    },
+    {
+      "name": "PoolWithSessionOptions",
+      "from": "./pool.ts"
+    },
+    {
+      "name": "PooledSessionReleaseOptions",
+      "from": "./pool.ts"
+    },
+    {
+      "name": "PruneBaselineManifestOptions",
+      "from": "./benchmark-baselines.ts"
+    },
+    {
+      "name": "RcCounterDecrementOptions",
+      "from": "./reduced-conflict.ts"
+    },
+    {
+      "name": "RecordedMetricDuration",
+      "from": "./observability.ts"
+    },
+    {
+      "name": "RecordedMetricIncrement",
+      "from": "./observability.ts"
+    },
+    {
+      "name": "RecordedSpan",
+      "from": "./observability.ts"
+    },
+    {
+      "name": "RegisterBaselineOptions",
+      "from": "./benchmark-baselines.ts"
+    },
+    {
+      "name": "RenderGeneratedFunctionOptions",
+      "from": "./codegen.ts"
+    },
+    {
+      "name": "RenderGeneratedModuleOptions",
+      "from": "./codegen.ts"
+    },
+    {
+      "name": "RequestFailureOptions",
+      "from": "./scope.ts"
+    },
+    {
+      "name": "RequestScopeFinalizeOptions",
+      "from": "./scope.ts"
+    },
+    {
+      "name": "RequestScopeOptions",
+      "from": "./scope.ts"
+    },
+    {
+      "name": "ResolvedSessionConfig",
+      "from": "./types.ts"
+    },
+    {
+      "name": "RuntimeName",
+      "from": "./types.ts"
+    },
+    {
+      "name": "SessionConfig",
+      "from": "./types.ts"
+    },
+    {
+      "name": "Span",
+      "from": "./observability.ts"
+    },
+    {
+      "name": "SpanAttributes",
+      "from": "./observability.ts"
+    },
+    {
+      "name": "SpanContext",
+      "from": "./observability.ts"
+    },
+    {
+      "name": "SymDictLookup",
+      "from": "./types.ts"
+    },
+    {
+      "name": "Tracer",
+      "from": "./observability.ts"
+    },
+    {
+      "name": "TransactionFinalization",
+      "from": "./scope.ts"
+    },
+    {
+      "name": "TransactionFinalizationAction",
+      "from": "./scope.ts"
+    },
+    {
+      "name": "TransactionPolicy",
+      "from": "./scope.ts"
+    },
+    {
+      "name": "TransactionRetryOptions",
+      "from": "./transactions.ts"
+    },
+    {
+      "name": "TransactionScopeOptions",
+      "from": "./scope.ts"
+    },
+    {
+      "name": "TransactionSession",
+      "from": "./scope.ts"
+    },
+    {
+      "name": "TransactionWork",
+      "from": "./transactions.ts"
+    },
+    {
+      "name": "ValidateBenchmarkArtifactsOptions",
+      "from": "./benchmark-baselines.ts"
+    },
+    {
+      "name": "ValueConverterOptions",
+      "from": "./converters.ts"
+    }
+  ]
+}

@@ -222,6 +222,9 @@ native package; the TypeScript package can be tested locally with a mock runtime
   `schemas/benchmark-baseline-manifest.schema.json`.
 - `examples/booking.decorators.ts` is a committed scanner fixture; CI verifies
   that it still renders `examples/booking.decorators.generated.ts`.
+- `npm run public-surface:check` compares the `src/index.ts` export barrel
+  against a committed TypeScript-compiler-derived API contract so accidental
+  breaking public exports fail local and release checks.
 - `Session.performObjectWith()` and `sendValue()` aliases make value, raw OOP,
   and retained object-returning sends explicit at both session and class-ref
   layers.
@@ -235,10 +238,10 @@ npm run verify
 ```
 
 Node 24 can execute the `.ts` tests directly using built-in type stripping.
-The local verify path checks both checked-in generated outputs and the checksum
-helper self-test, then uses `npm pack --dry-run` with a disposable cache to
-verify that the publishable tarball includes docs/examples while excluding
-tests and local build metadata.
+The local verify path checks both checked-in generated outputs, the public API
+surface contract, and the checksum helper self-test, then uses
+`npm pack --dry-run` with a disposable cache to verify that the publishable
+tarball includes docs/examples while excluding tests and local build metadata.
 
 Live GemStone checks are opt-in:
 

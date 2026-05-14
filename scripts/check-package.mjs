@@ -25,6 +25,8 @@ const releasingDocs = readFileSync("docs/releasing.md", "utf8");
 const checksumCheck = readFileSync("scripts/check-checksums.mjs", "utf8");
 const checksumWriter = readFileSync("scripts/write-checksums.mjs", "utf8");
 const checksumVerifier = readFileSync("scripts/verify-checksums.mjs", "utf8");
+const publicSurfaceCheck = readFileSync("scripts/check-public-surface.mjs", "utf8");
+const publicSurfaceContract = JSON.parse(readFileSync("scripts/public-surface.expected.json", "utf8"));
 
 if (packageJson.publishConfig?.provenance !== true) {
   throw new Error("package.json publishConfig.provenance must be true.");
@@ -49,10 +51,12 @@ const requiredScripts = {
   "codegen:scan:check": "node scripts/scan-codegen.mjs --module --check --out examples/booking.decorators.generated.ts examples/booking.decorators.ts",
   "inspect": "node scripts/inspect.mjs",
   "migrations": "node scripts/migrations.mjs",
+  "public-surface:check": "node scripts/check-public-surface.mjs",
+  "public-surface:write": "node scripts/check-public-surface.mjs --write",
   "checksum:check": "node scripts/check-checksums.mjs",
   "checksum:verify": "node scripts/verify-checksums.mjs",
   "pack:check": "node scripts/check-package.mjs",
-  "verify": "npm run typecheck && npm run codegen:check && npm run codegen:scan:check && npm test && npm run checksum:check && npm run pack:check",
+  "verify": "npm run typecheck && npm run codegen:check && npm run codegen:scan:check && npm run public-surface:check && npm test && npm run checksum:check && npm run pack:check",
 };
 for (const [name, command] of Object.entries(requiredScripts)) {
   if (packageJson.scripts?.[name] !== command) {
@@ -92,6 +96,7 @@ runRequiredCheck("decorated-source codegen output", [
   "examples/booking.decorators.generated.ts",
   "examples/booking.decorators.ts",
 ]);
+runRequiredCheck("public surface contract", ["scripts/check-public-surface.mjs"]);
 
 const required = [
   "LICENSE",
@@ -120,9 +125,11 @@ const required = [
   "scripts/bootstrap.mjs",
   "scripts/check-checksums.mjs",
   "scripts/check-package.mjs",
+  "scripts/check-public-surface.mjs",
   "scripts/codegen.mjs",
   "scripts/inspect.mjs",
   "scripts/migrations.mjs",
+  "scripts/public-surface.expected.json",
   "scripts/scan-codegen.mjs",
   "scripts/verify-checksums.mjs",
   "scripts/write-checksums.mjs",
@@ -186,11 +193,32 @@ assertSnippets(
   releasingDocs,
   [
     "npm run verify",
+    "npm run public-surface:check",
     "SHA256SUMS.txt",
     "node scripts/verify-checksums.mjs SHA256SUMS.txt",
     "shasum -a 256 -c SHA256SUMS.txt",
   ],
 );
+
+if (!publicSurfaceCheck.includes("ts.createSourceFile") || !publicSurfaceCheck.includes("specifier.isTypeOnly")) {
+  throw new Error("scripts/check-public-surface.mjs must parse the public barrel with the TypeScript compiler API.");
+}
+if (
+  !publicSurfaceCheck.includes("Public surface check passed")
+  || !publicSurfaceCheck.includes("Run npm run public-surface:write")
+) {
+  throw new Error("scripts/check-public-surface.mjs must report stable checks and regeneration guidance.");
+}
+for (const exportName of ["Session", "SessionPool", "RequestScope", "GemStoneError"]) {
+  if (!publicSurfaceContract.values?.some((entry) => entry.name === exportName)) {
+    throw new Error(`scripts/public-surface.expected.json is missing value export: ${exportName}`);
+  }
+}
+for (const exportName of ["SessionConfig", "GciRuntime", "TransactionPolicy", "ValueConverterOptions"]) {
+  if (!publicSurfaceContract.types?.some((entry) => entry.name === exportName)) {
+    throw new Error(`scripts/public-surface.expected.json is missing type export: ${exportName}`);
+  }
+}
 
 if (!checksumCheck.includes("write-checksums.mjs")) {
   throw new Error("scripts/check-checksums.mjs must exercise write-checksums.mjs.");

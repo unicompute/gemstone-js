@@ -136,6 +136,10 @@ The first implementation slice follows `../plan.js.txt`:
   emits reviewable manifests by default and can emit generated wrapper modules
   directly with `--module`; either mode can be checked against a committed file
   with `--check --out`.
+- `scripts/check-public-surface.mjs` parses `src/index.ts` with the TypeScript
+  compiler API and compares value/type exports, source modules, and aliases
+  against `scripts/public-surface.expected.json`. This keeps the public barrel
+  explicit and makes API changes reviewable.
 - `Session.inspect()`, bounded recursive `dump()`, and `describeClass()` ask
   GemStone for compact string payloads and parse them locally, avoiding a
   dependency on dictionary marshalling for debug metadata.

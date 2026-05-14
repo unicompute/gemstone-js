@@ -191,6 +191,15 @@ also covers live query add/remove, `count()`, `exists()`, `first()`, `limit()`,
 and index create/remove when the backing collection supports GemStone index
 selectors.
 
+The inspection helpers are also available from the command line. The command
+uses the same `GS_*` connection environment as `Session.configFromEnv()`:
+
+```sh
+npm run inspect -- --oop 123456789
+npm run inspect -- --oop 123456789 --dump --depth 2
+npm run inspect -- --class Booking --json
+```
+
 ## Example
 
 ```ts

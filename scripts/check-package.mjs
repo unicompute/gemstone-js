@@ -29,6 +29,7 @@ if (packageJson.publishConfig?.provenance !== true) {
 const requiredScripts = {
   "codegen:check": "node scripts/codegen.mjs --check examples/codegen.manifest.json examples/codegen.generated.ts",
   "codegen:scan:check": "node scripts/scan-codegen.mjs --module --check --out examples/booking.decorators.generated.ts examples/booking.decorators.ts",
+  "inspect": "node scripts/inspect.mjs",
   "pack:check": "node scripts/check-package.mjs",
   "verify": "npm run typecheck && npm run codegen:check && npm run codegen:scan:check && npm test && npm run pack:check",
 };
@@ -36,6 +37,9 @@ for (const [name, command] of Object.entries(requiredScripts)) {
   if (packageJson.scripts?.[name] !== command) {
     throw new Error(`package.json script ${name} must be ${JSON.stringify(command)}.`);
   }
+}
+if (packageJson.bin?.["gemstone-js-inspect"] !== "./scripts/inspect.mjs") {
+  throw new Error("package.json bin.gemstone-js-inspect must point at ./scripts/inspect.mjs.");
 }
 runRequiredCheck("codegen manifest output", ["scripts/codegen.mjs", "--check", "examples/codegen.manifest.json", "examples/codegen.generated.ts"]);
 runRequiredCheck("decorated-source codegen output", [
@@ -64,9 +68,11 @@ const required = [
   "schemas/codegen-manifest.schema.json",
   "scripts/check-package.mjs",
   "scripts/codegen.mjs",
+  "scripts/inspect.mjs",
   "scripts/scan-codegen.mjs",
   "src/index.ts",
   "src/client.ts",
+  "src/inspection-cli.ts",
   "src/smalltalk-source.ts",
   "src/runtime/node.ts",
   "src/runtime/library-discovery.ts",

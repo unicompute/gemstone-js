@@ -41,6 +41,9 @@
     },
     "./schemas/codegen-manifest.schema.json": "./schemas/codegen-manifest.schema.json"
   },
+  "bin": {
+    "gemstone-js-inspect": "./scripts/inspect.mjs"
+  },
   "files": [
     "src",
     "docs",
@@ -48,6 +51,7 @@
     "schemas",
     "scripts/check-package.mjs",
     "scripts/codegen.mjs",
+    "scripts/inspect.mjs",
     "scripts/scan-codegen.mjs",
     "LICENSE",
     "README.md"
@@ -61,6 +65,7 @@
     "codegen:check": "node scripts/codegen.mjs --check examples/codegen.manifest.json examples/codegen.generated.ts",
     "codegen:scan": "node scripts/scan-codegen.mjs",
     "codegen:scan:check": "node scripts/scan-codegen.mjs --module --check --out examples/booking.decorators.generated.ts examples/booking.decorators.ts",
+    "inspect": "node scripts/inspect.mjs",
     "test:live": "GS_RUN_LIVE=1 node --test tests/live.test.ts",
     "verify": "npm run typecheck && npm run codegen:check && npm run codegen:scan:check && npm test && npm run pack:check"
   },

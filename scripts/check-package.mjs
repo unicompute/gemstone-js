@@ -23,6 +23,7 @@ const nativeDeclaration = readFileSync("src/native-module.d.ts", "utf8");
 const ciWorkflow = readFileSync(".github/workflows/ci.yml", "utf8");
 const frameworkDocs = readFileSync("docs/framework-adapters.md", "utf8");
 const examplesGuideDocs = readFileSync("docs/examples-guide.md", "utf8");
+const doctorDocs = readFileSync("docs/doctor.md", "utf8");
 const releasingDocs = readFileSync("docs/releasing.md", "utf8");
 const checksumCheck = readFileSync("scripts/check-checksums.mjs", "utf8");
 const checksumWriter = readFileSync("scripts/write-checksums.mjs", "utf8");
@@ -71,6 +72,7 @@ const requiredScripts = {
   "bootstrap": "node scripts/bootstrap.mjs",
   "codegen:check": "node scripts/codegen.mjs --check examples/codegen.manifest.json examples/codegen.generated.ts",
   "codegen:scan:check": "node scripts/scan-codegen.mjs --module --check --out examples/booking.decorators.generated.ts examples/booking.decorators.ts",
+  "doctor": "node scripts/doctor.mjs",
   "examples": "node scripts/examples.mjs",
   "examples:json": "node scripts/examples.mjs --json",
   "examples:check": "node scripts/check-examples.mjs",
@@ -93,6 +95,9 @@ if (packageJson.bin?.["gemstone-js-inspect"] !== "./scripts/inspect.mjs") {
 }
 if (packageJson.bin?.["gemstone-js-bootstrap"] !== "./scripts/bootstrap.mjs") {
   throw new Error("package.json bin.gemstone-js-bootstrap must point at ./scripts/bootstrap.mjs.");
+}
+if (packageJson.bin?.["gemstone-js-doctor"] !== "./scripts/doctor.mjs") {
+  throw new Error("package.json bin.gemstone-js-doctor must point at ./scripts/doctor.mjs.");
 }
 if (packageJson.bin?.["gemstone-js-examples"] !== "./scripts/examples.mjs") {
   throw new Error("package.json bin.gemstone-js-examples must point at ./scripts/examples.mjs.");
@@ -134,6 +139,8 @@ runRequiredCheck("example catalog command list", ["scripts/examples.mjs", "--com
 runRequiredCheck("example plan list", ["scripts/examples.mjs", "--plans"]);
 runRequiredCheck("example plan details", ["scripts/examples.mjs", "--plan", "data-persistence"]);
 runRequiredCheck("example plan commands", ["scripts/examples.mjs", "--commands", "--plan", "web-service"]);
+runRequiredCheck("doctor help", ["scripts/doctor.mjs", "--help"]);
+runRequiredCheck("doctor json", ["scripts/doctor.mjs", "--json", "--no-native"]);
 runRequiredCheck("public surface contract", ["scripts/check-public-surface.mjs"]);
 runRequiredCheck("runtime API contract", ["scripts/api-contract.mjs"]);
 
@@ -142,6 +149,7 @@ const required = [
   "README.md",
   "docs/architecture.md",
   "docs/benchmarks.md",
+  "docs/doctor.md",
   "docs/examples-guide.md",
   "docs/framework-adapters.md",
   "docs/gemstone-py-parity.md",
@@ -181,6 +189,7 @@ const required = [
   "scripts/check-package.mjs",
   "scripts/check-public-surface.mjs",
   "scripts/codegen.mjs",
+  "scripts/doctor.mjs",
   "scripts/examples-catalog.mjs",
   "scripts/examples.mjs",
   "scripts/inspect.mjs",
@@ -194,6 +203,7 @@ const required = [
   "src/benchmarks.ts",
   "src/bootstrap.ts",
   "src/client.ts",
+  "src/doctor.ts",
   "src/gstore.ts",
   "src/inspection-cli.ts",
   "src/migrations.ts",
@@ -255,6 +265,16 @@ assertSnippets(
     "examples/web-hono.ts",
     "transactionPolicy: \"abortOnExit\"",
     "RequestScope",
+  ],
+);
+assertSnippets(
+  "docs/doctor.md",
+  doctorDocs,
+  [
+    "gemstone-js-doctor",
+    "gemstone-js-doctor --json",
+    "gemstone-js-doctor --live",
+    "does not print passwords",
   ],
 );
 assertSnippets(
@@ -335,6 +355,7 @@ if (
   !apiContract.includes("--json")
   || !apiContract.includes("typeExportsInContract")
   || !apiContract.includes("REQUIRED_BIN_ENTRIES")
+  || !apiContract.includes("gemstone-js-doctor")
   || !apiContract.includes("REQUIRED_SCHEMA_EXPORTS")
 ) {
   throw new Error("scripts/api-contract.mjs must support JSON reports with source, bin, and schema export counts.");
@@ -343,6 +364,7 @@ if (
   !installedApiContractCheck.includes("--pack-destination")
   || !installedApiContractCheck.includes("--strip-components")
   || !installedApiContractCheck.includes("scripts\", \"api-contract.mjs")
+  || !installedApiContractCheck.includes("scripts\", \"doctor.mjs")
   || !installedApiContractCheck.includes("gemstone-js/adapters/fetch")
   || !installedApiContractCheck.includes("web-fetch")
   || !installedApiContractCheck.includes("assertInstalledBins")

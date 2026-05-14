@@ -55,6 +55,7 @@
     "gemstone-js-benchmarks": "./scripts/benchmarks.mjs",
     "gemstone-js-api-contract": "./scripts/api-contract.mjs",
     "gemstone-js-bootstrap": "./scripts/bootstrap.mjs",
+    "gemstone-js-doctor": "./scripts/doctor.mjs",
     "gemstone-js-examples": "./scripts/examples.mjs",
     "gemstone-js-inspect": "./scripts/inspect.mjs",
     "gemstone-js-migrations": "./scripts/migrations.mjs"
@@ -77,6 +78,7 @@
     "scripts/check-examples.mjs",
     "scripts/check-public-surface.mjs",
     "scripts/codegen.mjs",
+    "scripts/doctor.mjs",
     "scripts/examples-catalog.mjs",
     "scripts/examples.mjs",
     "scripts/inspect.mjs",
@@ -106,6 +108,7 @@
     "codegen:check": "node scripts/codegen.mjs --check examples/codegen.manifest.json examples/codegen.generated.ts",
     "codegen:scan": "node scripts/scan-codegen.mjs",
     "codegen:scan:check": "node scripts/scan-codegen.mjs --module --check --out examples/booking.decorators.generated.ts examples/booking.decorators.ts",
+    "doctor": "node scripts/doctor.mjs",
     "examples": "node scripts/examples.mjs",
     "examples:json": "node scripts/examples.mjs --json",
     "examples:check": "node scripts/check-examples.mjs",

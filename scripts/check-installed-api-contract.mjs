@@ -59,6 +59,20 @@ try {
   if (report.actualBinEntries !== report.expectedBinEntries) {
     throw new Error(`Installed bin entry count mismatch:\n${contractOutput}`);
   }
+  const doctorOutput = execFileSync(process.execPath, [
+    join(packageRoot, "scripts", "doctor.mjs"),
+    "--json",
+    "--no-native",
+  ], {
+    encoding: "utf8",
+    cwd: packageRoot,
+    env: { ...process.env, GS_USERNAME: "", GS_PASSWORD: "" },
+    stdio: "pipe",
+  });
+  const doctorReport = JSON.parse(doctorOutput);
+  if (doctorReport.status !== "warning" || doctorReport.config.usernameSet !== false) {
+    throw new Error(`Installed doctor report did not expose expected local setup warning:\n${doctorOutput}`);
+  }
 
   const examplesOutput = execFileSync(process.execPath, [
     join(packageRoot, "scripts", "examples.mjs"),

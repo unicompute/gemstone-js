@@ -48,6 +48,9 @@ npm provenance checks, and the native session-thread spike.
 - `GStore`-style named JSON key/value stores under `UserGlobals.GStoreRoot`.
 - GemStone-side bootstrap audit/source/command helpers for the persistence
   roots used by the libraries.
+- Local setup diagnostics through `gemstone-js-doctor`, covering runtime,
+  environment variables, GCI library discovery, optional native-package
+  availability, JSON output, and opt-in live login/eval.
 - Module-style migrations with dependency planning, status/current reads,
   upgrade/downgrade execution, checksum validation, advisory locks, recorded
   dry-runs, and a command-line runner.

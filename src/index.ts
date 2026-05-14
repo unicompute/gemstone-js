@@ -62,6 +62,19 @@ export {
   type BenchmarksCliIo,
 } from "./benchmarks.ts";
 export {
+  buildDoctorReport,
+  doctorUsage,
+  formatDoctorReport,
+  runDoctorCli,
+  type DoctorCheck,
+  type DoctorCliIo,
+  type DoctorConfigReport,
+  type DoctorOptions,
+  type DoctorReport,
+  type DoctorSession,
+  type DoctorStatus,
+} from "./doctor.ts";
+export {
   BOOTSTRAP_ARTIFACTS,
   BOOTSTRAP_MARKER_KEY,
   BOOTSTRAP_VERSION,

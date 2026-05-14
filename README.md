@@ -139,6 +139,9 @@ native package; the TypeScript package can be tested locally with a mock runtime
 - `bootstrapGemStone()` and `gemstone-js-bootstrap` audit or initialize the
   GemStone-side roots used by the persistence helpers: `GStoreRoot`,
   `GSQueryRoot`, and `GemstoneJsBootstrapVersion`.
+- `gemstone-js-doctor` checks local runtime, GemStone environment variables,
+  GCI library discovery, optional native-package importability, and optional
+  live login/eval without printing configured secrets; see `docs/doctor.md`.
 - Session pool release is reset-aware: dirty sessions are aborted before reuse,
   failed resets are discarded, waiters are served with replacement sessions, and
   close rejects pending acquires. Explicit validation queries run without

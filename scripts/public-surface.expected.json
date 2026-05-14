@@ -353,6 +353,10 @@
       "from": "./benchmarks.ts"
     },
     {
+      "name": "buildDoctorReport",
+      "from": "./doctor.ts"
+    },
+    {
       "name": "charToOop",
       "from": "./oop.ts"
     },
@@ -397,6 +401,10 @@
       "from": "./transactions.ts"
     },
     {
+      "name": "doctorUsage",
+      "from": "./doctor.ts"
+    },
+    {
       "name": "downgrade",
       "from": "./migrations.ts"
     },
@@ -435,6 +443,10 @@
     {
       "name": "formatConflictDiagnostics",
       "from": "./transactions.ts"
+    },
+    {
+      "name": "formatDoctorReport",
+      "from": "./doctor.ts"
     },
     {
       "name": "formatMigrationPlan",
@@ -637,6 +649,10 @@
       "from": "./bootstrap.ts"
     },
     {
+      "name": "runDoctorCli",
+      "from": "./doctor.ts"
+    },
+    {
       "name": "runMigrationsCli",
       "from": "./migrations.ts"
     },
@@ -837,6 +853,34 @@
     {
       "name": "ConflictObject",
       "from": "./transactions.ts"
+    },
+    {
+      "name": "DoctorCheck",
+      "from": "./doctor.ts"
+    },
+    {
+      "name": "DoctorCliIo",
+      "from": "./doctor.ts"
+    },
+    {
+      "name": "DoctorConfigReport",
+      "from": "./doctor.ts"
+    },
+    {
+      "name": "DoctorOptions",
+      "from": "./doctor.ts"
+    },
+    {
+      "name": "DoctorReport",
+      "from": "./doctor.ts"
+    },
+    {
+      "name": "DoctorSession",
+      "from": "./doctor.ts"
+    },
+    {
+      "name": "DoctorStatus",
+      "from": "./doctor.ts"
     },
     {
       "name": "ExpressGemStoneOptions",

@@ -93,6 +93,14 @@ export interface CompareBenchmarkReportsOptions {
   operationRegressionPcts?: Record<string, number>;
 }
 
+export interface CompareBenchmarkCandidateWithManifestOptions {
+  candidatePath: string;
+  manifestPath: string;
+  maxRegressionPct?: number | null;
+  suiteRegressionPcts?: Record<string, number>;
+  operationRegressionPcts?: Record<string, number>;
+}
+
 export interface BaselineSelectionReport {
   schemaVersion: number;
   candidatePath: string;
@@ -163,6 +171,18 @@ export interface BenchmarkArtifactValidationReport {
 export interface BenchmarkCliIo {
   stdout: { write(chunk: string): void };
   stderr: { write(chunk: string): void };
+}
+
+interface BenchmarkCompareCliOptions {
+  help: boolean;
+  json: boolean;
+  output?: string;
+  baselinePath?: string;
+  candidatePath: string;
+  manifestPath?: string;
+  maxRegressionPct?: number | null;
+  suiteRegressionPcts?: Record<string, number>;
+  operationRegressionPcts?: Record<string, number>;
 }
 
 export class BenchmarkBaselineError extends Error {
@@ -240,6 +260,23 @@ export function compareBenchmarkReports(options: CompareBenchmarkReportsOptions)
     candidateStone: optionalString(candidate.stone),
     rows,
   };
+}
+
+export function compareBenchmarkCandidateWithManifest(options: CompareBenchmarkCandidateWithManifestOptions): BenchmarkComparisonReport {
+  const selection = selectBenchmarkBaseline({
+    candidateReportPath: options.candidatePath,
+    manifestPath: options.manifestPath,
+  });
+  if (!selection.selectedPath) {
+    throw new BenchmarkBaselineError(selection.message);
+  }
+  return compareBenchmarkReports({
+    baselinePath: selection.selectedPath,
+    candidatePath: options.candidatePath,
+    maxRegressionPct: options.maxRegressionPct,
+    suiteRegressionPcts: options.suiteRegressionPcts,
+    operationRegressionPcts: options.operationRegressionPcts,
+  });
 }
 
 export function formatBenchmarkComparison(report: BenchmarkComparisonReport): string {
@@ -459,7 +496,21 @@ export async function runBenchmarkCompareCli(argv: readonly string[], io: Benchm
       io.stdout.write(benchmarkCompareUsage());
       return 0;
     }
-    const report = compareBenchmarkReports(options);
+    const report = options.manifestPath
+      ? compareBenchmarkCandidateWithManifest({
+        candidatePath: options.candidatePath,
+        manifestPath: options.manifestPath,
+        maxRegressionPct: options.maxRegressionPct,
+        suiteRegressionPcts: options.suiteRegressionPcts,
+        operationRegressionPcts: options.operationRegressionPcts,
+      })
+      : compareBenchmarkReports({
+        baselinePath: options.baselinePath!,
+        candidatePath: options.candidatePath,
+        maxRegressionPct: options.maxRegressionPct,
+        suiteRegressionPcts: options.suiteRegressionPcts,
+        operationRegressionPcts: options.operationRegressionPcts,
+      });
     const output = options.json ? `${JSON.stringify(report, null, 2)}\n` : formatBenchmarkComparison(report);
     writeCliOutput(options.output, output, io);
     return report.comparable && report.thresholdExceeded ? 2 : 0;
@@ -808,11 +859,10 @@ function normalizeResultRows(rows: readonly unknown[], path: string): BenchmarkR
   return normalized;
 }
 
-function parseCompareArgs(argv: readonly string[]): CompareBenchmarkReportsOptions & { help: boolean; json: boolean; output?: string } {
-  const options: CompareBenchmarkReportsOptions & { help: boolean; json: boolean; output?: string } = {
+function parseCompareArgs(argv: readonly string[]): BenchmarkCompareCliOptions {
+  const options: BenchmarkCompareCliOptions = {
     help: false,
     json: false,
-    baselinePath: "",
     candidatePath: "",
     suiteRegressionPcts: {},
     operationRegressionPcts: {},
@@ -823,6 +873,7 @@ function parseCompareArgs(argv: readonly string[]): CompareBenchmarkReportsOptio
     if (arg === "-h" || arg === "--help") options.help = true;
     else if (arg === "--json") options.json = true;
     else if (arg === "--output") options.output = requiredValue(argv, ++index, arg);
+    else if (arg === "--manifest") options.manifestPath = requiredValue(argv, ++index, arg);
     else if (arg === "--max-regression-pct") options.maxRegressionPct = parseThreshold(requiredValue(argv, ++index, arg), arg);
     else if (arg === "--suite-threshold") {
       const [key, value] = parseThresholdSpec(requiredValue(argv, ++index, arg), "suite");
@@ -834,8 +885,13 @@ function parseCompareArgs(argv: readonly string[]): CompareBenchmarkReportsOptio
     else positional.push(arg);
   }
   if (!options.help) {
-    if (positional.length !== 2) throw new BenchmarkCliUsageError("Expected baseline and candidate report paths.");
-    [options.baselinePath, options.candidatePath] = positional;
+    if (options.manifestPath) {
+      if (positional.length !== 1) throw new BenchmarkCliUsageError("Expected candidate report path when using --manifest.");
+      options.candidatePath = positional[0];
+    } else {
+      if (positional.length !== 2) throw new BenchmarkCliUsageError("Expected baseline and candidate report paths.");
+      [options.baselinePath, options.candidatePath] = positional;
+    }
   }
   return options;
 }
@@ -945,8 +1001,10 @@ function parseRegisterArgs(argv: readonly string[]): {
 function benchmarkCompareUsage(): string {
   return [
     "Usage: gemstone-js-benchmark-compare <baseline.json> <candidate.json> [options]",
+    "       gemstone-js-benchmark-compare <candidate.json> --manifest <index.json> [options]",
     "",
-    "Options: --json --output <path> --max-regression-pct <pct>",
+    "Options: --manifest <index.json> --json --output <path>",
+    "         --max-regression-pct <pct>",
     "         --suite-threshold <suite=pct> --operation-threshold <suite/op=pct>",
     "",
   ].join("\n");

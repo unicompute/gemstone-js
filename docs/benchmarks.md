@@ -57,8 +57,14 @@ Compare a candidate report with a committed baseline:
 ```sh
 npm run benchmark:compare -- baseline.json candidate.json
 npm run benchmark:compare -- baseline.json candidate.json --max-regression-pct 10
+npm run benchmark:compare -- candidate.json --manifest .github/benchmarks/index.json --max-regression-pct 10
 npm run benchmark:compare -- baseline.json candidate.json --json --output benchmark-compare.json
 ```
+
+When `--manifest` is supplied, comparison selects the single committed baseline
+whose comparable metadata matches the candidate report before applying
+thresholds. This is the shortest CI path when the manifest is kept free of
+duplicate metadata.
 
 Select a committed baseline whose metadata matches a candidate:
 

@@ -74,7 +74,8 @@ The first implementation slice follows `../plan.js.txt`:
   `gci` suite or opt-in live persistence suites, while
   `src/benchmark-baselines.ts` validates saved report JSON, compares result
   rows with regression thresholds, selects metadata-compatible baselines from a
-  manifest, rejects ambiguous duplicate baseline metadata by default, can
+  manifest, can compare a candidate directly against the selected manifest
+  baseline, rejects ambiguous duplicate baseline metadata by default, can
   intentionally replace matching manifest entries during registration, and
   updates baseline manifests for CI enforcement.
 - `RcCounter`, `RcKeyValueDictionary`, and `RcQueue` are thin wrappers over the

@@ -19,8 +19,8 @@ keeping a JavaScript-first async API.
   dry-runs, and a command-line runner.
 - Benchmark report generation for offline `gci` and opt-in live persistence
   suites, plus baseline comparison, metadata-based baseline selection, baseline
-  manifest registration, pruning, threshold enforcement, and command-line
-  wrappers for saved report artifacts.
+  manifest registration/replacement, pruning, threshold enforcement, and
+  command-line wrappers for saved report artifacts.
 - `StringKeyValueDictionary` helpers with key, item, value, pick, require,
   replace, clear, nested dictionary, raw OOP, and object-handle variants.
 - Reduced-conflict wrappers for `RcCounter`, `RcKeyValueDictionary`, and

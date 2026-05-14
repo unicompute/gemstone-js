@@ -103,9 +103,9 @@ native package; the TypeScript package can be tested locally with a mock runtime
 - Benchmark tooling can generate compact reports through
   `gemstone-js-benchmarks` using an offline `gci` suite or opt-in live
   persistence suites, then validate saved reports, compare baseline/candidate
-  artifacts with global, suite, and operation regression thresholds, select
-  matching committed baselines by metadata, and register/prune baseline
-  manifests through `gemstone-js-benchmark-validate`,
+  artifacts with global, suite, and operation regression thresholds, select or
+  directly compare against matching committed baselines by metadata, and
+  register/prune baseline manifests through `gemstone-js-benchmark-validate`,
   `gemstone-js-benchmark-compare`, `gemstone-js-benchmark-baselines`, and
   `gemstone-js-benchmark-register`; see `docs/benchmarks.md`.
 - Reduced-conflict wrappers expose GemStone `RcCounter`,

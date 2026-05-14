@@ -12,6 +12,7 @@ import {
   BENCHMARK_REPORT_SCHEMA_PATH,
   BENCHMARK_REPORT_SCHEMA_VERSION,
   BENCHMARK_VALIDATION_SCHEMA_VERSION,
+  compareBenchmarkCandidateWithManifest,
   compareBenchmarkReports,
   formatBenchmarkComparison,
   loadBenchmarkReport,
@@ -79,6 +80,34 @@ test("benchmark comparison skips threshold enforcement when metadata differs", a
   assert.equal(comparison.comparable, false);
   assert.equal(comparison.thresholdExceeded, false);
   assert.match(comparison.compatibilityIssues[0], /stone differs/);
+});
+
+test("benchmark comparison can select matching baselines from a manifest", async () => {
+  await using fixture = await tempFixture();
+  const baseline = join(fixture.path, "baseline.json");
+  const other = join(fixture.path, "other.json");
+  const candidate = join(fixture.path, "candidate.json");
+  const manifest = join(fixture.path, "index.json");
+  await writeReport(baseline, report({ results: [result("gci", "execute", 100, 1)] }));
+  await writeReport(other, report({ stone: "other", results: [result("gci", "execute", 500, 1)] }));
+  await writeReport(candidate, report({ results: [result("gci", "execute", 80, 1)] }));
+  await writeJson(manifest, { schema_version: BASELINE_MANIFEST_SCHEMA_VERSION, baselines: ["other.json", "baseline.json"] });
+
+  const comparison = compareBenchmarkCandidateWithManifest({
+    candidatePath: candidate,
+    manifestPath: manifest,
+    maxRegressionPct: 10,
+  });
+
+  assert.equal(comparison.baselinePath, baseline);
+  assert.equal(comparison.candidatePath, candidate);
+  assert.equal(comparison.thresholdExceeded, true);
+
+  await writeJson(manifest, { schema_version: BASELINE_MANIFEST_SCHEMA_VERSION, baselines: ["other.json"] });
+  assert.throws(
+    () => compareBenchmarkCandidateWithManifest({ candidatePath: candidate, manifestPath: manifest }),
+    /No committed benchmark baseline/,
+  );
 });
 
 test("baseline selection matches normalized metadata and rejects duplicates", async () => {
@@ -227,6 +256,16 @@ test("benchmark CLIs render JSON and threshold exit codes", async () => {
   const compareIo = fakeIo();
   assert.equal(await runBenchmarkCompareCli([baseline, candidate, "--json", "--max-regression-pct", "10"], compareIo), 2);
   assert.equal(JSON.parse(compareIo.stdoutText()).thresholdExceeded, true);
+
+  const manifestCompareIo = fakeIo();
+  assert.equal(await runBenchmarkCompareCli([candidate, "--manifest", manifest, "--json", "--max-regression-pct", "10"], manifestCompareIo), 2);
+  const manifestComparison = JSON.parse(manifestCompareIo.stdoutText());
+  assert.equal(manifestComparison.baselinePath, baseline);
+  assert.equal(manifestComparison.thresholdExceeded, true);
+
+  const compareUsageIo = fakeIo();
+  assert.equal(await runBenchmarkCompareCli([baseline, candidate, "--manifest", manifest], compareUsageIo), 2);
+  assert.match(compareUsageIo.stderrText(), /Expected candidate report path/);
 
   const baselinesIo = fakeIo();
   assert.equal(await runBenchmarkBaselinesCli([candidate, "--manifest", manifest, "--json"], baselinesIo), 0);

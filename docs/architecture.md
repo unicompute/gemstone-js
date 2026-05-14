@@ -75,6 +75,12 @@ The first implementation slice follows `../plan.js.txt`:
   existing root marshalling path and stay reviewable. The public API validates
   dependency order, unknown applied ids, and checksum drift before applying
   steps; each step commits after its metadata write.
+- Transaction retry helpers are intentionally callback-based so the whole unit
+  of work can be replayed after a commit conflict. Existing sessions are
+  aborted and reused between attempts; owned sessions are recreated per attempt.
+  `commitWithConflictDetails()` converts conflict-like commit failures into a
+  structured `CommitConflictError` by reading `System conflictReportString` and
+  the current transaction conflict collections when GemStone exposes them.
 - Benchmark helpers are split between report generation and saved-artifact
   policy. `src/benchmarks.ts` can generate compact reports from the offline
   `gci` suite or opt-in live persistence suites, while

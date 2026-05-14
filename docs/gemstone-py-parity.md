@@ -12,12 +12,11 @@ benchmarks, package verification, and optional native GCI access are all
 represented.
 
 `gemstone-py` is still the more mature application stack. It has the broader
-example set, synchronous and asynchronous Python APIs, transaction retry and
-conflict-diagnostic helpers, Flask/Django/FastAPI/Litestar integrations, and a
-VS Code workbench. `gemstone-js` is stronger where TypeScript matters: typed
-generated wrappers, JSON Schemas for manifests/artifacts, explicit async
-handles, Node/Deno/Bun runtime boundaries, npm provenance checks, and the
-native session-thread spike.
+example set, synchronous and asynchronous Python APIs, Flask/Django/FastAPI/
+Litestar integrations, and a VS Code workbench. `gemstone-js` is stronger where
+TypeScript matters: typed generated wrappers, JSON Schemas for
+manifests/artifacts, explicit async handles, Node/Deno/Bun runtime boundaries,
+npm provenance checks, and the native session-thread spike.
 
 ## Aligned Surface
 
@@ -33,6 +32,8 @@ native session-thread spike.
 - Module-style migrations with dependency planning, status/current reads,
   upgrade/downgrade execution, checksum validation, advisory locks, recorded
   dry-runs, and a command-line runner.
+- Transaction retry and commit-conflict diagnostic helpers, adapted to
+  JavaScript's async callback style.
 - Benchmark report generation for offline `gci` and opt-in live persistence
   suites, plus baseline comparison, metadata-based baseline selection, baseline
   manifest registration/replacement, pruning, threshold enforcement, and

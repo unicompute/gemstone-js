@@ -106,6 +106,10 @@ native package; the TypeScript package can be tested locally with a mock runtime
   `gemstone-js-migrations` CLI. Metadata and advisory locks live in
   `UserGlobals` as JSON strings under `GemstoneJsMigrations` and
   `GemstoneJsMigrationsLock`; see `docs/migrations.md`.
+- Transaction retry helpers provide `runTransactionWithRetry()` and
+  `retryingTransaction()` for replaying work after commit conflicts, plus
+  `CommitConflictError`, `TransactionRetry`, structured conflict diagnostics,
+  and formatting helpers for logging or CI output.
 - Benchmark tooling can generate compact reports through
   `gemstone-js-benchmarks` using an offline `gci` suite or opt-in live
   persistence suites, then validate saved reports, compare baseline/candidate

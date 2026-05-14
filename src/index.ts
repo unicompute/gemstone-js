@@ -194,6 +194,20 @@ export {
   type MigrationStep,
   type MigrationsCliIo,
 } from "./migrations.ts";
+export {
+  CommitConflictError,
+  TransactionRetry,
+  commitWithConflictDetails,
+  describeCommitConflict,
+  formatCommitConflict,
+  formatConflictDiagnostics,
+  retryingTransaction,
+  runTransactionWithRetry,
+  type ConflictDiagnostics,
+  type ConflictObject,
+  type TransactionRetryOptions,
+  type TransactionWork,
+} from "./transactions.ts";
 export { GSCollection, type ComparisonOp, type GSCollectionIndexKind, type GSCollectionIndexOptions } from "./query.ts";
 export {
   OBJECT_LOG_LEVELS,

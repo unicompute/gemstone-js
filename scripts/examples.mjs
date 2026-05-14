@@ -20,27 +20,28 @@ async function main(args) {
     return;
   }
   if (options.json) {
-    process.stdout.write(`${JSON.stringify(exampleCatalog, null, 2)}\n`);
+    process.stdout.write(`${JSON.stringify(filterExamples(options.kind), null, 2)}\n`);
     return;
   }
   if (options.show) {
-    const example = requireExample(options.show);
+    const example = requireExample(options.show, options.kind);
     process.stdout.write(readFileSync(join(PACKAGE_ROOT, example.path), "utf8"));
     return;
   }
   if (options.path) {
-    const example = requireExample(options.path);
+    const example = requireExample(options.path, options.kind);
     process.stdout.write(`${join(PACKAGE_ROOT, example.path)}\n`);
     return;
   }
 
-  process.stdout.write(formatExamples(exampleCatalog));
+  process.stdout.write(formatExamples(filterExamples(options.kind)));
 }
 
 function parseArgs(args) {
   const options = {
     help: false,
     json: false,
+    kind: undefined,
     path: undefined,
     show: undefined,
   };
@@ -50,6 +51,9 @@ function parseArgs(args) {
       options.help = true;
     } else if (arg === "--json") {
       options.json = true;
+    } else if (arg === "--kind") {
+      options.kind = requiredArg(args, index, arg);
+      index += 1;
     } else if (arg === "--show") {
       options.show = requiredArg(args, index, arg);
       index += 1;
@@ -73,15 +77,29 @@ function requiredArg(args, index, flag) {
   return value;
 }
 
-function requireExample(name) {
+function filterExamples(kind) {
+  if (!kind) return exampleCatalog;
+  const examples = exampleCatalog.filter((entry) => entry.kind === kind);
+  if (examples.length === 0) {
+    const kinds = [...new Set(exampleCatalog.map((entry) => entry.kind))].sort().join(", ");
+    throw new Error(`Unknown example kind ${JSON.stringify(kind)}. Available kinds: ${kinds}.`);
+  }
+  return examples;
+}
+
+function requireExample(name, kind) {
   const example = findExample(name);
   if (!example) {
     throw new Error(`Unknown example ${JSON.stringify(name)}. Run gemstone-js-examples --json to list examples.`);
+  }
+  if (kind && example.kind !== kind) {
+    throw new Error(`Example ${JSON.stringify(name)} is kind ${JSON.stringify(example.kind)}, not ${JSON.stringify(kind)}.`);
   }
   return example;
 }
 
 function formatExamples(examples) {
+  if (examples.length === 0) return "No gemstone-js examples matched.\n";
   const width = Math.max(...examples.map((entry) => entry.name.length));
   const lines = ["Available gemstone-js examples:"];
   for (const entry of examples) {
@@ -98,6 +116,7 @@ function printUsage(output) {
 
 Options:
   --json             Print the example catalog as JSON
+  --kind <kind>      Filter by example kind
   --show <name>      Print an example file
   --path <name>      Print an example file path
   -h, --help         Show this help

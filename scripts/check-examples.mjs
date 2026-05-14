@@ -12,6 +12,7 @@ const entries = readdirSync(examplesDir, { withFileTypes: true })
 
 const tsExamples = entries.filter((path) => path.endsWith(".ts"));
 const jsonExamples = entries.filter((path) => path.endsWith(".json"));
+const catalogPaths = new Set(exampleCatalog.map((entry) => entry.path));
 
 for (const path of tsExamples) {
   execFileSync(process.execPath, ["--experimental-strip-types", "--check", path], {
@@ -35,7 +36,19 @@ for (const entry of exampleCatalog) {
   if (catalogNames.has(entry.name)) {
     throw new Error(`Duplicate example catalog name: ${entry.name}`);
   }
+  if (!entry.kind || !/^[a-z][a-z0-9-]*$/.test(entry.kind)) {
+    throw new Error(`Example ${entry.name} has an invalid kind: ${String(entry.kind)}.`);
+  }
+  if (!entry.description || !entry.description.trim()) {
+    throw new Error(`Example ${entry.name} is missing a description.`);
+  }
   catalogNames.add(entry.name);
+}
+
+for (const path of entries) {
+  if (!catalogPaths.has(path)) {
+    throw new Error(`Example file is missing from scripts/examples-catalog.mjs: ${path}`);
+  }
 }
 
 console.log(`Example check passed: ${tsExamples.length} TypeScript examples, ${jsonExamples.length} JSON examples, ${exampleCatalog.length} catalog entries.`);

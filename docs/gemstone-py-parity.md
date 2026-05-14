@@ -11,9 +11,9 @@ helpers, migrations, bootstrap, ObjectLog, inspection, code generation,
 benchmarks, package verification, source/runtime API contract checks, and
 optional native GCI access are all represented.
 
-`gemstone-py` is still the more mature application stack. It has the broader
-example set, synchronous and asynchronous Python APIs, Flask/Django/FastAPI/
-Litestar integrations, and a VS Code workbench. `gemstone-js` is stronger where
+`gemstone-py` is still the more mature application stack. It has synchronous
+and asynchronous Python APIs, Flask/Django/FastAPI/Litestar integrations, and a
+VS Code workbench. `gemstone-js` is stronger where
 TypeScript matters: typed generated wrappers, JSON Schemas for
 manifests/artifacts, explicit async handles, Node/Deno/Bun runtime boundaries,
 npm provenance checks, and the native session-thread spike.
@@ -32,7 +32,10 @@ npm provenance checks, and the native session-thread spike.
   lifecycle with configurable transaction and response-status policy, plus
   committed example services for each adapter.
 - Packaged examples are discoverable through `gemstone-js-examples`, mirroring
-  gemstone-py's installed example catalog pattern in JavaScript form.
+  gemstone-py's installed example catalog pattern in JavaScript form. The
+  catalog now includes quickstart, data helper, query, migration, ObjectLog,
+  codegen, and web adapter examples, with a `--kind` filter for tooling and
+  focused browsing.
 - Raw execute/eval, value marshalling, typed object handles, and managed
   export-set handles.
 - Explicit opt-in value converter registry with named converter lookup,

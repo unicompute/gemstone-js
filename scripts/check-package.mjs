@@ -115,6 +115,8 @@ runRequiredCheck("decorated-source codegen output", [
   "examples/booking.decorators.ts",
 ]);
 runRequiredCheck("example syntax", ["scripts/check-examples.mjs"]);
+runRequiredCheck("example catalog kind filter", ["scripts/examples.mjs", "--kind", "data"]);
+runRequiredCheck("example catalog JSON kind filter", ["scripts/examples.mjs", "--json", "--kind", "ops"]);
 runRequiredCheck("public surface contract", ["scripts/check-public-surface.mjs"]);
 runRequiredCheck("runtime API contract", ["scripts/api-contract.mjs"]);
 
@@ -133,7 +135,12 @@ const required = [
   "examples/booking.ts",
   "examples/codegen.generated.ts",
   "examples/codegen.manifest.json",
+  "examples/gstore.ts",
+  "examples/migrations.ts",
+  "examples/object-log.ts",
+  "examples/persistent-root.ts",
   "examples/quickstart.ts",
+  "examples/query.ts",
   "examples/web-express.ts",
   "examples/web-fastify.ts",
   "examples/web-hono.ts",
@@ -264,18 +271,21 @@ for (const exportName of ["SessionConfig", "GciRuntime", "TransactionPolicy", "V
 if (!apiContract.includes("await import(moduleSpecifier)") || !apiContract.includes("missingValueExports")) {
   throw new Error("scripts/api-contract.mjs must import and compare runtime value exports.");
 }
-if (!examplesCatalog.includes("web-express") || !examplesCatalog.includes("quickstart")) {
-  throw new Error("scripts/examples-catalog.mjs must include packaged basic and web examples.");
+for (const name of ["quickstart", "gstore", "persistent-root", "query", "migrations", "object-log", "web-express"]) {
+  if (!examplesCatalog.includes(name)) {
+    throw new Error(`scripts/examples-catalog.mjs must include packaged example: ${name}.`);
+  }
 }
-if (!examplesCli.includes("--show") || !examplesCli.includes("--path") || !examplesCli.includes("exampleCatalog")) {
-  throw new Error("scripts/examples.mjs must list and show catalog examples.");
+if (!examplesCli.includes("--show") || !examplesCli.includes("--path") || !examplesCli.includes("--kind") || !examplesCli.includes("exampleCatalog")) {
+  throw new Error("scripts/examples.mjs must list, filter, and show catalog examples.");
 }
 if (
   !examplesCheck.includes("--experimental-strip-types")
   || !examplesCheck.includes("exampleCatalog")
   || !examplesCheck.includes("JSON.parse")
+  || !examplesCheck.includes("missing from scripts/examples-catalog.mjs")
 ) {
-  throw new Error("scripts/check-examples.mjs must syntax-check TypeScript examples and parse JSON examples.");
+  throw new Error("scripts/check-examples.mjs must syntax-check TypeScript examples, parse JSON examples, and require catalog coverage.");
 }
 if (
   !apiContract.includes("--json")

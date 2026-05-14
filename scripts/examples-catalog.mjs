@@ -6,6 +6,24 @@ export const exampleCatalog = [
     description: "Minimal connect/evaluate/logout flow using Session.configFromEnv().",
   },
   {
+    name: "gstore",
+    path: "examples/gstore.ts",
+    kind: "data",
+    description: "Named JSON key/value store with transaction callbacks and read-only snapshots.",
+  },
+  {
+    name: "persistent-root",
+    path: "examples/persistent-root.ts",
+    kind: "data",
+    description: "UserGlobals and GsDict value/raw item access through persistent root helpers.",
+  },
+  {
+    name: "query",
+    path: "examples/query.ts",
+    kind: "query",
+    description: "GSCollection search, first, count, exists, limit, and chunked value iteration.",
+  },
+  {
     name: "booking",
     path: "examples/booking.ts",
     kind: "codegen",
@@ -34,6 +52,18 @@ export const exampleCatalog = [
     path: "examples/booking.decorators.generated.ts",
     kind: "codegen",
     description: "Generated wrappers rendered from decorated source.",
+  },
+  {
+    name: "migrations",
+    path: "examples/migrations.ts",
+    kind: "ops",
+    description: "Exported migration manifest plus direct status and dry-run execution flow.",
+  },
+  {
+    name: "object-log",
+    path: "examples/object-log.ts",
+    kind: "ops",
+    description: "ObjectLog writes, entry fetches, and level-aware display.",
   },
   {
     name: "web-express",

@@ -135,8 +135,9 @@ native package; the TypeScript package can be tested locally with a mock runtime
   close rejects pending acquires. Explicit validation queries run without
   needing a separate interval option, `warm()` is idempotent for target
   capacity, custom health checks and max-age/max-use recycling match production
-  provider patterns, and `withSession()` wraps sync or async acquire/use/release
-  callback flows.
+  provider patterns, `snapshot()` and `eventListener` expose provider-style
+  operational events, and `withSession()` wraps sync or async
+  acquire/use/release callback flows.
 - Result marshalling now converts GemStone `String` and `Symbol` objects back
   into JavaScript strings via `fetchString()` and class detection. Float OOPs are
   converted when the runtime reports that `GciOopToFlt_` succeeded.

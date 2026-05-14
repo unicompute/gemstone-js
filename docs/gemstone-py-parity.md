@@ -23,7 +23,8 @@ npm provenance checks, and the native session-thread spike.
 - Environment-based session configuration and explicit login/logout lifecycle.
 - Session pools with warmup, wait accounting, reset-aware release, validation
   queries, custom health checks, idle-timeout eviction, and max-age/max-use
-  recycling.
+  recycling, plus provider-style snapshots, lifecycle events, metrics, and
+  spans.
 - Raw execute/eval, value marshalling, typed object handles, and managed
   export-set handles.
 - Class-side sends through an explicit class reference object.

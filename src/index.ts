@@ -225,7 +225,11 @@ export {
 export {
   PooledSession,
   SessionPool,
+  type PoolDiscardReason,
+  type PoolEvent,
+  type PoolEventName,
   type PoolConfig,
+  type PoolSnapshot,
   type PooledSessionReleaseOptions,
   type PoolWithSessionOptions,
 } from "./pool.ts";

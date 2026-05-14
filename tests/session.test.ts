@@ -3,6 +3,8 @@ import {
   OOP_NIL,
   GemStoneError,
   GsDict,
+  InMemoryMetrics,
+  InMemoryTracer,
   PersistentRoot,
   Session,
   SessionPool,
@@ -307,6 +309,88 @@ test("SessionPool stats report pending acquires", async () => {
 
     await second.release({ clean: true });
     await pool.close();
+  } finally {
+    setGciRuntimeForTesting(undefined);
+  }
+});
+
+test("SessionPool snapshot reports configuration, stats, and closed state", async () => {
+  const runtime = new MockGciRuntime();
+  setGciRuntimeForTesting(runtime);
+  try {
+    const pool = new SessionPool({
+      name: "api-pool",
+      username: "u",
+      password: "p",
+      minSize: 0,
+      maxSize: 2,
+      idleTimeoutMs: 100,
+      maxSessionAgeMs: 5_000,
+      maxSessionUses: 10,
+      validationQuery: "1 + 1",
+    });
+
+    const initial = pool.snapshot();
+    assertEqual(initial.name, "api-pool");
+    assertEqual(initial.poolType, "SessionPool");
+    assertEqual(initial.minSize, 0);
+    assertEqual(initial.maxSize, 2);
+    assertEqual(initial.idleTimeoutMs, 100);
+    assertEqual(initial.maxSessionAgeMs, 5_000);
+    assertEqual(initial.maxSessionUses, 10);
+    assertEqual(initial.validationQuery, "1 + 1");
+    assertEqual(initial.closed, false);
+
+    const lease = await pool.acquire();
+    assertEqual(pool.snapshot().inUse, 1);
+    await lease.release({ clean: true });
+    assertEqual(pool.snapshot().idle, 1);
+
+    await pool.close();
+    assertEqual(pool.snapshot().closed, true);
+  } finally {
+    setGciRuntimeForTesting(undefined);
+  }
+});
+
+test("SessionPool emits provider events, metrics, and spans", async () => {
+  const runtime = new MockGciRuntime();
+  const metrics = new InMemoryMetrics();
+  const tracer = new InMemoryTracer();
+  const events: string[] = [];
+  setGciRuntimeForTesting(runtime);
+  try {
+    const pool = new SessionPool({
+      name: "api-pool",
+      username: "u",
+      password: "p",
+      maxSize: 1,
+      metrics,
+      tracer,
+      eventListener(event) {
+        assertEqual(event.poolName, "api-pool");
+        assertEqual(event.poolType, "SessionPool");
+        events.push(`${event.name}:${event.reason ?? ""}`);
+      },
+    });
+
+    const lease = await pool.acquire();
+    await lease.release({ clean: true });
+    await pool.close();
+
+    assert(events.includes("session_created:"), "expected session_created event");
+    assert(events.includes("session_acquired:"), "expected session_acquired event");
+    assert(events.includes("session_released:"), "expected session_released event");
+    assert(events.includes("session_discarded:pool_closed"), "expected close discard event");
+    assert(events.includes("pool_closed:"), "expected pool_closed event");
+    assert(
+      metrics.increments.some((entry) => entry.name === "gemstone_js_pool_events" && entry.labels?.event === "session_acquired"),
+      "pool events should increment metrics",
+    );
+    assert(
+      tracer.spans.some((span) => span.name === "gemstone.pool.session_acquired" && span.ended),
+      "pool events should emit spans",
+    );
   } finally {
     setGciRuntimeForTesting(undefined);
   }

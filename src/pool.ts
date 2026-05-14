@@ -2,12 +2,14 @@ import { Session } from "./client.ts";
 import type { PoolStats, SessionConfig } from "./types.ts";
 
 export interface PoolConfig extends SessionConfig {
+  name?: string;
   minSize?: number;
   maxSize?: number;
   idleTimeoutMs?: number;
   maxSessionAgeMs?: number;
   maxSessionUses?: number;
   healthCheck?: (session: Session) => MaybePromise<boolean>;
+  eventListener?: (event: PoolEvent) => void;
   validationQuery?: string;
   validationIntervalMs?: number;
   acquireTimeoutMs?: number;
@@ -21,6 +23,49 @@ export interface PooledSessionReleaseOptions {
 export interface PoolWithSessionOptions {
   acquireTimeoutMs?: number;
   release?: PooledSessionReleaseOptions;
+}
+
+export type PoolEventName =
+  | "session_created"
+  | "session_acquired"
+  | "session_released"
+  | "session_discarded"
+  | "session_warmed"
+  | "acquire_queued"
+  | "acquire_timeout"
+  | "pool_closed";
+
+export type PoolDiscardReason =
+  | "manual"
+  | "pool_closed"
+  | "reset_failed"
+  | "validation_failed"
+  | "idle_timeout"
+  | "max_age"
+  | "max_uses";
+
+export interface PoolSnapshot extends PoolStats {
+  name: string;
+  poolType: "SessionPool";
+  minSize: number;
+  maxSize: number;
+  idleTimeoutMs?: number;
+  maxSessionAgeMs?: number;
+  maxSessionUses?: number;
+  acquireTimeoutMs?: number;
+  validationIntervalMs?: number;
+  validationQuery?: string;
+  closed: boolean;
+}
+
+export interface PoolEvent {
+  name: PoolEventName;
+  poolName: string;
+  poolType: "SessionPool";
+  sessionId?: number;
+  reason?: PoolDiscardReason | "timeout" | "warm";
+  occurredAt: number;
+  snapshot: PoolSnapshot;
 }
 
 type MaybePromise<T> = T | Promise<T>;
@@ -69,6 +114,7 @@ interface Waiter {
 
 export class SessionPool implements AsyncDisposable {
   readonly config: Required<Pick<PoolConfig, "minSize" | "maxSize">> & PoolConfig;
+  readonly name: string;
   #idle: IdleSession[] = [];
   #created = 0;
   #createdTotal = 0;
@@ -108,6 +154,7 @@ export class SessionPool implements AsyncDisposable {
     const validationIntervalMs = config.validationIntervalMs ?? (config.validationQuery === undefined ? undefined : 0);
     const validationQuery = config.validationQuery ?? (validationIntervalMs === undefined ? undefined : "1 + 1");
     this.config = { ...config, minSize, maxSize, validationIntervalMs, validationQuery };
+    this.name = config.name ?? "SessionPool";
   }
 
   async warm(count = this.config.minSize): Promise<number> {
@@ -120,6 +167,7 @@ export class SessionPool implements AsyncDisposable {
       this.#idle.push({ session, metadata: this.#metadataFor(session) });
       warmed += 1;
     }
+    if (warmed > 0) this.#emit("session_warmed", { reason: "warm" });
     return warmed;
   }
 
@@ -138,9 +186,10 @@ export class SessionPool implements AsyncDisposable {
       if (await this.#validateIfNeeded(idle.session, idle.metadata)) {
         this.#markCheckedOut(idle.metadata);
         this.#recordAcquireWait(started);
+        this.#emit("session_acquired", { session: idle.session });
         return new PooledSession(this, idle.session);
       }
-      await this.#discard(idle.session);
+      await this.#discard(idle.session, "validation_failed");
       return this.acquire(timeoutMs);
     }
 
@@ -148,6 +197,7 @@ export class SessionPool implements AsyncDisposable {
       const session = await this.#createSession();
       this.#markCheckedOut(this.#metadataFor(session));
       this.#recordAcquireWait(started);
+      this.#emit("session_acquired", { session });
       return new PooledSession(this, session);
     }
 
@@ -157,9 +207,11 @@ export class SessionPool implements AsyncDisposable {
         ? undefined
         : setTimeout(() => {
             this.#waiters = this.#waiters.filter((entry) => entry !== waiter);
+            this.#emit("acquire_timeout", { reason: "timeout" });
             reject(new Error(`Timed out acquiring GemStone session after ${timeoutMs}ms.`));
           }, timeoutMs);
       this.#waiters.push(waiter);
+      this.#emit("acquire_queued");
     });
   }
 
@@ -185,13 +237,13 @@ export class SessionPool implements AsyncDisposable {
   async release(lease: PooledSession, options: PooledSessionReleaseOptions = {}): Promise<void> {
     const session = lease.session;
     if (options.discard || this.#closed) {
-      await this.#discard(session);
+      await this.#discard(session, options.discard ? "manual" : "pool_closed");
       await this.#serveWaiters();
       return;
     }
 
     if (!options.clean && !await this.#resetSession(session)) {
-      await this.#discard(session);
+      await this.#discard(session, "reset_failed");
       await this.#serveWaiters();
       return;
     }
@@ -199,7 +251,7 @@ export class SessionPool implements AsyncDisposable {
     const metadata = this.#metadataFor(session);
     metadata.lastUsedAt = Date.now();
     if (!await this.#validateIfNeeded(session, metadata)) {
-      await this.#discard(session);
+      await this.#discard(session, "validation_failed");
       await this.#serveWaiters();
       return;
     }
@@ -213,12 +265,14 @@ export class SessionPool implements AsyncDisposable {
 
     const waiter = this.#waiters.shift();
     if (waiter) {
+      this.#emit("session_released", { session });
       this.#resolveWaiter(waiter, session);
       return;
     }
 
     const idle = { session, metadata };
     this.#idle.push(idle);
+    this.#emit("session_released", { session });
   }
 
   async sweepIdle(): Promise<number> {
@@ -230,7 +284,7 @@ export class SessionPool implements AsyncDisposable {
       const canEvict = this.#created > this.config.minSize;
       if (canEvict && now - idle.metadata.lastUsedAt >= this.config.idleTimeoutMs) {
         swept += 1;
-        await this.#discard(idle.session, "idleTimeout");
+        await this.#discard(idle.session, "idle_timeout");
       } else {
         keep.push(idle);
       }
@@ -256,6 +310,23 @@ export class SessionPool implements AsyncDisposable {
     };
   }
 
+  snapshot(): PoolSnapshot {
+    return {
+      name: this.name,
+      poolType: "SessionPool",
+      minSize: this.config.minSize,
+      maxSize: this.config.maxSize,
+      idleTimeoutMs: this.config.idleTimeoutMs,
+      maxSessionAgeMs: this.config.maxSessionAgeMs,
+      maxSessionUses: this.config.maxSessionUses,
+      acquireTimeoutMs: this.config.acquireTimeoutMs,
+      validationIntervalMs: this.config.validationIntervalMs,
+      validationQuery: this.config.validationQuery,
+      closed: this.#closed,
+      ...this.stats(),
+    };
+  }
+
   async close(): Promise<void> {
     if (this.#closed) return;
     this.#closed = true;
@@ -267,7 +338,8 @@ export class SessionPool implements AsyncDisposable {
       waiter.reject(new Error("SessionPool is closed."));
     }
     const idle = this.#idle.splice(0);
-    await Promise.all(idle.map((entry) => this.#discard(entry.session)));
+    await Promise.all(idle.map((entry) => this.#discard(entry.session, "pool_closed")));
+    this.#emit("pool_closed");
   }
 
   async [Symbol.asyncDispose](): Promise<void> {
@@ -285,6 +357,7 @@ export class SessionPool implements AsyncDisposable {
         validatedAt: 0,
         useCount: 0,
       });
+      this.#emit("session_created", { session });
       return session;
     } catch (error) {
       this.#created -= 1;
@@ -292,14 +365,15 @@ export class SessionPool implements AsyncDisposable {
     }
   }
 
-  async #discard(session: Session, reason?: SessionRecycleReason): Promise<void> {
+  async #discard(session: Session, reason?: PoolDiscardReason): Promise<void> {
     this.#created = Math.max(this.#created - 1, 0);
     this.#evictedTotal += 1;
-    if (reason === "maxAge") this.#recycleAgeDiscards += 1;
-    if (reason === "maxUses") this.#recycleUseDiscards += 1;
-    if (reason === "idleTimeout") this.#idleTimeoutDiscards += 1;
+    if (reason === "max_age") this.#recycleAgeDiscards += 1;
+    if (reason === "max_uses") this.#recycleUseDiscards += 1;
+    if (reason === "idle_timeout") this.#idleTimeoutDiscards += 1;
     this.#metadata.delete(session);
     await session.logout().catch(() => {});
+    this.#emit("session_discarded", { session, reason });
   }
 
   async #resetSession(session: Session): Promise<boolean> {
@@ -347,6 +421,7 @@ export class SessionPool implements AsyncDisposable {
     if (waiter.timer) clearTimeout(waiter.timer);
     this.#markCheckedOut(this.#metadataFor(session));
     this.#recordAcquireWait(waiter.started);
+    this.#emit("session_acquired", { session });
     waiter.resolve(new PooledSession(this, session));
   }
 
@@ -383,16 +458,54 @@ export class SessionPool implements AsyncDisposable {
 
   #recycleReason(metadata: SessionMetadata): SessionRecycleReason | undefined {
     if (this.config.maxSessionAgeMs !== undefined && Date.now() - metadata.createdAt >= this.config.maxSessionAgeMs) {
-      return "maxAge";
+      return "max_age";
     }
     if (this.config.maxSessionUses !== undefined && metadata.useCount >= this.config.maxSessionUses) {
-      return "maxUses";
+      return "max_uses";
     }
     return undefined;
   }
+
+  #emit(
+    name: PoolEventName,
+    options: { session?: Session; reason?: PoolEvent["reason"] } = {},
+  ): void {
+    const labels = {
+      event: name,
+      pool: this.name,
+      pool_type: "SessionPool",
+      reason: options.reason,
+    };
+    this.config.metrics?.increment("gemstone_js_pool_events", labels);
+    const span = this.config.tracer?.startSpan(`gemstone.pool.${name}`, {
+      event: name,
+      pool: this.name,
+      pool_type: "SessionPool",
+      reason: options.reason,
+      in_use: Math.max(this.#created - this.#idle.length, 0),
+      idle: this.#idle.length,
+      current_capacity: this.#created,
+    });
+    span?.end();
+    const listener = this.config.eventListener;
+    if (!listener) return;
+    try {
+      listener({
+        name,
+        poolName: this.name,
+        poolType: "SessionPool",
+        sessionId: options.session?.sessionId,
+        reason: options.reason,
+        occurredAt: Date.now(),
+        snapshot: this.snapshot(),
+      });
+    } catch {
+      // Observability hooks should not break pool lifecycle operations.
+    }
+  }
 }
 
-type SessionRecycleReason = "idleTimeout" | "maxAge" | "maxUses";
+type SessionRecycleReason = "max_age" | "max_uses";
 
 function normalizeWarmTarget(count: number, maxSize: number): number {
   if (!Number.isSafeInteger(count) || count < 0) {

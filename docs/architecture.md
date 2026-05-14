@@ -148,9 +148,11 @@ The first implementation slice follows `../plan.js.txt`:
   pending acquires, recycle discards, idle-timeout discards, and validation
   failures so saturated pools can be observed. `maxSessionAgeMs`,
   `maxSessionUses`, and custom `healthCheck` callbacks provide the same
-  production recycling hooks as gemstone-py's session providers. `withSession()`
-  gives applications a callback helper that always releases the lease and
-  preserves callback errors if cleanup fails.
+  production recycling hooks as gemstone-py's session providers. `snapshot()`
+  and `eventListener` expose provider-style capacity snapshots and lifecycle
+  events, and pool events are also mirrored into the configured metrics/tracer
+  hooks. `withSession()` gives applications a callback helper that always
+  releases the lease and preserves callback errors if cleanup fails.
 - `InMemoryMetrics` and `InMemoryTracer` provide dependency-free observability
   recorders for tests while the OpenTelemetry adapter maps to real spans.
 - `src/runtime/serialized.ts` serializes all session-bound calls and reactivates

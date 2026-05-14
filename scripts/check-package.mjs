@@ -22,9 +22,21 @@ const packageJson = JSON.parse(readFileSync("package.json", "utf8"));
 const nativeDeclaration = readFileSync("src/native-module.d.ts", "utf8");
 const ciWorkflow = readFileSync(".github/workflows/ci.yml", "utf8");
 const releasingDocs = readFileSync("docs/releasing.md", "utf8");
+const checksumCheck = readFileSync("scripts/check-checksums.mjs", "utf8");
+const checksumWriter = readFileSync("scripts/write-checksums.mjs", "utf8");
+const checksumVerifier = readFileSync("scripts/verify-checksums.mjs", "utf8");
 
 if (packageJson.publishConfig?.provenance !== true) {
   throw new Error("package.json publishConfig.provenance must be true.");
+}
+for (const schemaExport of [
+  "./schemas/codegen-manifest.schema.json",
+  "./schemas/benchmark-report.schema.json",
+  "./schemas/benchmark-baseline-manifest.schema.json",
+]) {
+  if (packageJson.exports?.[schemaExport] !== schemaExport) {
+    throw new Error(`package.json must export ${schemaExport}.`);
+  }
 }
 const requiredScripts = {
   "benchmark:baselines": "node scripts/benchmark-baselines.mjs",
@@ -36,8 +48,10 @@ const requiredScripts = {
   "codegen:scan:check": "node scripts/scan-codegen.mjs --module --check --out examples/booking.decorators.generated.ts examples/booking.decorators.ts",
   "inspect": "node scripts/inspect.mjs",
   "migrations": "node scripts/migrations.mjs",
+  "checksum:check": "node scripts/check-checksums.mjs",
+  "checksum:verify": "node scripts/verify-checksums.mjs",
   "pack:check": "node scripts/check-package.mjs",
-  "verify": "npm run typecheck && npm run codegen:check && npm run codegen:scan:check && npm test && npm run pack:check",
+  "verify": "npm run typecheck && npm run codegen:check && npm run codegen:scan:check && npm test && npm run checksum:check && npm run pack:check",
 };
 for (const [name, command] of Object.entries(requiredScripts)) {
   if (packageJson.scripts?.[name] !== command) {
@@ -91,17 +105,22 @@ const required = [
   "examples/codegen.manifest.json",
   "examples/quickstart.ts",
   "package.json",
+  "schemas/benchmark-baseline-manifest.schema.json",
+  "schemas/benchmark-report.schema.json",
   "schemas/codegen-manifest.schema.json",
   "scripts/benchmark-baselines.mjs",
   "scripts/benchmark-compare.mjs",
   "scripts/benchmark-register.mjs",
   "scripts/benchmarks.mjs",
   "scripts/bootstrap.mjs",
+  "scripts/check-checksums.mjs",
   "scripts/check-package.mjs",
   "scripts/codegen.mjs",
   "scripts/inspect.mjs",
   "scripts/migrations.mjs",
   "scripts/scan-codegen.mjs",
+  "scripts/verify-checksums.mjs",
+  "scripts/write-checksums.mjs",
   "src/index.ts",
   "src/benchmark-baselines.ts",
   "src/benchmarks.ts",
@@ -152,6 +171,7 @@ assertSnippets(
     "npm run verify",
     "npm pack --json",
     "node scripts/write-checksums.mjs .tgz",
+    "node scripts/verify-checksums.mjs SHA256SUMS.txt",
     "SHA256SUMS.txt",
     "actions/upload-artifact@v4",
   ],
@@ -162,9 +182,78 @@ assertSnippets(
   [
     "npm run verify",
     "SHA256SUMS.txt",
+    "node scripts/verify-checksums.mjs SHA256SUMS.txt",
     "shasum -a 256 -c SHA256SUMS.txt",
   ],
 );
+
+if (!checksumCheck.includes("write-checksums.mjs")) {
+  throw new Error("scripts/check-checksums.mjs must exercise write-checksums.mjs.");
+}
+if (!checksumCheck.includes("SHA256SUMS.txt") || !checksumCheck.includes("no files match")) {
+  throw new Error("scripts/check-checksums.mjs must assert checksum output and no-match behavior.");
+}
+if (!checksumCheck.includes("assertInvalidSuffixFails")) {
+  throw new Error("scripts/check-checksums.mjs must assert invalid checksum suffix behavior.");
+}
+if (!checksumCheck.includes("assertDuplicateSuffixFails")) {
+  throw new Error("scripts/check-checksums.mjs must assert duplicate checksum suffix behavior.");
+}
+if (!checksumCheck.includes("assertManifestIsExcluded")) {
+  throw new Error("scripts/check-checksums.mjs must assert SHA256SUMS.txt exclusion behavior.");
+}
+if (
+  !checksumCheck.includes("verify-checksums.mjs")
+  || !checksumCheck.includes("assertMismatchFails")
+  || !checksumCheck.includes("assertVerifierInputFailures")
+) {
+  throw new Error("scripts/check-checksums.mjs must assert checksum verification and mismatch behavior.");
+}
+if (!checksumWriter.includes("createHash") || !checksumWriter.includes("sha256")) {
+  throw new Error("scripts/write-checksums.mjs must compute sha256 digests.");
+}
+if (!checksumWriter.includes("startsWith(\".\")")) {
+  throw new Error("scripts/write-checksums.mjs must validate artifact suffix filters.");
+}
+if (!checksumWriter.includes("path separators")) {
+  throw new Error("scripts/write-checksums.mjs must reject pathful artifact suffix filters.");
+}
+if (!checksumWriter.includes("without whitespace")) {
+  throw new Error("scripts/write-checksums.mjs must reject whitespace-bearing artifact suffix filters.");
+}
+if (!checksumWriter.includes("uniqueSuffixes")) {
+  throw new Error("scripts/write-checksums.mjs must reject duplicate artifact suffix filters.");
+}
+if (!checksumWriter.includes('file !== "SHA256SUMS.txt"')) {
+  throw new Error("scripts/write-checksums.mjs must exclude SHA256SUMS.txt from artifact targets.");
+}
+if (!checksumWriter.includes("isFile()")) {
+  throw new Error("scripts/write-checksums.mjs must only write checksums for regular files.");
+}
+if (!checksumWriter.includes("artifact file names must not contain whitespace")) {
+  throw new Error("scripts/write-checksums.mjs must reject whitespace-bearing artifact file names.");
+}
+if (!checksumWriter.includes("portable ASCII characters")) {
+  throw new Error("scripts/write-checksums.mjs must reject non-portable artifact file names.");
+}
+if (!checksumVerifier.includes("createHash") || !checksumVerifier.includes("Checksum mismatch")) {
+  throw new Error("scripts/verify-checksums.mjs must verify sha256 digests and report mismatches.");
+}
+if (!checksumVerifier.includes("Duplicate checksum target")) {
+  throw new Error("scripts/verify-checksums.mjs must reject duplicate checksum entries.");
+}
+if (!checksumVerifier.includes("must not be artifact targets")) {
+  throw new Error("scripts/verify-checksums.mjs must reject checksum manifest artifact targets.");
+}
+if (!checksumVerifier.includes("regular files")) {
+  throw new Error("scripts/verify-checksums.mjs must reject non-file checksum targets.");
+}
+if (!checksumVerifier.includes("file entries must not contain whitespace")) {
+  throw new Error("scripts/verify-checksums.mjs must reject whitespace-bearing checksum targets.");
+}
+if (!checksumVerifier.includes("portable ASCII basenames")) {
+  throw new Error("scripts/verify-checksums.mjs must reject non-portable checksum targets.");
+}
 
 for (const path of forbidden) {
   const included = files.find((file) => file === path || file.startsWith(`${path}/`) || file.endsWith(`/${path}`));

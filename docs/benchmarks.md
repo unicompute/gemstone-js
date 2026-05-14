@@ -9,6 +9,7 @@ Benchmark reports use the same compact shape as gemstone-py artifacts:
 
 ```json
 {
+  "$schema": "./schemas/benchmark-report.schema.json",
   "schema_version": 1,
   "stone": "gs64stone",
   "platform": "darwin-arm64",
@@ -29,6 +30,11 @@ Benchmark reports use the same compact shape as gemstone-py artifacts:
   ]
 }
 ```
+
+The package ships JSON Schemas for editor and CI validation:
+
+- `schemas/benchmark-report.schema.json`
+- `schemas/benchmark-baseline-manifest.schema.json`
 
 Generate reports with `gemstone-js-benchmarks`:
 

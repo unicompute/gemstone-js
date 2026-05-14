@@ -156,6 +156,16 @@ test("benchmark CLI scripts print help without file IO", async () => {
   assert.match((await execNode([registerScript, "--help"])).stdout, /gemstone-js-benchmark-register/);
 });
 
+test("benchmark artifact schemas track report and manifest versions", async () => {
+  const reportSchema = JSON.parse(await readFile(new URL("../schemas/benchmark-report.schema.json", import.meta.url), "utf8"));
+  const manifestSchema = JSON.parse(await readFile(new URL("../schemas/benchmark-baseline-manifest.schema.json", import.meta.url), "utf8"));
+
+  assert.equal(reportSchema.properties.schema_version.const, BENCHMARK_REPORT_SCHEMA_VERSION);
+  assert.equal(manifestSchema.properties.schema_version.const, BASELINE_MANIFEST_SCHEMA_VERSION);
+  assert.ok(reportSchema.$defs.resultRow.properties.elapsed_seconds);
+  assert.equal(manifestSchema.properties.baselines.items.oneOf[1].properties.path.type, "string");
+});
+
 function report(overrides: Partial<BenchmarkReport> = {}): BenchmarkReport {
   return {
     schema_version: BENCHMARK_REPORT_SCHEMA_VERSION,

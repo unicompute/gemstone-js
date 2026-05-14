@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://unicompute.github.io/gemstone-js/schemas/benchmark-report.schema.json",
+  "title": "gemstone-js benchmark report",
+  "type": "object",
+  "required": ["schema_version", "results"],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "runtime": {
+      "type": "string",
+      "minLength": 1
+    },
+    "node_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "platform": {
+      "type": "string",
+      "minLength": 1
+    },
+    "gci_backend": {
+      "type": "string",
+      "minLength": 1
+    },
+    "stone": {
+      "type": "string",
+      "minLength": 1
+    },
+    "host": {
+      "type": "string",
+      "minLength": 1
+    },
+    "entries": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "search_runs": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "suites": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "results": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/resultRow"
+      }
+    }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "resultRow": {
+      "type": "object",
+      "required": ["suite", "operation", "ops_per_second", "count"],
+      "properties": {
+        "suite": {
+          "type": "string",
+          "minLength": 1
+        },
+        "operation": {
+          "type": "string",
+          "minLength": 1
+        },
+        "ops_per_second": {
+          "type": "number",
+          "minimum": 0
+        },
+        "count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "elapsed_seconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

@@ -187,6 +187,9 @@ native package; the TypeScript package can be tested locally with a mock runtime
   see `examples/codegen.manifest.json` and `examples/codegen.generated.ts`.
   Manifest imports support direct `typeNames`, default `typeDefaultName`,
   aliased `typeSpecifiers`, and namespace `typeNamespaceName` imports.
+- Benchmark report and baseline manifest JSON Schemas are published at
+  `schemas/benchmark-report.schema.json` and
+  `schemas/benchmark-baseline-manifest.schema.json`.
 - `examples/booking.decorators.ts` is a committed scanner fixture; CI verifies
   that it still renders `examples/booking.decorators.generated.ts`.
 - `Session.performObjectWith()` and `sendValue()` aliases make value, raw OOP,
@@ -202,9 +205,10 @@ npm run verify
 ```
 
 Node 24 can execute the `.ts` tests directly using built-in type stripping.
-The package check verifies both checked-in generated outputs, then uses
-`npm pack --dry-run` with a disposable cache and verifies that the publishable
-tarball includes docs/examples while excluding tests and local build metadata.
+The local verify path checks both checked-in generated outputs and the checksum
+helper self-test, then uses `npm pack --dry-run` with a disposable cache to
+verify that the publishable tarball includes docs/examples while excluding
+tests and local build metadata.
 
 Live GemStone checks are opt-in:
 

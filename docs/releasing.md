@@ -12,11 +12,12 @@ npm install --omit=optional
 npm run verify
 npm pack --json
 node scripts/write-checksums.mjs .tgz
+node scripts/verify-checksums.mjs SHA256SUMS.txt
 ```
 
 The workflow uploads the npm tarball as a GitHub Actions artifact so the exact
 package contents can be inspected before publishing. CI also uploads
-`SHA256SUMS.txt` for the generated tarball.
+`SHA256SUMS.txt` for the generated tarball after verifying it.
 
 ## Artifact Inspection
 
@@ -25,6 +26,7 @@ Before `npm publish`, compare the CI tarball with a local package:
 ```sh
 npm pack --json
 node scripts/write-checksums.mjs .tgz
+node scripts/verify-checksums.mjs SHA256SUMS.txt
 tar -tzf gemstone-js-*.tgz
 shasum -a 256 -c SHA256SUMS.txt
 ```
@@ -40,7 +42,7 @@ editor files. Verify that both checked-in generated files are present:
 
 1. Verify `package.json` has the expected version, repository, license, and
    `publishConfig.provenance`.
-2. Run `npm run pack:check` locally.
+2. Run `npm run verify` locally.
 3. Review the CI tarball artifact contents and checksum file with the artifact
    inspection checklist above.
 4. Publish with provenance:

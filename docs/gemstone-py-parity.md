@@ -34,8 +34,8 @@ npm provenance checks, and the native session-thread spike.
 - Packaged examples are discoverable through `gemstone-js-examples`, mirroring
   gemstone-py's installed example catalog pattern in JavaScript form. The
   catalog now includes quickstart, data helper, query, migration, ObjectLog,
-  codegen, and web adapter examples, with a `--kind` filter for tooling and
-  focused browsing.
+  codegen, and web adapter examples, with `--kind` and `--commands` filters for
+  tooling and focused browsing.
 - Raw execute/eval, value marshalling, typed object handles, and managed
   export-set handles.
 - Explicit opt-in value converter registry with named converter lookup,

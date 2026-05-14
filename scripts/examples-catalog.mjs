@@ -4,24 +4,28 @@ export const exampleCatalog = [
     path: "examples/quickstart.ts",
     kind: "basic",
     description: "Minimal connect/evaluate/logout flow using Session.configFromEnv().",
+    command: "node --experimental-strip-types examples/quickstart.ts",
   },
   {
     name: "gstore",
     path: "examples/gstore.ts",
     kind: "data",
     description: "Named JSON key/value store with transaction callbacks and read-only snapshots.",
+    command: "node --experimental-strip-types examples/gstore.ts",
   },
   {
     name: "persistent-root",
     path: "examples/persistent-root.ts",
     kind: "data",
     description: "UserGlobals and GsDict value/raw item access through persistent root helpers.",
+    command: "node --experimental-strip-types examples/persistent-root.ts",
   },
   {
     name: "query",
     path: "examples/query.ts",
     kind: "query",
     description: "GSCollection search, first, count, exists, limit, and chunked value iteration.",
+    command: "node --experimental-strip-types examples/query.ts",
   },
   {
     name: "booking",
@@ -34,6 +38,7 @@ export const exampleCatalog = [
     path: "examples/codegen.manifest.json",
     kind: "codegen",
     description: "Hand-written codegen manifest with typed imports and wrapper output.",
+    command: "npm run codegen:check",
   },
   {
     name: "codegen-generated",
@@ -46,6 +51,7 @@ export const exampleCatalog = [
     path: "examples/booking.decorators.ts",
     kind: "codegen",
     description: "Decorated source scanned by the codegen scanner.",
+    command: "npm run codegen:scan:check",
   },
   {
     name: "booking-decorators-generated",
@@ -58,12 +64,14 @@ export const exampleCatalog = [
     path: "examples/migrations.ts",
     kind: "ops",
     description: "Exported migration manifest plus direct status and dry-run execution flow.",
+    command: "DRY_RUN=1 node --experimental-strip-types examples/migrations.ts",
   },
   {
     name: "object-log",
     path: "examples/object-log.ts",
     kind: "ops",
     description: "ObjectLog writes, entry fetches, and level-aware display.",
+    command: "node --experimental-strip-types examples/object-log.ts",
   },
   {
     name: "web-express",
@@ -71,6 +79,7 @@ export const exampleCatalog = [
     kind: "web",
     description: "Express service with pooled request sessions, health, and ObjectLog routes.",
     requires: ["express"],
+    command: "node --experimental-strip-types examples/web-express.ts",
   },
   {
     name: "web-fastify",
@@ -78,12 +87,20 @@ export const exampleCatalog = [
     kind: "web",
     description: "Fastify service with pooled request sessions, health, and ObjectLog routes.",
     requires: ["fastify"],
+    command: "node --experimental-strip-types examples/web-fastify.ts",
   },
   {
     name: "web-fetch",
     path: "examples/web-fetch.ts",
     kind: "web",
     description: "Dependency-free Fetch API service with pooled request sessions, health, and ObjectLog routes.",
+    command: "node --experimental-strip-types examples/web-fetch.ts",
+  },
+  {
+    name: "web-route-handler",
+    path: "examples/web-route-handler.ts",
+    kind: "web",
+    description: "Fetch adapter route-handler exports for Node-based frameworks such as Next.js route handlers.",
   },
   {
     name: "web-hono",
@@ -91,6 +108,7 @@ export const exampleCatalog = [
     kind: "web",
     description: "Hono service with pooled request sessions, health, and ObjectLog routes.",
     requires: ["hono", "@hono/node-server"],
+    command: "node --experimental-strip-types examples/web-hono.ts",
   },
 ];
 

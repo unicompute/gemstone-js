@@ -75,6 +75,22 @@ try {
   if (!examples.some((entry) => entry.name === "web-fetch")) {
     throw new Error(`Installed example catalog is missing the Fetch adapter example:\n${examplesOutput}`);
   }
+  if (!examples.some((entry) => entry.name === "web-route-handler")) {
+    throw new Error(`Installed example catalog is missing the route-handler example:\n${examplesOutput}`);
+  }
+  const commandsOutput = execFileSync(process.execPath, [
+    join(packageRoot, "scripts", "examples.mjs"),
+    "--commands",
+    "--kind",
+    "web",
+  ], {
+    encoding: "utf8",
+    cwd: packageRoot,
+    stdio: "pipe",
+  });
+  if (!commandsOutput.includes("web-fetch") || !commandsOutput.includes("npm install express")) {
+    throw new Error(`Installed example command output is missing expected web commands:\n${commandsOutput}`);
+  }
   const fetchAdapter = await import("gemstone-js/adapters/fetch");
   if (typeof fetchAdapter.gemstoneFetch !== "function" || typeof fetchAdapter.withGemStoneFetch !== "function") {
     throw new Error("Installed Fetch adapter subpath must export gemstoneFetch and withGemStoneFetch.");

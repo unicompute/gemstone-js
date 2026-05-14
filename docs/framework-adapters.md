@@ -48,6 +48,11 @@ node --experimental-strip-types examples/web-fastify.ts
 node --experimental-strip-types examples/web-fetch.ts
 ```
 
+Route-handler style frameworks that expose standard `Request`/`Response`
+functions can start from `examples/web-route-handler.ts`. It exports `GET()` and
+`POST()` functions around the same Fetch adapter and marks the route as a Node
+runtime for frameworks that distinguish Node from edge execution.
+
 ```sh
 npm install hono @hono/node-server
 node --experimental-strip-types examples/web-hono.ts
@@ -58,6 +63,8 @@ The examples rely on the usual GemStone environment variables accepted by
 `GS_USERNAME`, `GS_PASSWORD`, and related host-login settings.
 `npm run examples:check` syntax-checks the committed examples without requiring
 the optional framework packages to be installed.
+`gemstone-js-examples --commands --kind web` prints the install and run commands
+for the runnable web examples from an installed package.
 
 ## Adapter Notes
 

@@ -23,6 +23,10 @@ async function main(args) {
     process.stdout.write(`${JSON.stringify(filterExamples(options.kind), null, 2)}\n`);
     return;
   }
+  if (options.commands) {
+    process.stdout.write(formatCommands(filterExamples(options.kind)));
+    return;
+  }
   if (options.show) {
     const example = requireExample(options.show, options.kind);
     process.stdout.write(readFileSync(join(PACKAGE_ROOT, example.path), "utf8"));
@@ -40,6 +44,7 @@ async function main(args) {
 function parseArgs(args) {
   const options = {
     help: false,
+    commands: false,
     json: false,
     kind: undefined,
     path: undefined,
@@ -49,6 +54,8 @@ function parseArgs(args) {
     const arg = args[index];
     if (arg === "--help" || arg === "-h") {
       options.help = true;
+    } else if (arg === "--commands") {
+      options.commands = true;
     } else if (arg === "--json") {
       options.json = true;
     } else if (arg === "--kind") {
@@ -104,10 +111,26 @@ function formatExamples(examples) {
   const lines = ["Available gemstone-js examples:"];
   for (const entry of examples) {
     const requirements = entry.requires?.length ? ` Requires: ${entry.requires.join(", ")}.` : "";
-    lines.push(`  ${entry.name.padEnd(width)}  ${entry.path}  ${entry.description}${requirements}`);
+    const command = entry.command ? ` Run: ${entry.command}.` : "";
+    lines.push(`  ${entry.name.padEnd(width)}  ${entry.path}  ${entry.description}${requirements}${command}`);
   }
   lines.push("");
   lines.push("Use gemstone-js-examples --show <name> to print an example.");
+  lines.push("Use gemstone-js-examples --commands [--kind <kind>] to print runnable commands.");
+  return `${lines.join("\n")}\n`;
+}
+
+function formatCommands(examples) {
+  const runnable = examples.filter((entry) => entry.command);
+  if (runnable.length === 0) return "No runnable gemstone-js examples matched.\n";
+  const width = Math.max(...runnable.map((entry) => entry.name.length));
+  const lines = ["Runnable gemstone-js examples:"];
+  for (const entry of runnable) {
+    if (entry.requires?.length) {
+      lines.push(`# ${entry.name}: npm install ${entry.requires.join(" ")}`);
+    }
+    lines.push(`${entry.name.padEnd(width)}  ${entry.command}`);
+  }
   return `${lines.join("\n")}\n`;
 }
 
@@ -116,6 +139,7 @@ function printUsage(output) {
 
 Options:
   --json             Print the example catalog as JSON
+  --commands         Print runnable example commands
   --kind <kind>      Filter by example kind
   --show <name>      Print an example file
   --path <name>      Print an example file path

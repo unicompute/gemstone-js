@@ -42,6 +42,12 @@ for (const entry of exampleCatalog) {
   if (!entry.description || !entry.description.trim()) {
     throw new Error(`Example ${entry.name} is missing a description.`);
   }
+  if (entry.command !== undefined && (!entry.command.trim() || /[\r\n]/.test(entry.command))) {
+    throw new Error(`Example ${entry.name} has an invalid command.`);
+  }
+  if (entry.requires !== undefined && (!Array.isArray(entry.requires) || entry.requires.some((value) => typeof value !== "string" || !value.trim()))) {
+    throw new Error(`Example ${entry.name} has an invalid requires list.`);
+  }
   catalogNames.add(entry.name);
 }
 

@@ -109,7 +109,8 @@ native package; the TypeScript package can be tested locally with a mock runtime
 - Transaction retry helpers provide `runTransactionWithRetry()` and
   `retryingTransaction()` for replaying work after commit conflicts, plus
   `CommitConflictError`, `TransactionRetry`, structured conflict diagnostics,
-  and formatting helpers for logging or CI output.
+  formatting helpers for logging or CI output, and `nestedTransaction()` for
+  GemStone nested transaction blocks.
 - Benchmark tooling can generate compact reports through
   `gemstone-js-benchmarks` using an offline `gci` suite or opt-in live
   persistence suites, then validate saved reports, compare baseline/candidate

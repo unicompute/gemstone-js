@@ -81,6 +81,9 @@ The first implementation slice follows `../plan.js.txt`:
   `commitWithConflictDetails()` converts conflict-like commit failures into a
   structured `CommitConflictError` by reading `System conflictReportString` and
   the current transaction conflict collections when GemStone exposes them.
+  `nestedTransaction()` mirrors gemstone-py's nested transaction helper with
+  explicit begin/commit/abort sends and preserves structured conflict errors on
+  failed nested commits.
 - Benchmark helpers are split between report generation and saved-artifact
   policy. `src/benchmarks.ts` can generate compact reports from the offline
   `gci` suite or opt-in live persistence suites, while

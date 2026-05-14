@@ -32,8 +32,8 @@ npm provenance checks, and the native session-thread spike.
 - Module-style migrations with dependency planning, status/current reads,
   upgrade/downgrade execution, checksum validation, advisory locks, recorded
   dry-runs, and a command-line runner.
-- Transaction retry and commit-conflict diagnostic helpers, adapted to
-  JavaScript's async callback style.
+- Transaction retry, nested transaction, and commit-conflict diagnostic helpers,
+  adapted to JavaScript's async callback style.
 - Benchmark report generation for offline `gci` and opt-in live persistence
   suites, plus baseline comparison, metadata-based baseline selection, baseline
   manifest registration/replacement, pruning, threshold enforcement, and

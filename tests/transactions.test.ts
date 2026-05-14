@@ -7,6 +7,7 @@ import {
   commitWithConflictDetails,
   formatCommitConflict,
   formatConflictDiagnostics,
+  nestedTransaction,
   retryingTransaction,
   runTransactionWithRetry,
   smallintToOop,
@@ -48,6 +49,55 @@ test("runTransactionWithRetry replays work after commit conflicts on an existing
   assert.equal(retries[0].willRetry, true);
   assert.equal(retries[0].exhausted, false);
   assert.equal(retries[0].conflict, conflict);
+});
+
+test("nestedTransaction commits nested work on success", async () => {
+  const session = fakeSession();
+
+  const result = await nestedTransaction(session, async (currentSession) => {
+    assert.equal(currentSession, session);
+    return "nested-result";
+  });
+
+  assert.equal(result, "nested-result");
+  assert.deepEqual(session.evals, ["System beginNestedTransaction", "System commitTransaction"]);
+});
+
+test("nestedTransaction aborts the nested level on user errors", async () => {
+  const session = fakeSession();
+
+  await assert.rejects(
+    () => nestedTransaction(session, async () => {
+      throw new Error("boom");
+    }),
+    /boom/,
+  );
+
+  assert.deepEqual(session.evals, ["System beginNestedTransaction", "System abortTransaction"]);
+});
+
+test("nestedTransaction raises structured conflicts and aborts after failed nested commits", async () => {
+  const session = fakeSession("session", (source) => {
+    if (source === "System commitTransaction") return false;
+    if (source === "System conflictReportString") return "nested conflict";
+    return true;
+  });
+
+  await assert.rejects(
+    () => nestedTransaction(session, async () => "ignored"),
+    (error) => {
+      assert(error instanceof CommitConflictError);
+      assert.equal(error.report, "nested conflict");
+      return true;
+    },
+  );
+
+  assert.deepEqual(session.evals, [
+    "System beginNestedTransaction",
+    "System commitTransaction",
+    "System conflictReportString",
+    "System abortTransaction",
+  ]);
 });
 
 test("runTransactionWithRetry raises the last conflict after attempts are exhausted", async () => {
@@ -177,13 +227,19 @@ interface FakeSession extends Session {
   label: string;
   aborts: number;
   logouts: number;
+  evals: string[];
 }
 
-function fakeSession(label = "session"): FakeSession {
+function fakeSession(label = "session", evalHandler: (source: string) => unknown = () => true): FakeSession {
   const session = {
     label,
     aborts: 0,
     logouts: 0,
+    evals: [] as string[],
+    async eval(source: string) {
+      session.evals.push(source);
+      return evalHandler(source);
+    },
     async commit() {},
     async abort() {
       session.aborts += 1;

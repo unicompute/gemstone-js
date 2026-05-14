@@ -114,6 +114,34 @@ export interface TransactionRetryOptions {
 
 export type TransactionWork<T> = (session: Session) => MaybePromise<T>;
 
+export async function beginNestedTransaction(session: Session): Promise<void> {
+  await session.eval("System beginNestedTransaction");
+}
+
+export async function commitNestedTransaction(session: Session): Promise<void> {
+  const ok = await session.eval("System commitTransaction");
+  if (ok === true) return;
+  throw new CommitConflictError(await readConflictReport(session));
+}
+
+export async function abortNestedTransaction(session: Session): Promise<void> {
+  await session.eval("System abortTransaction");
+}
+
+export async function nestedTransaction<T>(session: Session, work: TransactionWork<T>): Promise<T> {
+  await beginNestedTransaction(session);
+  let committed = false;
+  try {
+    const result = await work(session);
+    await commitNestedTransaction(session);
+    committed = true;
+    return result;
+  } catch (error) {
+    if (!committed) await abortNestedTransaction(session).catch(() => undefined);
+    throw error;
+  }
+}
+
 export async function runTransactionWithRetry<T>(
   work: TransactionWork<T>,
   options: TransactionRetryOptions = {},

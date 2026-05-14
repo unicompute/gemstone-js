@@ -33,6 +33,25 @@ export {
   type RegisterBaselineOptions,
 } from "./benchmark-baselines.ts";
 export {
+  DEFAULT_BENCHMARK_ENTRIES,
+  DEFAULT_BENCHMARK_SEARCH_RUNS,
+  DEFAULT_BENCHMARK_SUITES,
+  OFFLINE_BENCHMARK_SUITES,
+  BenchmarkRunError,
+  BenchmarksCliUsageError,
+  benchmarksCliUsage,
+  buildBenchmarkReport,
+  formatBenchmarkResults,
+  runBenchmarkSuite,
+  runBenchmarksCli,
+  selectedBenchmarkSuitesRequireLive,
+  type BenchmarkReportOptions,
+  type BenchmarkRunOptions,
+  type BenchmarkSessionFactory,
+  type BenchmarkSuiteName,
+  type BenchmarksCliIo,
+} from "./benchmarks.ts";
+export {
   BOOTSTRAP_ARTIFACTS,
   BOOTSTRAP_MARKER_KEY,
   BOOTSTRAP_VERSION,

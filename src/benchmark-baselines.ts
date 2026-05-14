@@ -30,6 +30,7 @@ export interface BenchmarkResultRow {
   operation: string;
   ops_per_second: number;
   count: number;
+  elapsed_seconds?: number;
   note?: string;
 }
 
@@ -583,6 +584,7 @@ function normalizeResultRow(row: unknown, label: string): BenchmarkResultRow {
     operation: row.operation,
     ops_per_second: row.ops_per_second,
     count: row.count,
+    elapsed_seconds: typeof row.elapsed_seconds === "number" && Number.isFinite(row.elapsed_seconds) ? row.elapsed_seconds : undefined,
     note: typeof row.note === "string" ? row.note : undefined,
   };
 }

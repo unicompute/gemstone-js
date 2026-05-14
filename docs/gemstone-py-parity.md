@@ -17,7 +17,8 @@ keeping a JavaScript-first async API.
 - Module-style migrations with dependency planning, status/current reads,
   upgrade/downgrade execution, checksum validation, advisory locks, recorded
   dry-runs, and a command-line runner.
-- Benchmark baseline comparison, metadata-based baseline selection, baseline
+- Benchmark report generation for offline `gci` and opt-in live persistence
+  suites, plus baseline comparison, metadata-based baseline selection, baseline
   manifest registration, pruning, threshold enforcement, and command-line
   wrappers for saved report artifacts.
 - `StringKeyValueDictionary` helpers with key, item, value, pick, require,
@@ -48,6 +49,5 @@ keeping a JavaScript-first async API.
 
 ## Still Python-Only
 
-- Maintained live benchmark suite generation.
 - The `gemstone-py` VS Code workbench. A JavaScript extension should wait until
   the package API and native release flow settle further.

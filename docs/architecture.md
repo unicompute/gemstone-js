@@ -69,11 +69,12 @@ The first implementation slice follows `../plan.js.txt`:
   existing root marshalling path and stay reviewable. The public API validates
   dependency order, unknown applied ids, and checksum drift before applying
   steps; each step commits after its metadata write.
-- Benchmark baseline helpers are file-artifact tools, not live benchmark
-  runners. They validate saved report JSON, compare result rows with regression
-  thresholds, select metadata-compatible baselines from a manifest, and update
-  baseline manifests so CI can enforce performance policy once live benchmark
-  reports exist.
+- Benchmark helpers are split between report generation and saved-artifact
+  policy. `src/benchmarks.ts` can generate compact reports from the offline
+  `gci` suite or opt-in live persistence suites, while
+  `src/benchmark-baselines.ts` validates saved report JSON, compares result
+  rows with regression thresholds, selects metadata-compatible baselines from a
+  manifest, and updates baseline manifests for CI enforcement.
 - `RcCounter`, `RcKeyValueDictionary`, and `RcQueue` are thin wrappers over the
   GemStone reduced-conflict classes used by gemstone-py. They keep creation,
   session factory helpers, sends, enumeration, and raw-OOP variants explicit so

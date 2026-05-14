@@ -30,6 +30,7 @@ const requiredScripts = {
   "benchmark:baselines": "node scripts/benchmark-baselines.mjs",
   "benchmark:compare": "node scripts/benchmark-compare.mjs",
   "benchmark:register": "node scripts/benchmark-register.mjs",
+  "benchmarks": "node scripts/benchmarks.mjs",
   "bootstrap": "node scripts/bootstrap.mjs",
   "codegen:check": "node scripts/codegen.mjs --check examples/codegen.manifest.json examples/codegen.generated.ts",
   "codegen:scan:check": "node scripts/scan-codegen.mjs --module --check --out examples/booking.decorators.generated.ts examples/booking.decorators.ts",
@@ -57,6 +58,9 @@ if (packageJson.bin?.["gemstone-js-benchmark-compare"] !== "./scripts/benchmark-
 }
 if (packageJson.bin?.["gemstone-js-benchmark-register"] !== "./scripts/benchmark-register.mjs") {
   throw new Error("package.json bin.gemstone-js-benchmark-register must point at ./scripts/benchmark-register.mjs.");
+}
+if (packageJson.bin?.["gemstone-js-benchmarks"] !== "./scripts/benchmarks.mjs") {
+  throw new Error("package.json bin.gemstone-js-benchmarks must point at ./scripts/benchmarks.mjs.");
 }
 if (packageJson.bin?.["gemstone-js-migrations"] !== "./scripts/migrations.mjs") {
   throw new Error("package.json bin.gemstone-js-migrations must point at ./scripts/migrations.mjs.");
@@ -91,6 +95,7 @@ const required = [
   "scripts/benchmark-baselines.mjs",
   "scripts/benchmark-compare.mjs",
   "scripts/benchmark-register.mjs",
+  "scripts/benchmarks.mjs",
   "scripts/bootstrap.mjs",
   "scripts/check-package.mjs",
   "scripts/codegen.mjs",
@@ -99,6 +104,7 @@ const required = [
   "scripts/scan-codegen.mjs",
   "src/index.ts",
   "src/benchmark-baselines.ts",
+  "src/benchmarks.ts",
   "src/bootstrap.ts",
   "src/client.ts",
   "src/gstore.ts",

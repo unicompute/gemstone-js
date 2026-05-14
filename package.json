@@ -45,6 +45,7 @@
     "gemstone-js-benchmark-baselines": "./scripts/benchmark-baselines.mjs",
     "gemstone-js-benchmark-compare": "./scripts/benchmark-compare.mjs",
     "gemstone-js-benchmark-register": "./scripts/benchmark-register.mjs",
+    "gemstone-js-benchmarks": "./scripts/benchmarks.mjs",
     "gemstone-js-bootstrap": "./scripts/bootstrap.mjs",
     "gemstone-js-inspect": "./scripts/inspect.mjs",
     "gemstone-js-migrations": "./scripts/migrations.mjs"
@@ -57,6 +58,7 @@
     "scripts/benchmark-baselines.mjs",
     "scripts/benchmark-compare.mjs",
     "scripts/benchmark-register.mjs",
+    "scripts/benchmarks.mjs",
     "scripts/bootstrap.mjs",
     "scripts/check-package.mjs",
     "scripts/codegen.mjs",
@@ -73,6 +75,7 @@
     "benchmark:baselines": "node scripts/benchmark-baselines.mjs",
     "benchmark:compare": "node scripts/benchmark-compare.mjs",
     "benchmark:register": "node scripts/benchmark-register.mjs",
+    "benchmarks": "node scripts/benchmarks.mjs",
     "bootstrap": "node scripts/bootstrap.mjs",
     "pack:check": "node scripts/check-package.mjs",
     "codegen": "node scripts/codegen.mjs",

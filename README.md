@@ -100,12 +100,14 @@ native package; the TypeScript package can be tested locally with a mock runtime
   `gemstone-js-migrations` CLI. Metadata and advisory locks live in
   `UserGlobals` as JSON strings under `GemstoneJsMigrations` and
   `GemstoneJsMigrationsLock`; see `docs/migrations.md`.
-- Benchmark baseline tooling validates saved benchmark reports, compares
-  baseline/candidate artifacts with global, suite, and operation regression
-  thresholds, selects matching committed baselines by metadata, and
-  registers/prunes baseline manifests through
-  `gemstone-js-benchmark-compare`, `gemstone-js-benchmark-baselines`, and
-  `gemstone-js-benchmark-register`; see `docs/benchmarks.md`.
+- Benchmark tooling can generate compact reports through
+  `gemstone-js-benchmarks` using an offline `gci` suite or opt-in live
+  persistence suites, then validate saved reports, compare baseline/candidate
+  artifacts with global, suite, and operation regression thresholds, select
+  matching committed baselines by metadata, and register/prune baseline
+  manifests through `gemstone-js-benchmark-compare`,
+  `gemstone-js-benchmark-baselines`, and `gemstone-js-benchmark-register`; see
+  `docs/benchmarks.md`.
 - Reduced-conflict wrappers expose GemStone `RcCounter`,
   `RcKeyValueDictionary`, and `RcQueue` through `RcCounter`,
   `RcKeyValueDictionary`, and `RcQueue`, with gemstone-py-compatible aliases
@@ -247,9 +249,12 @@ npm run migrations -- status --manifest ./migrations.ts
 npm run migrations -- upgrade --manifest ./migrations.ts --dry-run --record
 ```
 
-Saved benchmark report tooling is local-only:
+Benchmark report generation and saved-report tooling are local-only. Select
+only `gci` for an offline run; live suites use the same `GS_*` connection
+environment as `Session.configFromEnv()`:
 
 ```sh
+npm run benchmarks -- --suite gci --entries 100000 --json --output benchmark-report.json
 npm run benchmark:compare -- baseline.json candidate.json --max-regression-pct 10
 npm run benchmark:baselines -- candidate.json --manifest .github/benchmarks/index.json
 npm run benchmark:register -- candidate.json --manifest .github/benchmarks/index.json

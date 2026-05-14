@@ -1,7 +1,9 @@
-# Benchmark Baselines
+# Benchmarks
 
-`gemstone-js` includes local benchmark artifact tooling for CI workflows. It
-does not run live benchmarks yet; it validates and compares saved JSON reports.
+`gemstone-js` includes a small maintained benchmark lane plus local benchmark
+artifact tooling for CI workflows. The `gci` suite is offline and needs no
+GemStone credentials. The persistence suites connect to a configured Stone and
+should be run intentionally against a disposable or benchmark image.
 
 Benchmark reports use the same compact shape as gemstone-py artifacts:
 
@@ -19,13 +21,26 @@ Benchmark reports use the same compact shape as gemstone-py artifacts:
   "results": [
     {
       "suite": "gci",
-      "operation": "execute",
+      "operation": "smallint_roundtrip",
+      "elapsed_seconds": 0.016,
       "ops_per_second": 1200,
       "count": 20
     }
   ]
 }
 ```
+
+Generate reports with `gemstone-js-benchmarks`:
+
+```sh
+npm run benchmarks -- --suite gci --entries 100000 --json --output benchmark-report.json
+npm run benchmarks -- --suite persistent_root --suite gstore --entries 500 --json --output live-report.json
+```
+
+The default suite list is `gci`, `persistent_root`, `gscollection`, `gstore`,
+and `rchash`. Select only `gci` for a no-credential local check. Select any of
+the persistence suites only when `GS_*` connection environment variables point
+at a Stone prepared for benchmark data.
 
 Compare a candidate report with a committed baseline:
 

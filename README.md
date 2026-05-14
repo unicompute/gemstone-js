@@ -23,7 +23,10 @@ native package; the TypeScript package can be tested locally with a mock runtime
   `ValueConverter`, `ValueConverterRegistry`, `dateAsIsoStringConverter()`, and
   `scalarValueConverterRegistry()` let sessions marshal richer JavaScript values
   such as `Date` through the standard `performWith()`, array, and dictionary
-  paths.
+  paths. `objectToDictionaryArgument()`/
+  `classInstanceToDictionaryArgument()` convert class instances into explicit
+  dictionary payloads before persistence, mirroring gemstone-py's
+  `dataclass_to_dict()` pattern.
 - `Session.classRef()` gives an explicit typed class handle for class-side
   sends, object-returning sends, allocation, and wrapping returned OOPs without
   hiding async remote calls behind JavaScript property access. Class names use

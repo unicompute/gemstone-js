@@ -34,7 +34,8 @@ npm provenance checks, and the native session-thread spike.
   export-set handles.
 - Explicit opt-in value converter registry with named converter lookup,
   to-OOP/from-OOP helpers, batch conversion, and built-in ISO-string `Date`
-  conversion.
+  conversion. Class-instance-to-dictionary helpers mirror gemstone-py's
+  explicit `dataclass_to_dict()` persistence boundary.
 - Class-side sends through an explicit class reference object.
 - Persistent roots for `UserGlobals`, `Globals`, `Published`, and
   `SessionMethods`.

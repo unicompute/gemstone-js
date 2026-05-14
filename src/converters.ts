@@ -1,4 +1,4 @@
-import type { Session } from "./client.ts";
+import type { GemStoneArgument, GemStoneDictionaryArgument, Session } from "./client.ts";
 import type { Oop } from "./oop.ts";
 
 type MaybePromise<T> = T | Promise<T>;
@@ -8,6 +8,11 @@ export interface ValueConverterOptions<T> {
   matches(value: unknown): value is T;
   toOop(session: Session, value: T): MaybePromise<Oop>;
   fromOop?: (session: Session, oop: Oop) => MaybePromise<T>;
+}
+
+export interface ObjectToDictionaryOptions {
+  recurse?: boolean;
+  includeUndefined?: boolean;
 }
 
 export class ValueConverter<T = unknown> {
@@ -108,6 +113,47 @@ export function dateAsIsoStringConverter(): ValueConverter<Date> {
 
 export function scalarValueConverterRegistry(): ValueConverterRegistry {
   return new ValueConverterRegistry([dateAsIsoStringConverter()]);
+}
+
+export function objectToDictionaryArgument(
+  value: object,
+  options: ObjectToDictionaryOptions = {},
+): GemStoneDictionaryArgument {
+  if (!isDictionaryConvertibleObject(value)) {
+    throw new TypeError(`Expected a plain object or class instance, got ${typeName(value)}.`);
+  }
+  const recurse = options.recurse ?? true;
+  const includeUndefined = options.includeUndefined ?? false;
+  const result: Record<string, GemStoneArgument> = {};
+  for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
+    if (item === undefined) {
+      if (includeUndefined) result[key] = null;
+      continue;
+    }
+    result[key] = recurse ? dictionaryValue(item, options) : item as GemStoneArgument;
+  }
+  return result;
+}
+
+export const classInstanceToDictionaryArgument = objectToDictionaryArgument;
+
+function dictionaryValue(value: unknown, options: ObjectToDictionaryOptions): GemStoneArgument {
+  if (value === undefined) return null;
+  if (Array.isArray(value)) return value.map((item) => dictionaryValue(item, options));
+  if (typeof value === "object" && value !== null && isDictionaryConvertibleObject(value)) {
+    return objectToDictionaryArgument(value, options);
+  }
+  return value as GemStoneArgument;
+}
+
+function isDictionaryConvertibleObject(value: object): boolean {
+  if (Array.isArray(value)) return false;
+  if (ArrayBuffer.isView(value)) return false;
+  if (value instanceof ArrayBuffer) return false;
+  if (value instanceof Date) return false;
+  if (value instanceof Map || value instanceof Set || value instanceof WeakMap || value instanceof WeakSet) return false;
+  if (value instanceof RegExp || value instanceof Error || value instanceof Promise) return false;
+  return true;
 }
 
 function typeName(value: unknown): string {

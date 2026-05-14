@@ -171,6 +171,10 @@ The first implementation slice follows `../plan.js.txt`:
   converter-selected OOPs by converter name. The built-in scalar registry starts
   with ISO-string `Date` support, matching gemstone-py's explicit converter
   model without changing default persistence semantics.
+  `objectToDictionaryArgument()` provides the same explicit boundary as
+  gemstone-py's `dataclass_to_dict()`: class instances become plain dictionary
+  payloads only when the caller opts in, with recursive conversion for nested
+  class instances and arrays.
 - `src/testing/mock-runtime.ts` lets the high-level API be tested without a live
   GemStone instance.
 

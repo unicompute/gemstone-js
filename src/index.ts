@@ -142,8 +142,11 @@ export {
 export {
   ValueConverter,
   ValueConverterRegistry,
+  classInstanceToDictionaryArgument,
   dateAsIsoStringConverter,
+  objectToDictionaryArgument,
   scalarValueConverterRegistry,
+  type ObjectToDictionaryOptions,
   type ValueConverterOptions,
 } from "./converters.ts";
 export { PersistentRoot } from "./persistent-root.ts";

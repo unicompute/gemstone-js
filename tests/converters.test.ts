@@ -6,6 +6,7 @@ import {
   ValueConverter,
   ValueConverterRegistry,
   dateAsIsoStringConverter,
+  objectToDictionaryArgument,
   scalarValueConverterRegistry,
   smallintToOop,
   type Oop,
@@ -113,6 +114,72 @@ test("custom value converters can be copied, registered, and selected by name", 
   assert(runtime.calls.some((call) => call.method === "newString" && call.args[0] === "B-456"));
   await assert.rejects(() => copy.toOop(session, { value: "B-789" }), /No value converter/);
   await assert.rejects(() => copy.fromOop("missing", session, oop), /missing/);
+
+  await session.logout();
+});
+
+test("objectToDictionaryArgument converts class instances into explicit dictionary payloads", () => {
+  class Address {
+    readonly city = "London";
+  }
+
+  class Booking {
+    readonly customer = "Ada";
+    readonly createdAt = new Date("2026-05-14T08:30:00.000Z");
+    readonly address = new Address();
+    readonly tags = ["vip", undefined, { channel: "web" }];
+    readonly skipped = undefined;
+
+    total(): number {
+      return 42;
+    }
+  }
+
+  const payload = objectToDictionaryArgument(new Booking());
+
+  assert.equal(payload.customer, "Ada");
+  assert(payload.createdAt instanceof Date);
+  assert.deepEqual(payload.address, { city: "London" });
+  assert.deepEqual(payload.tags, ["vip", null, { channel: "web" }]);
+  assert.equal("skipped" in payload, false);
+  assert.equal("total" in payload, false);
+});
+
+test("objectToDictionaryArgument supports shallow conversion and undefined inclusion", () => {
+  class Payload {
+    readonly nested = { ok: true };
+    readonly missing = undefined;
+  }
+
+  const shallow = objectToDictionaryArgument(new Payload(), { recurse: false, includeUndefined: true });
+
+  assert.deepEqual(shallow, { nested: { ok: true }, missing: null });
+});
+
+test("objectToDictionaryArgument rejects non-dictionary-like objects", () => {
+  assert.throws(() => objectToDictionaryArgument([]), /Expected a plain object/);
+  assert.throws(() => objectToDictionaryArgument(new Date()), /Expected a plain object/);
+  assert.throws(() => objectToDictionaryArgument(new Map()), /Expected a plain object/);
+});
+
+test("objectToDictionaryArgument output works with converter-aware dictionary marshalling", async () => {
+  class Booking {
+    readonly customer = "Ada";
+    readonly createdAt = new Date("2026-05-14T08:30:00.000Z");
+  }
+
+  const runtime = new MockGciRuntime();
+  const session = await Session.connect({
+    username: "u",
+    password: "p",
+    runtime,
+    valueConverters: scalarValueConverterRegistry(),
+  });
+
+  const dict = await session.dictionaryToOop(objectToDictionaryArgument(new Booking()));
+
+  assert.equal(await session.strDictGet(dict, "customer"), "Ada");
+  assert.equal(await session.strDictGet(dict, "createdAt"), "2026-05-14T08:30:00.000Z");
 
   await session.logout();
 });

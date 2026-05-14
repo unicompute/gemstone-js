@@ -90,6 +90,10 @@ native package; the TypeScript package can be tested locally with a mock runtime
   `requireAll*()` bulk variants built on the session marshalling layer. Static
   constructors expose `UserGlobals`, `Globals`, `Published`, and
   `SessionMethods` roots using the same names as gemstone-py.
+- `GStore` provides a session-bound, named JSON key/value store under
+  `UserGlobals.GStoreRoot`, with async transaction callbacks, read-only
+  snapshots, delete/remove helpers, and commit-conflict retry for conflict-like
+  commit failures.
 - Session pool release is reset-aware: dirty sessions are aborted before reuse,
   failed resets are discarded, waiters are served with replacement sessions, and
   close rejects pending acquires. Explicit validation queries run without
@@ -189,7 +193,8 @@ lookup/enumeration/nullable object/bulk required/raw set/removal helpers,
 `GsDict` metadata, value/raw enumeration, replace/clear, nullable
 object/dictionary pick, bulk required-read, and bulk removal helpers, and
 `PersistentRoot` value, dictionary, key, size, pick, required-value, batch-value, bulk
-nullable object/dictionary pick, required-read, and bulk removal helpers. It
+nullable object/dictionary pick, required-read, and bulk removal helpers, plus
+`GStore` JSON transaction round-trips. It
 also covers live query add/remove, `count()`, `exists()`, `first()`, `limit()`,
 and index create/remove when the backing collection supports GemStone index
 selectors.

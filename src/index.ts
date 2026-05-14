@@ -58,6 +58,15 @@ export {
 } from "./codegen.ts";
 export { PersistentRoot } from "./persistent-root.ts";
 export { GsDict } from "./gsdict.ts";
+export {
+  GSTORE_ROOT,
+  GStore,
+  GStoreAbortTransaction,
+  GStoreError,
+  GStoreTransaction,
+  type GStoreJsonValue,
+  type GStoreTransactionOptions,
+} from "./gstore.ts";
 export { GSCollection, type ComparisonOp, type GSCollectionIndexKind, type GSCollectionIndexOptions } from "./query.ts";
 export {
   OBJECT_LOG_LEVELS,

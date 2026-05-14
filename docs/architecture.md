@@ -59,6 +59,11 @@ The first implementation slice follows `../plan.js.txt`:
   required global/root accessors. `PersistentRoot.userGlobals()`,
   `globals()`, `published()`, and `sessionMethods()` mirror the named
   SymbolDictionary constructors in gemstone-py.
+- `GStore` builds on `PersistentRoot` and `GsDict` rather than adding another
+  storage layer. Each named store is a `StringKeyValueDictionary` under
+  `UserGlobals.GStoreRoot`; values are JSON strings, transaction callbacks use
+  an in-memory snapshot plus dirty/delete buffers, and the caller's session owns
+  transaction visibility.
 - Source-rendered helper names and class-ref names share one validation policy.
   Collection names, class names, persistent-root names, persistent-root entries,
   and direct global names must be simple GemStone global-style identifiers;

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { GSCollection, PersistentRoot, Session, smallintToOop } from "../src/index.ts";
+import { GSCollection, GStore, PersistentRoot, Session, smallintToOop } from "../src/index.ts";
 
 const runLive = process.env.GS_RUN_LIVE === "1";
 
@@ -178,6 +178,22 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
   const globalObjectBatchAliasKey = `${key}_GlobalObjectBatchAlias`;
   const globalDictKey = `${key}_GlobalDict`;
   const dictKey = `${key}_Dict`;
+  const gstoreName = `${key}.db`;
+  const gstore = await GStore.open(session, gstoreName);
+  try {
+    await gstore.transaction((txn) => {
+      txn.set("alpha", { name: "Tariq", count: 2 });
+      txn.set("beta", ["a", "b"]);
+    });
+    const gstoreSnapshot = await gstore.transaction((txn) => txn.toObject(), { readOnly: true });
+    assert.deepEqual(gstoreSnapshot, {
+      alpha: { name: "Tariq", count: 2 },
+      beta: ["a", "b"],
+    });
+    assert.equal((await GStore.list(session)).includes(gstoreName), true);
+  } finally {
+    await GStore.remove(session, gstoreName);
+  }
   await session.globalSetAllValue({ [globalKey]: "global", [globalExtraKey]: "global-extra" });
   await session.globalSetValue(globalValueKey, "global-value");
   await session.globalSetAllOop({ [globalObjectKey]: object });

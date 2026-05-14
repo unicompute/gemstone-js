@@ -72,6 +72,7 @@ const required = [
   "scripts/scan-codegen.mjs",
   "src/index.ts",
   "src/client.ts",
+  "src/gstore.ts",
   "src/inspection-cli.ts",
   "src/object-log.ts",
   "src/smalltalk-source.ts",

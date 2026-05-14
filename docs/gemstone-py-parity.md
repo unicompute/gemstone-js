@@ -11,6 +11,7 @@ keeping a JavaScript-first async API.
 - Class-side sends through an explicit class reference object.
 - Persistent roots for `UserGlobals`, `Globals`, `Published`, and
   `SessionMethods`.
+- `GStore`-style named JSON key/value stores under `UserGlobals.GStoreRoot`.
 - `StringKeyValueDictionary` helpers with key, item, value, pick, require,
   replace, clear, nested dictionary, raw OOP, and object-handle variants.
 - Collection helpers for search, first/find, count/exists, bounded pages,
@@ -36,7 +37,6 @@ keeping a JavaScript-first async API.
 
 ## Still Python-Only
 
-- Higher-level persistent stores such as `GStore`.
 - Reduced-conflict wrappers for `RcCounter`, `RcKeyValueDictionary`, and
   `RcQueue`.
 - Migration helpers, bootstrap commands, and benchmark baseline tooling.

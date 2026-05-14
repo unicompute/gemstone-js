@@ -60,6 +60,15 @@ export { PersistentRoot } from "./persistent-root.ts";
 export { GsDict } from "./gsdict.ts";
 export { GSCollection, type ComparisonOp, type GSCollectionIndexKind, type GSCollectionIndexOptions } from "./query.ts";
 export {
+  OBJECT_LOG_LEVELS,
+  ObjectLog,
+  parseObjectLogEntries,
+  type ObjectLogAddOptions,
+  type ObjectLogEntry,
+  type ObjectLogLevelName,
+  type ObjectLogPriority,
+} from "./object-log.ts";
+export {
   PooledSession,
   SessionPool,
   type PoolConfig,
@@ -91,6 +100,13 @@ export {
   type Tracer,
 } from "./observability.ts";
 export { SerializedGciRuntime, serializeGciRuntime } from "./runtime/serialized.ts";
+export {
+  decodeEscapedField,
+  escapedFieldEncoderSource,
+  escapeSmalltalkStringLiteral,
+  objectForOopSource,
+  validateGemStoneGlobalName,
+} from "./smalltalk-source.ts";
 export {
   createGciRuntime,
   getGciRuntime,

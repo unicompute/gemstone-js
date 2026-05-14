@@ -17,6 +17,8 @@ keeping a JavaScript-first async API.
   iteration, mutation, and equality indexes.
 - Object inspection, bounded recursive object dumps, direct print-string
   helpers, class descriptions, and the `gemstone-js-inspect` command.
+- ObjectLog entry writes, batched fetch parsing, level filters, size, clear, and
+  delete helpers.
 - Observability hooks, framework adapters, code generation, package verification,
   and opt-in live smoke coverage.
 
@@ -37,7 +39,6 @@ keeping a JavaScript-first async API.
 - Higher-level persistent stores such as `GStore`.
 - Reduced-conflict wrappers for `RcCounter`, `RcKeyValueDictionary`, and
   `RcQueue`.
-- Migration helpers, object-log parsing, bootstrap commands, and benchmark
-  baseline tooling.
+- Migration helpers, bootstrap commands, and benchmark baseline tooling.
 - The `gemstone-py` VS Code workbench. A JavaScript extension should wait until
   the package API and native release flow settle further.

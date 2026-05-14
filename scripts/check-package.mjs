@@ -73,6 +73,7 @@ const required = [
   "src/index.ts",
   "src/client.ts",
   "src/inspection-cli.ts",
+  "src/object-log.ts",
   "src/smalltalk-source.ts",
   "src/runtime/node.ts",
   "src/runtime/library-discovery.ts",

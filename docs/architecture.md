@@ -64,6 +64,10 @@ The first implementation slice follows `../plan.js.txt`:
   and direct global names must be simple GemStone global-style identifiers;
   dictionary string keys are passed through string-key GCI APIs and are not
   constrained by that policy. See `docs/naming.md`.
+- `ObjectLog` is a session-bound wrapper over GemStone `ObjectLogEntry`.
+  It reads batch ObjectLog rows into one escaped string payload and parses locally,
+  matching the `gemstone-py` parser contract while keeping commits and aborts
+  explicit through the caller's session.
 - Query helpers render simple selector paths, expose collection metadata,
   can count/check predicate matches without materializing selected results, can
   read whole collections, bounded pages, indexed items, or collection endpoints

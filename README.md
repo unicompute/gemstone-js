@@ -105,6 +105,9 @@ native package; the TypeScript package can be tested locally with a mock runtime
   return typed `oop`, `class`, `classOop`, `printString`, size/byte-size, class
   hierarchy, slot, indexed-field, superclass, class instance-variable, and
   instance-count metadata for quick debugging of raw object handles and classes.
+- `ObjectLog` wraps GemStone `ObjectLogEntry` with async add, read, level
+  filter, size, clear, and delete helpers. Batched entry fetches use the same
+  escaped row parser shape as `gemstone-py`.
 - `GSCollection.search()` unwraps result arrays into typed handles,
   `GSCollection.searchOop()` returns raw handles, `all()`/`allOop()` read the
   collection as object handles, value helpers such as `allValues()`,

@@ -112,6 +112,49 @@ export const exampleCatalog = [
   },
 ];
 
+export const examplePlans = [
+  {
+    name: "first-session",
+    title: "First Session",
+    description: "Connect, evaluate a simple expression, and inspect ObjectLog behavior.",
+    examples: ["quickstart", "object-log"],
+  },
+  {
+    name: "data-persistence",
+    title: "Data Persistence",
+    description: "Work through roots, dictionaries, query helpers, GStore, and migrations.",
+    examples: ["persistent-root", "query", "gstore", "migrations"],
+  },
+  {
+    name: "typed-codegen",
+    title: "Typed Code Generation",
+    description: "Review hand-written manifests, decorated source scanning, and generated wrappers.",
+    examples: [
+      "booking",
+      "codegen-manifest",
+      "codegen-generated",
+      "booking-decorators",
+      "booking-decorators-generated",
+    ],
+  },
+  {
+    name: "web-service",
+    title: "Web Service",
+    description: "Start with Fetch, then compare Express, Fastify, Hono, and route-handler shapes.",
+    examples: ["web-fetch", "web-route-handler", "web-express", "web-fastify", "web-hono"],
+  },
+  {
+    name: "ops-release",
+    title: "Operations And Release",
+    description: "Use the local verification and operations examples before publishing or deploying.",
+    examples: ["migrations", "object-log", "codegen-manifest", "booking-decorators"],
+  },
+];
+
 export function findExample(name) {
   return exampleCatalog.find((entry) => entry.name === name);
+}
+
+export function findExamplePlan(name) {
+  return examplePlans.find((entry) => entry.name === name);
 }

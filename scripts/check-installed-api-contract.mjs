@@ -91,6 +91,30 @@ try {
   if (!commandsOutput.includes("web-fetch") || !commandsOutput.includes("npm install express")) {
     throw new Error(`Installed example command output is missing expected web commands:\n${commandsOutput}`);
   }
+  const plansOutput = execFileSync(process.execPath, [
+    join(packageRoot, "scripts", "examples.mjs"),
+    "--plans",
+  ], {
+    encoding: "utf8",
+    cwd: packageRoot,
+    stdio: "pipe",
+  });
+  if (!plansOutput.includes("first-session") || !plansOutput.includes("web-service")) {
+    throw new Error(`Installed example plan output is missing expected plans:\n${plansOutput}`);
+  }
+  const planCommandsOutput = execFileSync(process.execPath, [
+    join(packageRoot, "scripts", "examples.mjs"),
+    "--commands",
+    "--plan",
+    "web-service",
+  ], {
+    encoding: "utf8",
+    cwd: packageRoot,
+    stdio: "pipe",
+  });
+  if (!planCommandsOutput.includes("web-fetch") || !planCommandsOutput.includes("web-hono")) {
+    throw new Error(`Installed example plan command output is missing expected commands:\n${planCommandsOutput}`);
+  }
   const fetchAdapter = await import("gemstone-js/adapters/fetch");
   if (typeof fetchAdapter.gemstoneFetch !== "function" || typeof fetchAdapter.withGemStoneFetch !== "function") {
     throw new Error("Installed Fetch adapter subpath must export gemstoneFetch and withGemStoneFetch.");

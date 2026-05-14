@@ -2,7 +2,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { exampleCatalog, findExample } from "./examples-catalog.mjs";
+import { exampleCatalog, examplePlans, findExample, findExamplePlan } from "./examples-catalog.mjs";
 
 const PACKAGE_ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 
@@ -19,12 +19,28 @@ async function main(args) {
     printUsage(process.stdout);
     return;
   }
+  const selectedPlan = options.plan ? requirePlan(options.plan) : undefined;
+  const selectedExamples = selectedPlan ? examplesForPlan(selectedPlan, options.kind) : filterExamples(options.kind);
   if (options.json) {
-    process.stdout.write(`${JSON.stringify(filterExamples(options.kind), null, 2)}\n`);
+    if (selectedPlan) {
+      process.stdout.write(`${JSON.stringify(planReport(selectedPlan, selectedExamples), null, 2)}\n`);
+    } else if (options.plans) {
+      process.stdout.write(`${JSON.stringify(examplePlans, null, 2)}\n`);
+    } else {
+      process.stdout.write(`${JSON.stringify(selectedExamples, null, 2)}\n`);
+    }
     return;
   }
   if (options.commands) {
-    process.stdout.write(formatCommands(filterExamples(options.kind)));
+    process.stdout.write(formatCommands(selectedExamples));
+    return;
+  }
+  if (options.plans) {
+    process.stdout.write(formatPlans(examplePlans));
+    return;
+  }
+  if (selectedPlan) {
+    process.stdout.write(formatPlan(selectedPlan, selectedExamples));
     return;
   }
   if (options.show) {
@@ -38,7 +54,7 @@ async function main(args) {
     return;
   }
 
-  process.stdout.write(formatExamples(filterExamples(options.kind)));
+  process.stdout.write(formatExamples(selectedExamples));
 }
 
 function parseArgs(args) {
@@ -47,6 +63,8 @@ function parseArgs(args) {
     commands: false,
     json: false,
     kind: undefined,
+    plan: undefined,
+    plans: false,
     path: undefined,
     show: undefined,
   };
@@ -61,6 +79,11 @@ function parseArgs(args) {
     } else if (arg === "--kind") {
       options.kind = requiredArg(args, index, arg);
       index += 1;
+    } else if (arg === "--plan") {
+      options.plan = requiredArg(args, index, arg);
+      index += 1;
+    } else if (arg === "--plans") {
+      options.plans = true;
     } else if (arg === "--show") {
       options.show = requiredArg(args, index, arg);
       index += 1;
@@ -94,6 +117,11 @@ function filterExamples(kind) {
   return examples;
 }
 
+function examplesForPlan(plan, kind) {
+  const examples = plan.examples.map((name) => requireExample(name, undefined));
+  return kind ? examples.filter((entry) => entry.kind === kind) : examples;
+}
+
 function requireExample(name, kind) {
   const example = findExample(name);
   if (!example) {
@@ -103,6 +131,21 @@ function requireExample(name, kind) {
     throw new Error(`Example ${JSON.stringify(name)} is kind ${JSON.stringify(example.kind)}, not ${JSON.stringify(kind)}.`);
   }
   return example;
+}
+
+function requirePlan(name) {
+  const plan = findExamplePlan(name);
+  if (!plan) {
+    throw new Error(`Unknown example plan ${JSON.stringify(name)}. Run gemstone-js-examples --plans to list plans.`);
+  }
+  return plan;
+}
+
+function planReport(plan, examples) {
+  return {
+    ...plan,
+    entries: examples,
+  };
 }
 
 function formatExamples(examples) {
@@ -117,6 +160,33 @@ function formatExamples(examples) {
   lines.push("");
   lines.push("Use gemstone-js-examples --show <name> to print an example.");
   lines.push("Use gemstone-js-examples --commands [--kind <kind>] to print runnable commands.");
+  return `${lines.join("\n")}\n`;
+}
+
+function formatPlans(plans) {
+  const width = Math.max(...plans.map((entry) => entry.name.length));
+  const lines = ["Available gemstone-js example plans:"];
+  for (const plan of plans) {
+    lines.push(`  ${plan.name.padEnd(width)}  ${plan.title}  ${plan.description}`);
+  }
+  lines.push("");
+  lines.push("Use gemstone-js-examples --plan <name> to print a plan.");
+  lines.push("Use gemstone-js-examples --commands --plan <name> to print runnable commands for a plan.");
+  return `${lines.join("\n")}\n`;
+}
+
+function formatPlan(plan, examples) {
+  const lines = [
+    `${plan.title} (${plan.name})`,
+    plan.description,
+    "",
+  ];
+  for (const entry of examples) {
+    lines.push(`${entry.name}  ${entry.path}`);
+    lines.push(`  ${entry.description}`);
+    if (entry.requires?.length) lines.push(`  Requires: ${entry.requires.join(", ")}`);
+    if (entry.command) lines.push(`  Run: ${entry.command}`);
+  }
   return `${lines.join("\n")}\n`;
 }
 
@@ -141,6 +211,8 @@ Options:
   --json             Print the example catalog as JSON
   --commands         Print runnable example commands
   --kind <kind>      Filter by example kind
+  --plans            List guided example plans
+  --plan <name>      Print one guided example plan
   --show <name>      Print an example file
   --path <name>      Print an example file path
   -h, --help         Show this help

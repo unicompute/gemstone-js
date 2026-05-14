@@ -22,6 +22,7 @@ const packageJson = JSON.parse(readFileSync("package.json", "utf8"));
 const nativeDeclaration = readFileSync("src/native-module.d.ts", "utf8");
 const ciWorkflow = readFileSync(".github/workflows/ci.yml", "utf8");
 const frameworkDocs = readFileSync("docs/framework-adapters.md", "utf8");
+const examplesGuideDocs = readFileSync("docs/examples-guide.md", "utf8");
 const releasingDocs = readFileSync("docs/releasing.md", "utf8");
 const checksumCheck = readFileSync("scripts/check-checksums.mjs", "utf8");
 const checksumWriter = readFileSync("scripts/write-checksums.mjs", "utf8");
@@ -130,6 +131,9 @@ runRequiredCheck("example syntax", ["scripts/check-examples.mjs"]);
 runRequiredCheck("example catalog kind filter", ["scripts/examples.mjs", "--kind", "data"]);
 runRequiredCheck("example catalog JSON kind filter", ["scripts/examples.mjs", "--json", "--kind", "ops"]);
 runRequiredCheck("example catalog command list", ["scripts/examples.mjs", "--commands", "--kind", "web"]);
+runRequiredCheck("example plan list", ["scripts/examples.mjs", "--plans"]);
+runRequiredCheck("example plan details", ["scripts/examples.mjs", "--plan", "data-persistence"]);
+runRequiredCheck("example plan commands", ["scripts/examples.mjs", "--commands", "--plan", "web-service"]);
 runRequiredCheck("public surface contract", ["scripts/check-public-surface.mjs"]);
 runRequiredCheck("runtime API contract", ["scripts/api-contract.mjs"]);
 
@@ -138,6 +142,7 @@ const required = [
   "README.md",
   "docs/architecture.md",
   "docs/benchmarks.md",
+  "docs/examples-guide.md",
   "docs/framework-adapters.md",
   "docs/gemstone-py-parity.md",
   "docs/migrations.md",
@@ -253,6 +258,17 @@ assertSnippets(
   ],
 );
 assertSnippets(
+  "docs/examples-guide.md",
+  examplesGuideDocs,
+  [
+    "gemstone-js-examples --plans",
+    "gemstone-js-examples --plan first-session",
+    "gemstone-js-examples --commands --plan data-persistence",
+    "npm run examples:check",
+    "examples/web-route-handler.ts",
+  ],
+);
+assertSnippets(
   "docs/releasing.md",
   releasingDocs,
   [
@@ -293,17 +309,27 @@ for (const name of ["quickstart", "gstore", "persistent-root", "query", "migrati
     throw new Error(`scripts/examples-catalog.mjs must include packaged example: ${name}.`);
   }
 }
-if (!examplesCli.includes("--show") || !examplesCli.includes("--path") || !examplesCli.includes("--kind") || !examplesCli.includes("--commands") || !examplesCli.includes("exampleCatalog")) {
-  throw new Error("scripts/examples.mjs must list, filter, show, and print runnable catalog commands.");
+if (
+  !examplesCli.includes("--show")
+  || !examplesCli.includes("--path")
+  || !examplesCli.includes("--kind")
+  || !examplesCli.includes("--commands")
+  || !examplesCli.includes("--plans")
+  || !examplesCli.includes("--plan")
+  || !examplesCli.includes("examplePlans")
+) {
+  throw new Error("scripts/examples.mjs must list, filter, show, and print runnable commands and guided plans.");
 }
 if (
   !examplesCheck.includes("--experimental-strip-types")
   || !examplesCheck.includes("exampleCatalog")
+  || !examplesCheck.includes("examplePlans")
   || !examplesCheck.includes("JSON.parse")
   || !examplesCheck.includes("invalid command")
+  || !examplesCheck.includes("unknown example")
   || !examplesCheck.includes("missing from scripts/examples-catalog.mjs")
 ) {
-  throw new Error("scripts/check-examples.mjs must syntax-check TypeScript examples, parse JSON examples, validate command metadata, and require catalog coverage.");
+  throw new Error("scripts/check-examples.mjs must syntax-check TypeScript examples, parse JSON examples, validate command/plan metadata, and require catalog coverage.");
 }
 if (
   !apiContract.includes("--json")

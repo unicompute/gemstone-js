@@ -2,7 +2,7 @@
 import { execFileSync } from "node:child_process";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { exampleCatalog } from "./examples-catalog.mjs";
+import { exampleCatalog, examplePlans } from "./examples-catalog.mjs";
 
 const examplesDir = "examples";
 const entries = readdirSync(examplesDir, { withFileTypes: true })
@@ -32,6 +32,7 @@ for (const required of exampleCatalog.map((entry) => entry.path)) {
 }
 
 const catalogNames = new Set();
+const catalogNameSet = new Set(exampleCatalog.map((entry) => entry.name));
 for (const entry of exampleCatalog) {
   if (catalogNames.has(entry.name)) {
     throw new Error(`Duplicate example catalog name: ${entry.name}`);
@@ -49,6 +50,33 @@ for (const entry of exampleCatalog) {
     throw new Error(`Example ${entry.name} has an invalid requires list.`);
   }
   catalogNames.add(entry.name);
+}
+
+const planNames = new Set();
+for (const plan of examplePlans) {
+  if (planNames.has(plan.name)) {
+    throw new Error(`Duplicate example plan name: ${plan.name}`);
+  }
+  if (!plan.name || !/^[a-z][a-z0-9-]*$/.test(plan.name)) {
+    throw new Error(`Example plan has an invalid name: ${String(plan.name)}.`);
+  }
+  if (!plan.title || !plan.title.trim() || !plan.description || !plan.description.trim()) {
+    throw new Error(`Example plan ${plan.name} is missing title or description.`);
+  }
+  if (!Array.isArray(plan.examples) || plan.examples.length === 0) {
+    throw new Error(`Example plan ${plan.name} must reference at least one example.`);
+  }
+  const planExamples = new Set();
+  for (const name of plan.examples) {
+    if (planExamples.has(name)) {
+      throw new Error(`Example plan ${plan.name} references ${name} more than once.`);
+    }
+    if (!catalogNameSet.has(name)) {
+      throw new Error(`Example plan ${plan.name} references unknown example: ${name}`);
+    }
+    planExamples.add(name);
+  }
+  planNames.add(plan.name);
 }
 
 for (const path of entries) {

@@ -160,10 +160,10 @@ native package; the TypeScript package can be tested locally with a mock runtime
   `examples/web-hono.ts`, with route-handler exports in
   `examples/web-route-handler.ts`; see `docs/framework-adapters.md`.
 - `gemstone-js-examples` lists packaged examples, filters them by kind, prints
-  JSON and runnable command lists for tooling, and can show an example file
-  directly from the installed npm package. The packaged catalog includes
-  quickstart, data helpers, query helpers, migrations, ObjectLog, codegen, and
-  web adapter examples.
+  JSON, guided plans, and runnable command lists for tooling, and can show an
+  example file directly from the installed npm package. The packaged catalog
+  includes quickstart, data helpers, query helpers, migrations, ObjectLog,
+  codegen, and web adapter examples; see `docs/examples-guide.md`.
 - Result marshalling now converts GemStone `String` and `Symbol` objects back
   into JavaScript strings via `fetchString()` and class detection. Float OOPs are
   converted when the runtime reports that `GciOopToFlt_` succeeded.

@@ -81,6 +81,7 @@ const required = [
   "src/gstore.ts",
   "src/inspection-cli.ts",
   "src/object-log.ts",
+  "src/reduced-conflict.ts",
   "src/smalltalk-source.ts",
   "src/runtime/node.ts",
   "src/runtime/library-discovery.ts",

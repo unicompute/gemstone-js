@@ -94,6 +94,14 @@ native package; the TypeScript package can be tested locally with a mock runtime
   `UserGlobals.GStoreRoot`, with async transaction callbacks, read-only
   snapshots, delete/remove helpers, and commit-conflict retry for conflict-like
   commit failures.
+- Reduced-conflict wrappers expose GemStone `RcCounter`,
+  `RcKeyValueDictionary`, and `RcQueue` through `RcCounter`,
+  `RcKeyValueDictionary`, and `RcQueue`, with gemstone-py-compatible aliases
+  `RCCounter`, `RCHash`, and `RCQueue`. The wrappers cover class-side creation,
+  `session.rcCounter()`/`rcKeyValueDictionary()`/`rcQueue()` factories,
+  value/raw/object sends, counter increments and guarded decrements, dictionary
+  get/set/batch-set/remove/enumeration/rebuild helpers, and queue
+  push/batch-push/pop/peek/indexed reads.
 - `bootstrapGemStone()` and `gemstone-js-bootstrap` audit or initialize the
   GemStone-side roots used by the persistence helpers: `GStoreRoot`,
   `GSQueryRoot`, and `GemstoneJsBootstrapVersion`.

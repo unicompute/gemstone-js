@@ -1,6 +1,7 @@
 import { createGciRuntime } from "./runtime/index.ts";
 import { serializeGciRuntime } from "./runtime/serialized.ts";
 import { GsDict } from "./gsdict.ts";
+import { RcCounter, RcKeyValueDictionary, RcQueue } from "./reduced-conflict.ts";
 import {
   OOP_FALSE,
   OOP_ILLEGAL,
@@ -848,6 +849,30 @@ export class Session implements AsyncDisposable {
 
   dict(oop: Oop): GsDict {
     return new GsDict(this, oop);
+  }
+
+  async rcCounter(): Promise<RcCounter> {
+    return RcCounter.create(this);
+  }
+
+  wrapRcCounter(oop: Oop): RcCounter {
+    return RcCounter.wrap(this, oop);
+  }
+
+  async rcKeyValueDictionary(): Promise<RcKeyValueDictionary> {
+    return RcKeyValueDictionary.create(this);
+  }
+
+  wrapRcKeyValueDictionary(oop: Oop): RcKeyValueDictionary {
+    return RcKeyValueDictionary.wrap(this, oop);
+  }
+
+  async rcQueue(): Promise<RcQueue> {
+    return RcQueue.create(this);
+  }
+
+  wrapRcQueue(oop: Oop): RcQueue {
+    return RcQueue.wrap(this, oop);
   }
 
   async strDictGet(dict: Oop, key: string): Promise<MarshalledValue> {

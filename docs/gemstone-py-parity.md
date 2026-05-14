@@ -16,6 +16,9 @@ keeping a JavaScript-first async API.
   roots used by the libraries.
 - `StringKeyValueDictionary` helpers with key, item, value, pick, require,
   replace, clear, nested dictionary, raw OOP, and object-handle variants.
+- Reduced-conflict wrappers for `RcCounter`, `RcKeyValueDictionary`, and
+  `RcQueue`, including the gemstone-py-style `RCCounter`, `RCHash`, and
+  `RCQueue` aliases plus session factory helpers.
 - Collection helpers for search, first/find, count/exists, bounded pages,
   iteration, mutation, and equality indexes.
 - Object inspection, bounded recursive object dumps, direct print-string
@@ -39,8 +42,6 @@ keeping a JavaScript-first async API.
 
 ## Still Python-Only
 
-- Reduced-conflict wrappers for `RcCounter`, `RcKeyValueDictionary`, and
-  `RcQueue`.
 - Migration helpers and benchmark baseline tooling.
 - The `gemstone-py` VS Code workbench. A JavaScript extension should wait until
   the package API and native release flow settle further.

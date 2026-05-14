@@ -79,6 +79,15 @@ export {
 export { PersistentRoot } from "./persistent-root.ts";
 export { GsDict } from "./gsdict.ts";
 export {
+  RcCounter,
+  RcKeyValueDictionary,
+  RcQueue,
+  RcCounter as RCCounter,
+  RcKeyValueDictionary as RCHash,
+  RcQueue as RCQueue,
+  type RcCounterDecrementOptions,
+} from "./reduced-conflict.ts";
+export {
   GSTORE_ROOT,
   GStore,
   GStoreAbortTransaction,

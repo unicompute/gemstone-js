@@ -64,6 +64,11 @@ The first implementation slice follows `../plan.js.txt`:
   `UserGlobals.GStoreRoot`; values are JSON strings, transaction callbacks use
   an in-memory snapshot plus dirty/delete buffers, and the caller's session owns
   transaction visibility.
+- `RcCounter`, `RcKeyValueDictionary`, and `RcQueue` are thin wrappers over the
+  GemStone reduced-conflict classes used by gemstone-py. They keep creation,
+  session factory helpers, sends, enumeration, and raw-OOP variants explicit so
+  callers can choose value marshalling or handle-level APIs without hiding
+  transaction behavior.
 - `bootstrapGemStone()` and `gemstone-js-bootstrap` mirror the useful
   GemStone-side bootstrap flow from `gemstone-py`: audit known helper roots,
   create missing roots idempotently, and write a JavaScript-specific bootstrap

@@ -25,7 +25,10 @@ import {
   GemStoneConfigurationError,
   GemStoneError,
   type GemStoneClassDescription,
+  type GemStoneDumpOptions,
   type GemStoneInspection,
+  type GemStoneObjectDump,
+  type GemStoneObjectReference,
   type GciRuntime,
   type ResolvedSessionConfig,
   type SessionConfig,
@@ -1264,15 +1267,25 @@ export class Session implements AsyncDisposable {
         [
           | names |
           names := obj class allInstVarNames.
-          1 to: names size do: [:index |
+          1 to: names size do: [:index | | value |
             stream nextPutAll: 'slot='; nextPutAll: (names at: index) asString; nextPutAll: '	'.
-            [stream nextPutAll: ((obj instVarAt: index) printString)] on: Exception do: [:ex | stream nextPutAll: '<error>'].
+            [
+              value := obj instVarAt: index.
+              stream nextPutAll: value asOop asString; nextPutAll: '	';
+                nextPutAll: value class name asString; nextPutAll: '	';
+                nextPutAll: value printString
+            ] on: Exception do: [:ex | stream nextPutAll: '		<error>'].
             stream lf]
         ] on: Exception do: [:ex | ].
         [
-          1 to: obj basicSize do: [:index |
+          1 to: obj basicSize do: [:index | | value |
             stream nextPutAll: 'indexed='; nextPutAll: index asString; nextPutAll: '	'.
-            [stream nextPutAll: ((obj basicAt: index) printString)] on: Exception do: [:ex | stream nextPutAll: '<error>'].
+            [
+              value := obj basicAt: index.
+              stream nextPutAll: value asOop asString; nextPutAll: '	';
+                nextPutAll: value class name asString; nextPutAll: '	';
+                nextPutAll: value printString
+            ] on: Exception do: [:ex | stream nextPutAll: '		<error>'].
             stream lf]
         ] on: Exception do: [:ex | ]]
     `;
@@ -1289,6 +1302,15 @@ export class Session implements AsyncDisposable {
 
   async printString(value: Oop): Promise<string> {
     return (await this.inspect(value)).printString;
+  }
+
+  async dump(value: Oop, options: GemStoneDumpOptions = {}): Promise<GemStoneObjectDump> {
+    return this.#dumpOop(
+      value,
+      normalizeDumpDepth(options.depth),
+      options.includeIndexedFields ?? true,
+      new Set(),
+    );
   }
 
   async describeClass(name: string): Promise<GemStoneClassDescription> {
@@ -1382,6 +1404,54 @@ export class Session implements AsyncDisposable {
     if (!isIllegal(result)) return;
     const info = await this.runtime.err();
     throw info ? GemStoneError.fromInfo(info) : new GemStoneError(`GemStone returned illegal OOP ${oopToHex(result)}.`);
+  }
+
+  async #dumpOop(
+    value: Oop,
+    depth: number,
+    includeIndexedFields: boolean,
+    seen: Set<string>,
+  ): Promise<GemStoneObjectDump> {
+    const key = value.toString();
+    if (seen.has(key)) {
+      return { oop: value, oopString: key, cycle: true };
+    }
+    seen.add(key);
+    const inspection = await this.inspect(value);
+    const dump: GemStoneObjectDump = {
+      oop: inspection.oop,
+      oopString: inspection.oop.toString(),
+      class: inspection.class,
+      printString: inspection.printString,
+    };
+    if (depth <= 0) return dump;
+
+    if (inspection.slots?.length) {
+      dump.slots = {};
+      for (const slot of inspection.slots) {
+        dump.slots[slot.name] = await this.#dumpReference(slot, depth, includeIndexedFields, seen);
+      }
+    }
+    if (includeIndexedFields && inspection.indexedFields?.length) {
+      dump.indexedFields = [];
+      for (const field of inspection.indexedFields) {
+        dump.indexedFields.push({
+          index: field.index,
+          value: await this.#dumpReference(field, depth, includeIndexedFields, seen),
+        });
+      }
+    }
+    return dump;
+  }
+
+  async #dumpReference(
+    reference: { value: string; oop?: Oop; oopString?: string; class?: string },
+    depth: number,
+    includeIndexedFields: boolean,
+    seen: Set<string>,
+  ): Promise<GemStoneObjectDump | GemStoneObjectReference> {
+    if (!reference.oop || depth <= 1) return toDumpReference(reference);
+    return this.#dumpOop(reference.oop, depth - 1, includeIndexedFields, seen);
   }
 
   #missingGlobal(name: string): Error {
@@ -1520,6 +1590,11 @@ export class ManagedOop<T = unknown> implements AsyncDisposable {
 
   async printString(): Promise<string> {
     return (await this.inspect()).printString;
+  }
+
+  async dump(options: GemStoneDumpOptions = {}): Promise<GemStoneObjectDump> {
+    await this.#ready;
+    return this.session.dump(this.oop, options);
   }
 
   async release(): Promise<void> {
@@ -1680,6 +1755,14 @@ function validateArrayPageCount(value: number): number {
   return value;
 }
 
+function normalizeDumpDepth(value: number | undefined): number {
+  if (value === undefined) return 2;
+  if (!Number.isSafeInteger(value) || value < 0) {
+    throw new RangeError("GemStone object dump depth must be a non-negative safe integer.");
+  }
+  return value;
+}
+
 function arrayIndexEntries<T>(items: GemStoneArrayIndexMap<T>, field: string): Array<[number, T]> {
   return Object.entries(items).map(([key, value]) => [validateArrayIndexKey(key, field), value as T]);
 }
@@ -1770,17 +1853,16 @@ function parseInspectionPayload(payload: string): GemStoneInspection {
     } else if (key === "classHierarchy" && value) {
       inspection.classHierarchy = value.split(",").map((item) => item.trim()).filter(Boolean);
     } else if (key === "slot") {
-      const [name, slotValue] = splitOnce(value, "\t");
-      if (name) {
+      const slot = parseInspectedReference(value);
+      if (slot.name) {
         inspection.slots ??= [];
-        inspection.slots.push({ name, value: slotValue });
+        inspection.slots.push(slot);
       }
     } else if (key === "indexed") {
-      const [indexText, fieldValue] = splitOnce(value, "\t");
-      const index = parseOptionalNonNegativeInteger(indexText);
-      if (index !== undefined) {
+      const field = parseInspectedIndexedField(value);
+      if (field) {
         inspection.indexedFields ??= [];
-        inspection.indexedFields.push({ index, value: fieldValue });
+        inspection.indexedFields.push(field);
       }
     }
   }
@@ -1802,6 +1884,59 @@ function splitOnce(value: string, separator: string): [string, string] {
   const index = value.indexOf(separator);
   if (index === -1) return [value, ""];
   return [value.slice(0, index), value.slice(index + separator.length)];
+}
+
+function parseInspectedReference(value: string): { name: string; value: string; oop?: Oop; oopString?: string; class?: string } {
+  const [name, rest] = splitOnce(value, "\t");
+  const [oopText, className, printString] = splitTabPayload(rest);
+  if (!oopText || !className) return { name, value: rest };
+  return {
+    name,
+    value: printString,
+    ...parseOptionalOopReference(oopText),
+    class: className,
+  };
+}
+
+function parseInspectedIndexedField(value: string): { index: number; value: string; oop?: Oop; oopString?: string; class?: string } | undefined {
+  const [indexText, rest] = splitOnce(value, "\t");
+  const index = parseOptionalNonNegativeInteger(indexText);
+  if (index === undefined) return undefined;
+  const [oopText, className, printString] = splitTabPayload(rest);
+  if (!oopText || !className) return { index, value: rest };
+  return {
+    index,
+    value: printString,
+    ...parseOptionalOopReference(oopText),
+    class: className,
+  };
+}
+
+function splitTabPayload(value: string): [string, string, string] {
+  const first = value.indexOf("\t");
+  if (first === -1) return ["", "", value];
+  const second = value.indexOf("\t", first + 1);
+  if (second === -1) return ["", "", value];
+  return [value.slice(0, first), value.slice(first + 1, second), value.slice(second + 1)];
+}
+
+function parseOptionalOopReference(value: string): { oop?: Oop; oopString?: string } {
+  if (!value) return {};
+  try {
+    const parsed = oop(value);
+    return { oop: parsed, oopString: parsed.toString() };
+  } catch {
+    return { oopString: value };
+  }
+}
+
+function toDumpReference(value: { value: string; oop?: Oop; oopString?: string; class?: string }): GemStoneObjectReference {
+  return {
+    oop: value.oop,
+    oopString: value.oopString,
+    class: value.class,
+    printString: value.value,
+  };
 }
 
 function parseClassDescriptionPayload(payload: string, fallbackName: string): GemStoneClassDescription {

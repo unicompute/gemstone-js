@@ -93,11 +93,17 @@ export interface SymDictLookup {
 export interface GemStoneSlotInspection {
   name: string;
   value: string;
+  oop?: Oop;
+  oopString?: string;
+  class?: string;
 }
 
 export interface GemStoneIndexedFieldInspection {
   index: number;
   value: string;
+  oop?: Oop;
+  oopString?: string;
+  class?: string;
 }
 
 export interface GemStoneInspection {
@@ -119,6 +125,30 @@ export interface GemStoneClassDescription {
   instVarNames: string[];
   classInstVarNames: string[];
   instanceCount?: number;
+}
+
+export interface GemStoneDumpOptions {
+  depth?: number;
+  includeIndexedFields?: boolean;
+}
+
+export interface GemStoneObjectReference {
+  oop?: Oop;
+  oopString?: string;
+  class?: string;
+  printString: string;
+}
+
+export type GemStoneDumpValue = GemStoneObjectDump | GemStoneObjectReference;
+
+export interface GemStoneObjectDump {
+  oop: Oop;
+  oopString: string;
+  class?: string;
+  printString?: string;
+  cycle?: boolean;
+  slots?: Record<string, GemStoneDumpValue>;
+  indexedFields?: Array<{ index: number; value: GemStoneDumpValue }>;
 }
 
 export interface GciRuntime {

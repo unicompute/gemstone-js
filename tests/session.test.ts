@@ -1602,6 +1602,8 @@ test("marshalOop converts float OOPs when the runtime supports it", async () => 
 test("inspect returns typed class and printString metadata", async () => {
   let runtime: MockGciRuntime;
   const classOop = smallintToOop(99);
+  const slotOop = 0x8100n as Oop;
+  const indexedOop = 0x8108n as Oop;
   runtime = new MockGciRuntime({
     async execute(source) {
       assert(source.includes("Object _objectForOop:"), "inspect should use the GemStone object lookup helper");
@@ -1615,8 +1617,8 @@ test("inspect returns typed class and printString metadata", async () => {
         "size=0",
         "byteSize=1",
         "classHierarchy=SmallInteger,Integer,Number,Object",
-        "slot=value\t42",
-        "indexed=1\titem",
+        `slot=value\t${slotOop.toString()}\tString\t42`,
+        `indexed=1\t${indexedOop.toString()}\tArray\titem`,
         "",
       ].join("\n"));
     },
@@ -1634,10 +1636,68 @@ test("inspect returns typed class and printString metadata", async () => {
   assertEqual(inspection.classHierarchy?.join(">"), "SmallInteger>Integer>Number>Object");
   assertEqual(inspection.slots?.[0]?.name, "value");
   assertEqual(inspection.slots?.[0]?.value, "42");
+  assertEqual(inspection.slots?.[0]?.oop, slotOop);
+  assertEqual(inspection.slots?.[0]?.class, "String");
   assertEqual(inspection.indexedFields?.[0]?.index, 1);
   assertEqual(inspection.indexedFields?.[0]?.value, "item");
+  assertEqual(inspection.indexedFields?.[0]?.oop, indexedOop);
+  assertEqual(inspection.indexedFields?.[0]?.class, "Array");
   assertEqual(await session.printString(smallintToOop(7)), "7\nagain");
 
+  await session.logout();
+});
+
+test("dump returns bounded recursive object inspection data", async () => {
+  let runtime: MockGciRuntime;
+  const root = 0x9200n as Oop;
+  const child = 0x9208n as Oop;
+  const leaf = 0x9210n as Oop;
+  runtime = new MockGciRuntime({
+    async execute(source) {
+      const inspected = BigInt(source.match(/Object _objectForOop:\s+(\d+)/)?.[1] ?? root.toString()) as Oop;
+      if (inspected === root) {
+        return runtime.newString(inspectionPayload(root, "Root", "a Root", [
+          `slot=child\t${child.toString()}\tChild\ta Child`,
+          `indexed=1\t${leaf.toString()}\tString\tleaf`,
+        ]));
+      }
+      if (inspected === child) {
+        return runtime.newString(inspectionPayload(child, "Child", "a Child", [
+          `slot=parent\t${root.toString()}\tRoot\ta Root`,
+        ]));
+      }
+      return runtime.newString(inspectionPayload(leaf, "String", "leaf", []));
+    },
+  });
+  const session = await Session.connect({ username: "u", password: "p", runtime });
+
+  const dump = await session.dump(root, { depth: 3 });
+  assertEqual(dump.oop, root);
+  assertEqual(dump.class, "Root");
+  const childDump = dump.slots?.child;
+  if (!childDump || !("slots" in childDump)) throw new Error("dump should recursively inspect child slots");
+  assertEqual(childDump.oop, child);
+  assertEqual(childDump.class, "Child");
+  const parentCycle = childDump.slots?.parent;
+  if (!parentCycle || !("cycle" in parentCycle)) throw new Error("dump should mark recursive references as cycles");
+  assertEqual(parentCycle.oop, root);
+  assertEqual(parentCycle.cycle, true);
+  assertEqual(dump.indexedFields?.[0]?.index, 1);
+  const leafDump = dump.indexedFields?.[0]?.value;
+  if (!leafDump || !("printString" in leafDump)) throw new Error("dump should include indexed field values");
+  assertEqual(leafDump.printString, "leaf");
+
+  const shallow = await session.dump(root, { depth: 1, includeIndexedFields: false });
+  const shallowChild = shallow.slots?.child;
+  if (!shallowChild || "slots" in shallowChild) throw new Error("depth 1 should keep child slots as references");
+  assertEqual(shallowChild.oop, child);
+  assertEqual(shallowChild.printString, "a Child");
+  assertEqual(shallow.indexedFields, undefined);
+  await assertRejects(() => session.dump(root, { depth: -1 }), RangeError);
+
+  const managed = session.managedOop(root);
+  assertEqual((await managed.dump({ depth: 0 })).oop, root);
+  await managed.release();
   await session.logout();
 });
 
@@ -1666,6 +1726,17 @@ function assertEqual<T>(actual: T, expected: T): void {
   if (actual !== expected) {
     throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
   }
+}
+
+function inspectionPayload(value: Oop, className: string, printString: string, metadataLines: readonly string[]): string {
+  return [
+    value.toString(),
+    className,
+    printString,
+    "--gemstone-js-inspect--",
+    ...metadataLines,
+    "",
+  ].join("\n");
 }
 
 function assertDeepEqual(actual: unknown, expected: unknown): void {

@@ -99,8 +99,9 @@ native package; the TypeScript package can be tested locally with a mock runtime
 - Result marshalling now converts GemStone `String` and `Symbol` objects back
   into JavaScript strings via `fetchString()` and class detection. Float OOPs are
   converted when the runtime reports that `GciOopToFlt_` succeeded.
-- `Session.inspect()`, direct `printString()`, `describeClass()`, class-ref
-  `describe()`, and retained handle `inspect()`/`printString()` helpers
+- `Session.inspect()`, bounded recursive `dump()`, direct `printString()`,
+  `describeClass()`, class-ref `describe()`, and retained handle
+  `inspect()`/`dump()`/`printString()` helpers
   return typed `oop`, `class`, `classOop`, `printString`, size/byte-size, class
   hierarchy, slot, indexed-field, superclass, class instance-variable, and
   instance-count metadata for quick debugging of raw object handles and classes.

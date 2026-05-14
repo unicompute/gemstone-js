@@ -18,10 +18,11 @@ node scripts/verify-checksums.mjs SHA256SUMS.txt
 The workflow uploads the npm tarball as a GitHub Actions artifact so the exact
 package contents can be inspected before publishing. CI also uploads
 `SHA256SUMS.txt` for the generated tarball after verifying it. The
-`npm run verify` step includes `npm run public-surface:check` so export-barrel
-changes are checked before packaging, and `npm run api-contract` so the runtime
-package entrypoint, package metadata, schema exports, and CLI bin targets are
-compared with the committed API contract.
+`npm run verify` step includes `npm run examples:check` and
+`npm run public-surface:check` so packaged examples and export-barrel changes
+are checked before packaging, and `npm run api-contract` so the runtime package
+entrypoint, package metadata, schema exports, and CLI bin targets are compared
+with the committed API contract.
 
 ## Artifact Inspection
 

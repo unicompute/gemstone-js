@@ -27,6 +27,7 @@ const checksumCheck = readFileSync("scripts/check-checksums.mjs", "utf8");
 const checksumWriter = readFileSync("scripts/write-checksums.mjs", "utf8");
 const checksumVerifier = readFileSync("scripts/verify-checksums.mjs", "utf8");
 const apiContract = readFileSync("scripts/api-contract.mjs", "utf8");
+const examplesCheck = readFileSync("scripts/check-examples.mjs", "utf8");
 const installedApiContractCheck = readFileSync("scripts/check-installed-api-contract.mjs", "utf8");
 const publicSurfaceCheck = readFileSync("scripts/check-public-surface.mjs", "utf8");
 const publicSurfaceContract = JSON.parse(readFileSync("scripts/public-surface.expected.json", "utf8"));
@@ -55,6 +56,7 @@ const requiredScripts = {
   "bootstrap": "node scripts/bootstrap.mjs",
   "codegen:check": "node scripts/codegen.mjs --check examples/codegen.manifest.json examples/codegen.generated.ts",
   "codegen:scan:check": "node scripts/scan-codegen.mjs --module --check --out examples/booking.decorators.generated.ts examples/booking.decorators.ts",
+  "examples:check": "node scripts/check-examples.mjs",
   "inspect": "node scripts/inspect.mjs",
   "migrations": "node scripts/migrations.mjs",
   "public-surface:check": "node scripts/check-public-surface.mjs",
@@ -62,7 +64,7 @@ const requiredScripts = {
   "checksum:check": "node scripts/check-checksums.mjs",
   "checksum:verify": "node scripts/verify-checksums.mjs",
   "pack:check": "node scripts/check-package.mjs",
-  "verify": "npm run typecheck && npm run codegen:check && npm run codegen:scan:check && npm run public-surface:check && npm run api-contract && npm test && npm run checksum:check && npm run pack:check && npm run api-contract:installed",
+  "verify": "npm run typecheck && npm run codegen:check && npm run codegen:scan:check && npm run examples:check && npm run public-surface:check && npm run api-contract && npm test && npm run checksum:check && npm run pack:check && npm run api-contract:installed",
 };
 for (const [name, command] of Object.entries(requiredScripts)) {
   if (packageJson.scripts?.[name] !== command) {
@@ -105,6 +107,7 @@ runRequiredCheck("decorated-source codegen output", [
   "examples/booking.decorators.generated.ts",
   "examples/booking.decorators.ts",
 ]);
+runRequiredCheck("example syntax", ["scripts/check-examples.mjs"]);
 runRequiredCheck("public surface contract", ["scripts/check-public-surface.mjs"]);
 runRequiredCheck("runtime API contract", ["scripts/api-contract.mjs"]);
 
@@ -139,6 +142,7 @@ const required = [
   "scripts/benchmarks.mjs",
   "scripts/bootstrap.mjs",
   "scripts/check-checksums.mjs",
+  "scripts/check-examples.mjs",
   "scripts/check-installed-api-contract.mjs",
   "scripts/check-package.mjs",
   "scripts/check-public-surface.mjs",
@@ -250,6 +254,13 @@ for (const exportName of ["SessionConfig", "GciRuntime", "TransactionPolicy", "V
 }
 if (!apiContract.includes("await import(moduleSpecifier)") || !apiContract.includes("missingValueExports")) {
   throw new Error("scripts/api-contract.mjs must import and compare runtime value exports.");
+}
+if (
+  !examplesCheck.includes("--experimental-strip-types")
+  || !examplesCheck.includes("examples/web-express.ts")
+  || !examplesCheck.includes("JSON.parse")
+) {
+  throw new Error("scripts/check-examples.mjs must syntax-check TypeScript examples and parse JSON examples.");
 }
 if (
   !apiContract.includes("--json")

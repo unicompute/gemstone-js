@@ -46,6 +46,8 @@ node --experimental-strip-types examples/web-hono.ts
 The examples rely on the usual GemStone environment variables accepted by
 `Session.configFromEnv()`: `GS_STONE`, `GS_NETLDI`, `GS_HOST`,
 `GS_USERNAME`, `GS_PASSWORD`, and related host-login settings.
+`npm run examples:check` syntax-checks the committed examples without requiring
+the optional framework packages to be installed.
 
 ## Adapter Notes
 

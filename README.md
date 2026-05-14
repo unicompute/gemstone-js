@@ -245,12 +245,12 @@ npm run verify
 ```
 
 Node 24 can execute the `.ts` tests directly using built-in type stripping.
-The local verify path checks both checked-in generated outputs, the public API
-surface contract, the runtime package API contract, CLI bin/schema metadata,
-and the checksum helper self-test, then uses `npm pack --dry-run` with a
-disposable cache to verify that the publishable tarball includes docs/examples
-while excluding tests and local build metadata. It also packs and extracts the
-tarball to verify installed API and bin wiring.
+The local verify path checks both checked-in generated outputs, example syntax,
+the public API surface contract, the runtime package API contract, CLI
+bin/schema metadata, and the checksum helper self-test, then uses
+`npm pack --dry-run` with a disposable cache to verify that the publishable
+tarball includes docs/examples while excluding tests and local build metadata.
+It also packs and extracts the tarball to verify installed API and bin wiring.
 
 Live GemStone checks are opt-in:
 

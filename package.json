@@ -69,6 +69,7 @@
     "scripts/check-checksums.mjs",
     "scripts/check-installed-api-contract.mjs",
     "scripts/check-package.mjs",
+    "scripts/check-examples.mjs",
     "scripts/check-public-surface.mjs",
     "scripts/codegen.mjs",
     "scripts/inspect.mjs",
@@ -98,6 +99,7 @@
     "codegen:check": "node scripts/codegen.mjs --check examples/codegen.manifest.json examples/codegen.generated.ts",
     "codegen:scan": "node scripts/scan-codegen.mjs",
     "codegen:scan:check": "node scripts/scan-codegen.mjs --module --check --out examples/booking.decorators.generated.ts examples/booking.decorators.ts",
+    "examples:check": "node scripts/check-examples.mjs",
     "inspect": "node scripts/inspect.mjs",
     "migrations": "node scripts/migrations.mjs",
     "public-surface:check": "node scripts/check-public-surface.mjs",
@@ -105,7 +107,7 @@
     "checksum:check": "node scripts/check-checksums.mjs",
     "checksum:verify": "node scripts/verify-checksums.mjs",
     "test:live": "GS_RUN_LIVE=1 node --test tests/live.test.ts",
-    "verify": "npm run typecheck && npm run codegen:check && npm run codegen:scan:check && npm run public-surface:check && npm run api-contract && npm test && npm run checksum:check && npm run pack:check && npm run api-contract:installed"
+    "verify": "npm run typecheck && npm run codegen:check && npm run codegen:scan:check && npm run examples:check && npm run public-surface:check && npm run api-contract && npm test && npm run checksum:check && npm run pack:check && npm run api-contract:installed"
   },
   "optionalDependencies": {
     "@gemstone-js/native": "0.1.0-alpha.0"

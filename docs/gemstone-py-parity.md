@@ -17,6 +17,9 @@ keeping a JavaScript-first async API.
 - Module-style migrations with dependency planning, status/current reads,
   upgrade/downgrade execution, checksum validation, advisory locks, recorded
   dry-runs, and a command-line runner.
+- Benchmark baseline comparison, metadata-based baseline selection, baseline
+  manifest registration, pruning, threshold enforcement, and command-line
+  wrappers for saved report artifacts.
 - `StringKeyValueDictionary` helpers with key, item, value, pick, require,
   replace, clear, nested dictionary, raw OOP, and object-handle variants.
 - Reduced-conflict wrappers for `RcCounter`, `RcKeyValueDictionary`, and
@@ -45,6 +48,6 @@ keeping a JavaScript-first async API.
 
 ## Still Python-Only
 
-- Benchmark baseline tooling.
+- Maintained live benchmark suite generation.
 - The `gemstone-py` VS Code workbench. A JavaScript extension should wait until
   the package API and native release flow settle further.

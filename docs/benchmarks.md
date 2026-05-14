@@ -67,6 +67,11 @@ npm run benchmark:validate -- benchmark-report.json --manifest .github/benchmark
 npm run benchmark:baselines -- benchmark-report.json --manifest .github/benchmarks/index.json
 ```
 
+Manifest validation loads referenced baseline reports by default and rejects
+duplicate baseline metadata, because duplicate environment matches make
+baseline selection ambiguous. Use `--allow-duplicate-metadata` only for manual
+maintenance work where duplicates are intentional.
+
 Register or maintain committed baseline artifacts:
 
 ```sh

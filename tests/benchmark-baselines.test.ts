@@ -196,6 +196,7 @@ test("benchmark validation validates reports and manifest baselines", async () =
   assert.equal(validation.validatedReportCount, 2);
   assert.equal(validation.validatedManifestEntryCount, 1);
   assert.equal(validation.manifestBaselinePaths[0], baseline);
+  assert.deepEqual(validation.duplicateMetadataGroups, []);
 
   const io = fakeIo();
   assert.equal(await runBenchmarkValidateCli([candidate, "--manifest", manifest, "--json"], io), 0);
@@ -210,6 +211,17 @@ test("benchmark validation validates reports and manifest baselines", async () =
   const usageIo = fakeIo();
   assert.equal(await runBenchmarkValidateCli([], usageIo), 2);
   assert.match(usageIo.stderrText(), /Expected at least one report path/);
+
+  const duplicate = join(fixture.path, "duplicate.json");
+  await writeReport(duplicate, report({ results: [result("gci", "execute", 101, 1)] }));
+  await writeJson(manifest, { schema_version: BASELINE_MANIFEST_SCHEMA_VERSION, baselines: ["baseline.json", "duplicate.json"] });
+  assert.throws(() => validateBenchmarkArtifacts({ manifestPath: manifest }), /duplicate baseline metadata/);
+
+  const allowIo = fakeIo();
+  assert.equal(await runBenchmarkValidateCli(["--manifest", manifest, "--allow-duplicate-metadata", "--json"], allowIo), 0);
+  const allowedPayload = JSON.parse(allowIo.stdoutText());
+  assert.equal(allowedPayload.duplicateMetadataGroups.length, 1);
+  assert.equal(allowedPayload.duplicateMetadataGroups[0].paths.length, 2);
 });
 
 test("benchmark CLI scripts print help without file IO", async () => {

@@ -138,6 +138,12 @@ export interface ValidateBenchmarkArtifactsOptions {
   reportPaths?: readonly string[];
   manifestPath?: string | null;
   validateManifestReports?: boolean;
+  allowDuplicateMetadata?: boolean;
+}
+
+export interface BenchmarkDuplicateMetadataGroup {
+  metadata: Record<string, unknown>;
+  paths: string[];
 }
 
 export interface BenchmarkArtifactValidationReport {
@@ -145,6 +151,7 @@ export interface BenchmarkArtifactValidationReport {
   reportPaths: string[];
   manifestPath: string | null;
   manifestBaselinePaths: string[];
+  duplicateMetadataGroups: BenchmarkDuplicateMetadataGroup[];
   validatedReportCount: number;
   validatedManifestEntryCount: number;
   message: string;
@@ -404,7 +411,14 @@ export function validateBenchmarkArtifacts(options: ValidateBenchmarkArtifactsOp
     ...reportPaths,
     ...(validateManifestReports ? manifestBaselinePaths : []),
   ]);
-  for (const path of pathsToValidate) loadBenchmarkReport(path);
+  const reports = new Map<string, BenchmarkReport>();
+  for (const path of pathsToValidate) reports.set(path, loadBenchmarkReport(path));
+  const duplicateMetadataGroups = validateManifestReports
+    ? duplicateBaselineMetadataGroups(manifestBaselinePaths, reports)
+    : [];
+  if (duplicateMetadataGroups.length > 0 && options.allowDuplicateMetadata !== true) {
+    throw new BenchmarkBaselineError(`Benchmark manifest contains duplicate baseline metadata for paths: ${duplicateMetadataGroups.map((group) => group.paths.join(", ")).join("; ")}`);
+  }
 
   const messageParts = [`Validated ${pathsToValidate.length} benchmark report(s).`];
   if (manifestPath) messageParts.push(`Validated manifest with ${manifestBaselinePaths.length} baseline entr${manifestBaselinePaths.length === 1 ? "y" : "ies"}.`);
@@ -413,6 +427,7 @@ export function validateBenchmarkArtifacts(options: ValidateBenchmarkArtifactsOp
     reportPaths: pathsToValidate,
     manifestPath,
     manifestBaselinePaths,
+    duplicateMetadataGroups,
     validatedReportCount: pathsToValidate.length,
     validatedManifestEntryCount: manifestBaselinePaths.length,
     message: messageParts.join(" "),
@@ -599,6 +614,23 @@ function uniqueStrings(values: readonly string[]): string[] {
   return [...new Set(values)];
 }
 
+function duplicateBaselineMetadataGroups(
+  baselinePaths: readonly string[],
+  reports: ReadonlyMap<string, BenchmarkReport>,
+): BenchmarkDuplicateMetadataGroup[] {
+  const groups = new Map<string, BenchmarkDuplicateMetadataGroup>();
+  for (const path of baselinePaths) {
+    const report = reports.get(path);
+    if (!report) continue;
+    const metadata = metadataSnapshot(report);
+    const key = JSON.stringify(metadata);
+    const group = groups.get(key);
+    if (group) group.paths.push(path);
+    else groups.set(key, { metadata, paths: [path] });
+  }
+  return [...groups.values()].filter((group) => group.paths.length > 1);
+}
+
 function loadBaselineManifest(path: string): string[] {
   const payload = loadBaselineManifestPayload(path);
   return payload.baselines.map((entry, index) => {
@@ -754,6 +786,7 @@ function parseValidateArgs(argv: readonly string[]): ValidateBenchmarkArtifactsO
     reportPaths: [],
     manifestPath: null,
     validateManifestReports: true,
+    allowDuplicateMetadata: false,
     json: false,
   };
   for (let index = 0; index < argv.length; index += 1) {
@@ -761,6 +794,7 @@ function parseValidateArgs(argv: readonly string[]): ValidateBenchmarkArtifactsO
     if (arg === "-h" || arg === "--help") options.help = true;
     else if (arg === "--manifest") options.manifestPath = requiredValue(argv, ++index, arg);
     else if (arg === "--skip-manifest-reports") options.validateManifestReports = false;
+    else if (arg === "--allow-duplicate-metadata") options.allowDuplicateMetadata = true;
     else if (arg === "--json") options.json = true;
     else if (arg === "--output") options.output = requiredValue(argv, ++index, arg);
     else if (arg.startsWith("-")) throw new BenchmarkCliUsageError(`Unexpected argument: ${arg}`);
@@ -850,7 +884,8 @@ function benchmarkValidateUsage(): string {
   return [
     "Usage: gemstone-js-benchmark-validate [report.json ...] [options]",
     "",
-    "Options: --manifest <index.json> --skip-manifest-reports --json --output <path>",
+    "Options: --manifest <index.json> --skip-manifest-reports",
+    "         --allow-duplicate-metadata --json --output <path>",
     "",
   ].join("\n");
 }

@@ -30,6 +30,7 @@ export {
   type BenchmarkComparisonReport,
   type BenchmarkComparisonRow,
   type BenchmarkComparisonStatus,
+  type BenchmarkDuplicateMetadataGroup,
   type BenchmarkMetadataField,
   type BenchmarkReport,
   type BenchmarkResultRow,

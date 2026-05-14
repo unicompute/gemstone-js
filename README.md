@@ -94,6 +94,9 @@ native package; the TypeScript package can be tested locally with a mock runtime
   `UserGlobals.GStoreRoot`, with async transaction callbacks, read-only
   snapshots, delete/remove helpers, and commit-conflict retry for conflict-like
   commit failures.
+- `bootstrapGemStone()` and `gemstone-js-bootstrap` audit or initialize the
+  GemStone-side roots used by the persistence helpers: `GStoreRoot`,
+  `GSQueryRoot`, and `GemstoneJsBootstrapVersion`.
 - Session pool release is reset-aware: dirty sessions are aborted before reuse,
   failed resets are discarded, waiters are served with replacement sessions, and
   close rejects pending acquires. Explicit validation queries run without
@@ -206,6 +209,14 @@ uses the same `GS_*` connection environment as `Session.configFromEnv()`:
 npm run inspect -- --oop 123456789
 npm run inspect -- --oop 123456789 --dump --depth 2
 npm run inspect -- --class Booking --json
+```
+
+GemStone-side helper roots can be audited or initialized with:
+
+```sh
+npm run bootstrap -- --status
+npm run bootstrap -- --dry-run
+npm run bootstrap
 ```
 
 ## Example

@@ -64,6 +64,10 @@ The first implementation slice follows `../plan.js.txt`:
   `UserGlobals.GStoreRoot`; values are JSON strings, transaction callbacks use
   an in-memory snapshot plus dirty/delete buffers, and the caller's session owns
   transaction visibility.
+- `bootstrapGemStone()` and `gemstone-js-bootstrap` mirror the useful
+  GemStone-side bootstrap flow from `gemstone-py`: audit known helper roots,
+  create missing roots idempotently, and write a JavaScript-specific bootstrap
+  version marker while leaving application data intact.
 - Source-rendered helper names and class-ref names share one validation policy.
   Collection names, class names, persistent-root names, persistent-root entries,
   and direct global names must be simple GemStone global-style identifiers;

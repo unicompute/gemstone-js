@@ -27,6 +27,7 @@ if (packageJson.publishConfig?.provenance !== true) {
   throw new Error("package.json publishConfig.provenance must be true.");
 }
 const requiredScripts = {
+  "bootstrap": "node scripts/bootstrap.mjs",
   "codegen:check": "node scripts/codegen.mjs --check examples/codegen.manifest.json examples/codegen.generated.ts",
   "codegen:scan:check": "node scripts/scan-codegen.mjs --module --check --out examples/booking.decorators.generated.ts examples/booking.decorators.ts",
   "inspect": "node scripts/inspect.mjs",
@@ -40,6 +41,9 @@ for (const [name, command] of Object.entries(requiredScripts)) {
 }
 if (packageJson.bin?.["gemstone-js-inspect"] !== "./scripts/inspect.mjs") {
   throw new Error("package.json bin.gemstone-js-inspect must point at ./scripts/inspect.mjs.");
+}
+if (packageJson.bin?.["gemstone-js-bootstrap"] !== "./scripts/bootstrap.mjs") {
+  throw new Error("package.json bin.gemstone-js-bootstrap must point at ./scripts/bootstrap.mjs.");
 }
 runRequiredCheck("codegen manifest output", ["scripts/codegen.mjs", "--check", "examples/codegen.manifest.json", "examples/codegen.generated.ts"]);
 runRequiredCheck("decorated-source codegen output", [
@@ -66,11 +70,13 @@ const required = [
   "examples/quickstart.ts",
   "package.json",
   "schemas/codegen-manifest.schema.json",
+  "scripts/bootstrap.mjs",
   "scripts/check-package.mjs",
   "scripts/codegen.mjs",
   "scripts/inspect.mjs",
   "scripts/scan-codegen.mjs",
   "src/index.ts",
+  "src/bootstrap.ts",
   "src/client.ts",
   "src/gstore.ts",
   "src/inspection-cli.ts",

@@ -42,6 +42,7 @@
     "./schemas/codegen-manifest.schema.json": "./schemas/codegen-manifest.schema.json"
   },
   "bin": {
+    "gemstone-js-bootstrap": "./scripts/bootstrap.mjs",
     "gemstone-js-inspect": "./scripts/inspect.mjs"
   },
   "files": [
@@ -49,6 +50,7 @@
     "docs",
     "examples",
     "schemas",
+    "scripts/bootstrap.mjs",
     "scripts/check-package.mjs",
     "scripts/codegen.mjs",
     "scripts/inspect.mjs",
@@ -60,6 +62,7 @@
     "test": "node --test tests/*.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "build": "tsc -p tsconfig.json --noEmit",
+    "bootstrap": "node scripts/bootstrap.mjs",
     "pack:check": "node scripts/check-package.mjs",
     "codegen": "node scripts/codegen.mjs",
     "codegen:check": "node scripts/codegen.mjs --check examples/codegen.manifest.json examples/codegen.generated.ts",

@@ -14,6 +14,9 @@ keeping a JavaScript-first async API.
 - `GStore`-style named JSON key/value stores under `UserGlobals.GStoreRoot`.
 - GemStone-side bootstrap audit/source/command helpers for the persistence
   roots used by the libraries.
+- Module-style migrations with dependency planning, status/current reads,
+  upgrade/downgrade execution, checksum validation, advisory locks, recorded
+  dry-runs, and a command-line runner.
 - `StringKeyValueDictionary` helpers with key, item, value, pick, require,
   replace, clear, nested dictionary, raw OOP, and object-handle variants.
 - Reduced-conflict wrappers for `RcCounter`, `RcKeyValueDictionary`, and
@@ -42,6 +45,6 @@ keeping a JavaScript-first async API.
 
 ## Still Python-Only
 
-- Migration helpers and benchmark baseline tooling.
+- Benchmark baseline tooling.
 - The `gemstone-py` VS Code workbench. A JavaScript extension should wait until
   the package API and native release flow settle further.

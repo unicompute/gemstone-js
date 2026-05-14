@@ -1,6 +1,16 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { GSCollection, GStore, PersistentRoot, Session, smallintToOop } from "../src/index.ts";
+import {
+  GSCollection,
+  GStore,
+  PersistentRoot,
+  Session,
+  currentVersion,
+  downgrade,
+  smallintToOop,
+  upgrade,
+  type MigrationStep,
+} from "../src/index.ts";
 
 const runLive = process.env.GS_RUN_LIVE === "1";
 
@@ -373,6 +383,46 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
   await query.clear();
   assert.equal(await query.isEmpty(), true);
   assert.equal(await session.globalDelete(queryKey), true);
+
+  const migrationRootKey = `${key}_Migrations`;
+  const migrationLockKey = `${key}_MigrationsLock`;
+  const migrationProbeKey = `${key}_MigrationProbe`;
+  const migrationStep: MigrationStep = {
+    id: "001_live_probe",
+    checksum: "live-smoke",
+    description: "Live gemstone-js migration probe.",
+    upgrade: async (current) => {
+      await current.globalSet(migrationProbeKey, "ready");
+    },
+    downgrade: async (current) => {
+      await current.globalRemove(migrationProbeKey);
+    },
+  };
+  try {
+    const migrationResult = await upgrade(session, [migrationStep], {
+      rootKey: migrationRootKey,
+      lockKey: migrationLockKey,
+      lockOwner: "gemstone-js-live-smoke",
+    });
+    assert.deepEqual(migrationResult.steps, ["001_live_probe"]);
+    assert.equal(await currentVersion(session, { rootKey: migrationRootKey }), "001_live_probe");
+    assert.equal(await session.globalGetValue(migrationProbeKey), "ready");
+
+    const migrationRollback = await downgrade(session, [migrationStep], {
+      target: "base",
+      rootKey: migrationRootKey,
+      lockKey: migrationLockKey,
+      lockOwner: "gemstone-js-live-smoke",
+    });
+    assert.deepEqual(migrationRollback.steps, ["001_live_probe"]);
+    assert.equal(await currentVersion(session, { rootKey: migrationRootKey }), null);
+    assert.equal(await session.globalHas(migrationProbeKey), false);
+  } finally {
+    await session.globalDelete(migrationProbeKey).catch(() => false);
+    await session.globalDelete(migrationRootKey).catch(() => false);
+    await session.globalDelete(migrationLockKey).catch(() => false);
+    await session.commit().catch(() => undefined);
+  }
 
   await session.abort();
 });

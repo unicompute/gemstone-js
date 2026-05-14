@@ -64,6 +64,11 @@ The first implementation slice follows `../plan.js.txt`:
   `UserGlobals.GStoreRoot`; values are JSON strings, transaction callbacks use
   an in-memory snapshot plus dirty/delete buffers, and the caller's session owns
   transaction visibility.
+- Migration helpers are intentionally library-first. Version metadata and
+  advisory locks are JSON strings in `UserGlobals`, so the runner can use the
+  existing root marshalling path and stay reviewable. The public API validates
+  dependency order, unknown applied ids, and checksum drift before applying
+  steps; each step commits after its metadata write.
 - `RcCounter`, `RcKeyValueDictionary`, and `RcQueue` are thin wrappers over the
   GemStone reduced-conflict classes used by gemstone-py. They keep creation,
   session factory helpers, sends, enumeration, and raw-OOP variants explicit so

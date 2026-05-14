@@ -31,6 +31,7 @@ const requiredScripts = {
   "codegen:check": "node scripts/codegen.mjs --check examples/codegen.manifest.json examples/codegen.generated.ts",
   "codegen:scan:check": "node scripts/scan-codegen.mjs --module --check --out examples/booking.decorators.generated.ts examples/booking.decorators.ts",
   "inspect": "node scripts/inspect.mjs",
+  "migrations": "node scripts/migrations.mjs",
   "pack:check": "node scripts/check-package.mjs",
   "verify": "npm run typecheck && npm run codegen:check && npm run codegen:scan:check && npm test && npm run pack:check",
 };
@@ -44,6 +45,9 @@ if (packageJson.bin?.["gemstone-js-inspect"] !== "./scripts/inspect.mjs") {
 }
 if (packageJson.bin?.["gemstone-js-bootstrap"] !== "./scripts/bootstrap.mjs") {
   throw new Error("package.json bin.gemstone-js-bootstrap must point at ./scripts/bootstrap.mjs.");
+}
+if (packageJson.bin?.["gemstone-js-migrations"] !== "./scripts/migrations.mjs") {
+  throw new Error("package.json bin.gemstone-js-migrations must point at ./scripts/migrations.mjs.");
 }
 runRequiredCheck("codegen manifest output", ["scripts/codegen.mjs", "--check", "examples/codegen.manifest.json", "examples/codegen.generated.ts"]);
 runRequiredCheck("decorated-source codegen output", [
@@ -60,6 +64,7 @@ const required = [
   "README.md",
   "docs/architecture.md",
   "docs/gemstone-py-parity.md",
+  "docs/migrations.md",
   "docs/naming.md",
   "docs/releasing.md",
   "examples/booking.decorators.generated.ts",
@@ -74,12 +79,14 @@ const required = [
   "scripts/check-package.mjs",
   "scripts/codegen.mjs",
   "scripts/inspect.mjs",
+  "scripts/migrations.mjs",
   "scripts/scan-codegen.mjs",
   "src/index.ts",
   "src/bootstrap.ts",
   "src/client.ts",
   "src/gstore.ts",
   "src/inspection-cli.ts",
+  "src/migrations.ts",
   "src/object-log.ts",
   "src/reduced-conflict.ts",
   "src/smalltalk-source.ts",

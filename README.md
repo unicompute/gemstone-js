@@ -94,6 +94,12 @@ native package; the TypeScript package can be tested locally with a mock runtime
   `UserGlobals.GStoreRoot`, with async transaction callbacks, read-only
   snapshots, delete/remove helpers, and commit-conflict retry for conflict-like
   commit failures.
+- Module-style migration helpers provide dependency-safe
+  `planUpgrade()`/`planDowngrade()`, live `upgrade()`/`downgrade()`, current
+  version/status reads, checksum validation, recorded dry-runs, and a
+  `gemstone-js-migrations` CLI. Metadata and advisory locks live in
+  `UserGlobals` as JSON strings under `GemstoneJsMigrations` and
+  `GemstoneJsMigrationsLock`; see `docs/migrations.md`.
 - Reduced-conflict wrappers expose GemStone `RcCounter`,
   `RcKeyValueDictionary`, and `RcQueue` through `RcCounter`,
   `RcKeyValueDictionary`, and `RcQueue`, with gemstone-py-compatible aliases
@@ -208,7 +214,8 @@ nullable object/dictionary pick, required-read, and bulk removal helpers, plus
 `GStore` JSON transaction round-trips. It
 also covers live query add/remove, `count()`, `exists()`, `first()`, `limit()`,
 and index create/remove when the backing collection supports GemStone index
-selectors.
+selectors, plus migration upgrade/downgrade/current-version round-trips with a
+dedicated metadata root and advisory lock.
 
 The inspection helpers are also available from the command line. The command
 uses the same `GS_*` connection environment as `Session.configFromEnv()`:
@@ -225,6 +232,13 @@ GemStone-side helper roots can be audited or initialized with:
 npm run bootstrap -- --status
 npm run bootstrap -- --dry-run
 npm run bootstrap
+```
+
+Module-style migrations use the same connection environment:
+
+```sh
+npm run migrations -- status --manifest ./migrations.ts
+npm run migrations -- upgrade --manifest ./migrations.ts --dry-run --record
 ```
 
 ## Example

@@ -6,6 +6,7 @@ import { PersistentRoot } from "./persistent-root.ts";
 import { Session, type GemStoneArgument } from "./client.ts";
 import { oopToSmallint, smallintToOop } from "./oop.ts";
 import {
+  BENCHMARK_REPORT_SCHEMA_PATH,
   BENCHMARK_REPORT_SCHEMA_VERSION,
   type BenchmarkReport,
   type BenchmarkResultRow,
@@ -90,6 +91,7 @@ export async function runBenchmarkSuite(options: BenchmarkRunOptions = {}): Prom
 
 export function buildBenchmarkReport(options: BenchmarkReportOptions): BenchmarkReport {
   return {
+    $schema: BENCHMARK_REPORT_SCHEMA_PATH,
     schema_version: BENCHMARK_REPORT_SCHEMA_VERSION,
     generated_at: new Date().toISOString(),
     runtime: "node",

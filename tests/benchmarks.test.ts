@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  BENCHMARK_REPORT_SCHEMA_PATH,
   BENCHMARK_REPORT_SCHEMA_VERSION,
   DEFAULT_BENCHMARK_ENTRIES,
   DEFAULT_BENCHMARK_SEARCH_RUNS,
@@ -50,6 +51,7 @@ test("benchmark report builder records runtime metadata", () => {
   });
 
   assert.equal(report.schema_version, BENCHMARK_REPORT_SCHEMA_VERSION);
+  assert.equal(report.$schema, BENCHMARK_REPORT_SCHEMA_PATH);
   assert.equal(report.runtime, "node");
   assert.equal(report.stone, "benchstone");
   assert.equal(report.host, "benchhost");
@@ -73,6 +75,7 @@ test("benchmarks CLI runs offline gci without opening a session", async () => {
 
   const report = JSON.parse(io.stdoutText());
   assert.equal(report.schema_version, BENCHMARK_REPORT_SCHEMA_VERSION);
+  assert.equal(report.$schema, BENCHMARK_REPORT_SCHEMA_PATH);
   assert.equal(report.entries, 25);
   assert.deepEqual(report.suites, ["gci"]);
   assert.equal(report.results[0].suite, "gci");

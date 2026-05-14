@@ -36,6 +36,9 @@ The package ships JSON Schemas for editor and CI validation:
 - `schemas/benchmark-report.schema.json`
 - `schemas/benchmark-baseline-manifest.schema.json`
 
+Generated reports include `$schema`; baseline manifests created or updated by
+`gemstone-js-benchmark-register` include `$schema` as well.
+
 Generate reports with `gemstone-js-benchmarks`:
 
 ```sh

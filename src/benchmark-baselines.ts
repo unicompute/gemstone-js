@@ -7,6 +7,8 @@ export const BASELINE_MANIFEST_SCHEMA_VERSION = 1;
 export const BASELINE_SELECTION_SCHEMA_VERSION = 1;
 export const BASELINE_REGISTRATION_SCHEMA_VERSION = 1;
 export const BASELINE_MAINTENANCE_SCHEMA_VERSION = 1;
+export const BENCHMARK_REPORT_SCHEMA_PATH = "./schemas/benchmark-report.schema.json";
+export const BASELINE_MANIFEST_SCHEMA_PATH = "./schemas/benchmark-baseline-manifest.schema.json";
 
 export const COMPARABLE_METADATA_FIELDS = [
   "stone",
@@ -38,6 +40,12 @@ export interface BenchmarkReport {
   schema_version: number;
   results: BenchmarkResultRow[];
   [key: string]: unknown;
+}
+
+interface BaselineManifestPayload {
+  $schema?: string;
+  schema_version: number;
+  baselines: unknown[];
 }
 
 export interface BenchmarkComparisonRow {
@@ -147,6 +155,9 @@ export class BenchmarkCliUsageError extends Error {
 export function loadBenchmarkReport(path: string): BenchmarkReport {
   const payload = loadJson(path);
   if (!isRecord(payload)) throw new BenchmarkBaselineError(`${path} does not contain a JSON object benchmark report`);
+  if (payload.$schema !== undefined && typeof payload.$schema !== "string") {
+    throw new BenchmarkBaselineError(`${path} has invalid '$schema'; expected string`);
+  }
   if (payload.schema_version !== BENCHMARK_REPORT_SCHEMA_VERSION) {
     throw new BenchmarkBaselineError(`${path} uses schema_version=${JSON.stringify(payload.schema_version)}; expected ${BENCHMARK_REPORT_SCHEMA_VERSION}`);
   }
@@ -154,7 +165,7 @@ export function loadBenchmarkReport(path: string): BenchmarkReport {
   return {
     ...payload,
     schema_version: BENCHMARK_REPORT_SCHEMA_VERSION,
-    results: payload.results.map((row, index) => normalizeResultRow(row, `${path} results[${index}]`)),
+    results: normalizeResultRows(payload.results, path),
   };
 }
 
@@ -532,15 +543,24 @@ function loadBaselineManifest(path: string): string[] {
   });
 }
 
-function loadBaselineManifestPayload(path: string): { schema_version: number; baselines: unknown[] } {
-  if (!existsSync(path)) return { schema_version: BASELINE_MANIFEST_SCHEMA_VERSION, baselines: [] };
+function loadBaselineManifestPayload(path: string): BaselineManifestPayload {
+  if (!existsSync(path)) return { $schema: BASELINE_MANIFEST_SCHEMA_PATH, schema_version: BASELINE_MANIFEST_SCHEMA_VERSION, baselines: [] };
   const payload = loadJson(path);
   if (!isRecord(payload)) throw new BenchmarkBaselineError(`${path} does not contain a JSON object baseline manifest`);
+  assertKnownKeys(payload, path, ["$schema", "schema_version", "baselines"]);
+  if (payload.$schema !== undefined && typeof payload.$schema !== "string") {
+    throw new BenchmarkBaselineError(`${path} has invalid '$schema'; expected string`);
+  }
   if (payload.schema_version !== BASELINE_MANIFEST_SCHEMA_VERSION) {
     throw new BenchmarkBaselineError(`${path} uses schema_version=${JSON.stringify(payload.schema_version)}; expected ${BASELINE_MANIFEST_SCHEMA_VERSION}`);
   }
   if (!Array.isArray(payload.baselines)) throw new BenchmarkBaselineError(`${path} is missing a valid 'baselines' list`);
-  return { schema_version: BASELINE_MANIFEST_SCHEMA_VERSION, baselines: payload.baselines };
+  return {
+    ...payload,
+    $schema: typeof payload.$schema === "string" ? payload.$schema : BASELINE_MANIFEST_SCHEMA_PATH,
+    schema_version: BASELINE_MANIFEST_SCHEMA_VERSION,
+    baselines: payload.baselines,
+  };
 }
 
 function resolveBaselineTarget(sourceReportPath: string, manifestPath: string, copyTo: string | null): string {
@@ -559,8 +579,18 @@ function absoluteEntryPath(pathText: string, manifestPath: string): string {
 
 function entryPathText(entry: unknown, label = "Baseline manifest entry"): string {
   if (typeof entry === "string") return entry;
-  if (isRecord(entry) && typeof entry.path === "string") return entry.path;
+  if (isRecord(entry) && typeof entry.path === "string") {
+    assertKnownKeys(entry, label, ["path"]);
+    return entry.path;
+  }
   throw new BenchmarkBaselineError(`${label} must be a string path or object with path.`);
+}
+
+function assertKnownKeys(record: Record<string, unknown>, label: string, keys: readonly string[]): void {
+  const allowed = new Set(keys);
+  for (const key of Object.keys(record)) {
+    if (!allowed.has(key)) throw new BenchmarkBaselineError(`${label} has unsupported key: ${key}`);
+  }
 }
 
 function isPathWithin(path: string, directory: string): boolean {
@@ -570,23 +600,44 @@ function isPathWithin(path: string, directory: string): boolean {
 
 function normalizeResultRow(row: unknown, label: string): BenchmarkResultRow {
   if (!isRecord(row)) throw new BenchmarkBaselineError(`${label} must be an object`);
-  if (typeof row.suite !== "string" || typeof row.operation !== "string") {
-    throw new BenchmarkBaselineError(`${label} must include string suite and operation`);
+  if (typeof row.suite !== "string" || row.suite.length === 0 || typeof row.operation !== "string" || row.operation.length === 0) {
+    throw new BenchmarkBaselineError(`${label} must include non-empty string suite and operation`);
   }
-  if (typeof row.ops_per_second !== "number" || !Number.isFinite(row.ops_per_second)) {
-    throw new BenchmarkBaselineError(`${label} must include numeric ops_per_second`);
+  if (typeof row.ops_per_second !== "number" || !Number.isFinite(row.ops_per_second) || row.ops_per_second < 0) {
+    throw new BenchmarkBaselineError(`${label} must include non-negative numeric ops_per_second`);
   }
-  if (typeof row.count !== "number" || !Number.isFinite(row.count)) {
-    throw new BenchmarkBaselineError(`${label} must include numeric count`);
+  if (typeof row.count !== "number" || !Number.isSafeInteger(row.count) || row.count < 0) {
+    throw new BenchmarkBaselineError(`${label} must include non-negative integer count`);
   }
+  if (row.elapsed_seconds !== undefined && (typeof row.elapsed_seconds !== "number" || !Number.isFinite(row.elapsed_seconds) || row.elapsed_seconds < 0)) {
+    throw new BenchmarkBaselineError(`${label} has invalid elapsed_seconds; expected non-negative number`);
+  }
+  if (row.note !== undefined && typeof row.note !== "string") {
+    throw new BenchmarkBaselineError(`${label} has invalid note; expected string`);
+  }
+  const elapsedSeconds = typeof row.elapsed_seconds === "number" ? row.elapsed_seconds : undefined;
+  const note = typeof row.note === "string" ? row.note : undefined;
   return {
     suite: row.suite,
     operation: row.operation,
     ops_per_second: row.ops_per_second,
     count: row.count,
-    elapsed_seconds: typeof row.elapsed_seconds === "number" && Number.isFinite(row.elapsed_seconds) ? row.elapsed_seconds : undefined,
-    note: typeof row.note === "string" ? row.note : undefined,
+    elapsed_seconds: elapsedSeconds,
+    note,
   };
+}
+
+function normalizeResultRows(rows: readonly unknown[], path: string): BenchmarkResultRow[] {
+  const normalized = rows.map((row, index) => normalizeResultRow(row, `${path} results[${index}]`));
+  const seen = new Set<string>();
+  for (const row of normalized) {
+    const key = `${row.suite}\0${row.operation}`;
+    if (seen.has(key)) {
+      throw new BenchmarkBaselineError(`${path} has duplicate benchmark result row for ${row.suite}/${row.operation}`);
+    }
+    seen.add(key);
+  }
+  return normalized;
 }
 
 function parseCompareArgs(argv: readonly string[]): CompareBenchmarkReportsOptions & { help: boolean; json: boolean; output?: string } {

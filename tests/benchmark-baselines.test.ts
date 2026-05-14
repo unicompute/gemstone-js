@@ -6,11 +6,14 @@ import { fileURLToPath } from "node:url";
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  BASELINE_MANIFEST_SCHEMA_PATH,
   BASELINE_MANIFEST_SCHEMA_VERSION,
   BENCHMARK_COMPARISON_SCHEMA_VERSION,
+  BENCHMARK_REPORT_SCHEMA_PATH,
   BENCHMARK_REPORT_SCHEMA_VERSION,
   compareBenchmarkReports,
   formatBenchmarkComparison,
+  loadBenchmarkReport,
   pruneBenchmarkBaselineManifest,
   registerBenchmarkBaseline,
   runBenchmarkBaselinesCli,
@@ -92,6 +95,9 @@ test("baseline selection matches normalized metadata and rejects duplicates", as
 
   await writeJson(manifest, { schema_version: BASELINE_MANIFEST_SCHEMA_VERSION, baselines: ["first.json", "candidate.json"] });
   assert.throws(() => selectBenchmarkBaseline({ candidateReportPath: candidate, manifestPath: manifest }), /Multiple benchmark baselines/);
+
+  await writeJson(manifest, { schema_version: BASELINE_MANIFEST_SCHEMA_VERSION, baselines: [{ path: "first.json", label: "extra" }] });
+  assert.throws(() => selectBenchmarkBaseline({ candidateReportPath: candidate, manifestPath: manifest }), /unsupported key: label/);
 });
 
 test("baseline registration copies external reports and prunes manifests", async () => {
@@ -109,7 +115,9 @@ test("baseline registration copies external reports and prunes manifests", async
   assert.equal(registered.copied, true);
   assert.equal(registered.addedToManifest, true);
   assert.equal(registered.registeredPath, "baseline-macos-arm64.json");
-  assert.deepEqual(JSON.parse(await readFile(manifest, "utf8")).baselines, ["baseline-macos-arm64.json"]);
+  const manifestPayload = JSON.parse(await readFile(manifest, "utf8"));
+  assert.equal(manifestPayload.$schema, BASELINE_MANIFEST_SCHEMA_PATH);
+  assert.deepEqual(manifestPayload.baselines, ["baseline-macos-arm64.json"]);
 
   const duplicate = registerBenchmarkBaseline({
     reportPath: external,
@@ -125,6 +133,26 @@ test("baseline registration copies external reports and prunes manifests", async
   const pruned = pruneBenchmarkBaselineManifest({ manifestPath: manifest, removeMissing: true });
   assert.deepEqual(pruned.removedPaths, ["missing.json", "baseline-macos-arm64.json"]);
   assert.deepEqual(JSON.parse(await readFile(manifest, "utf8")).baselines, ["baseline-macos-arm64.json"]);
+});
+
+test("benchmark report loading validates row identity and numeric fields", async () => {
+  await using fixture = await tempFixture();
+  const duplicate = join(fixture.path, "duplicate.json");
+  await writeReport(duplicate, report({
+    results: [
+      result("gci", "execute", 100, 1),
+      result("gci", "execute", 110, 1),
+    ],
+  }));
+  assert.throws(() => loadBenchmarkReport(duplicate), /duplicate benchmark result row/);
+
+  const invalid = join(fixture.path, "invalid.json");
+  await writeReport(invalid, report({ results: [{ suite: "", operation: "execute", ops_per_second: -1, count: 1 }] }));
+  assert.throws(() => loadBenchmarkReport(invalid), /non-empty string suite and operation/);
+
+  const invalidCount = join(fixture.path, "invalid-count.json");
+  await writeReport(invalidCount, report({ results: [{ suite: "gci", operation: "execute", ops_per_second: 1, count: 1.5 }] }));
+  assert.throws(() => loadBenchmarkReport(invalidCount), /non-negative integer count/);
 });
 
 test("benchmark CLIs render JSON and threshold exit codes", async () => {
@@ -162,6 +190,8 @@ test("benchmark artifact schemas track report and manifest versions", async () =
 
   assert.equal(reportSchema.properties.schema_version.const, BENCHMARK_REPORT_SCHEMA_VERSION);
   assert.equal(manifestSchema.properties.schema_version.const, BASELINE_MANIFEST_SCHEMA_VERSION);
+  assert.equal(reportSchema.$id.endsWith(BENCHMARK_REPORT_SCHEMA_PATH.slice(2)), true);
+  assert.equal(manifestSchema.$id.endsWith(BASELINE_MANIFEST_SCHEMA_PATH.slice(2)), true);
   assert.ok(reportSchema.$defs.resultRow.properties.elapsed_seconds);
   assert.equal(manifestSchema.properties.baselines.items.oneOf[1].properties.path.type, "string");
 });

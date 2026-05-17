@@ -586,24 +586,54 @@ function explorerHtml(): string {
       font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       font-size: 14px;
       line-height: 1.45;
+      height: 100vh;
+      overflow: hidden;
     }
     header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 16px;
-      padding: 14px 20px;
+      gap: 14px;
+      min-height: 54px;
+      padding: 8px 14px;
       border-bottom: 1px solid var(--line);
       background: var(--panel);
-      position: sticky;
+      position: relative;
       top: 0;
-      z-index: 2;
+      z-index: 1000;
     }
     h1 {
       margin: 0;
       font-size: 18px;
       font-weight: 700;
       letter-spacing: 0;
+      white-space: nowrap;
+    }
+    .menubar {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex: 1 1 auto;
+      min-width: 0;
+      overflow-x: auto;
+      padding: 2px;
+    }
+    .menubar button {
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--text);
+      border-radius: 6px;
+      padding: 7px 9px;
+      min-height: 32px;
+      font: inherit;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .menubar button:hover,
+    .menubar button:focus-visible {
+      background: #e8f3f1;
+      border-color: #b7ddd7;
+      outline: none;
     }
     header .meta {
       display: flex;
@@ -624,39 +654,78 @@ function explorerHtml(): string {
     .status.ok { background: var(--accent); }
     .status.error { background: var(--danger); }
     main {
-      display: grid;
-      grid-template-columns: 220px minmax(0, 1fr);
-      min-height: calc(100vh - 58px);
+      position: relative;
+      height: calc(100vh - 54px);
+      overflow: auto;
+      background:
+        linear-gradient(var(--line) 1px, transparent 1px),
+        linear-gradient(90deg, var(--line) 1px, transparent 1px);
+      background-color: var(--bg);
+      background-size: 24px 24px;
     }
-    nav {
-      border-right: 1px solid var(--line);
+    .tool-window {
+      position: absolute;
+      left: var(--x);
+      top: var(--y);
+      width: var(--w);
+      min-width: 320px;
+      max-width: calc(100% - 16px);
+      min-height: 210px;
+      max-height: calc(100vh - 78px);
+      display: flex;
+      flex-direction: column;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: 0 18px 45px rgba(23, 32, 42, 0.16);
+      resize: both;
+      overflow: hidden;
+    }
+    .tool-window.hidden { display: none; }
+    .tool-window[data-active="true"] {
+      border-color: #8fc8c0;
+      box-shadow: 0 22px 54px rgba(23, 32, 42, 0.22);
+    }
+    .window-titlebar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      min-height: 38px;
+      padding: 7px 8px 7px 12px;
+      border-bottom: 1px solid var(--line);
       background: #fbfcfe;
-      padding: 12px;
+      cursor: move;
+      user-select: none;
+      touch-action: none;
     }
-    nav button {
-      width: 100%;
-      text-align: left;
-      margin-bottom: 4px;
-      background: transparent;
-      color: var(--text);
-      border: 1px solid transparent;
+    .window-titlebar h2 {
+      margin: 0;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 13px;
+      letter-spacing: 0;
+    }
+    .window-button {
+      width: 28px;
+      min-width: 28px;
+      height: 26px;
+      border: 1px solid var(--line);
       border-radius: 6px;
-      padding: 9px 10px;
+      background: white;
+      color: var(--text);
       font: inherit;
       cursor: pointer;
+      line-height: 1;
     }
-    nav button[aria-selected="true"] {
-      background: #e8f3f1;
-      border-color: #b7ddd7;
-      color: #0b5f59;
-      font-weight: 700;
+    .window-body {
+      min-height: 0;
+      overflow: auto;
+      padding: 12px;
+      flex: 1 1 auto;
     }
-    section {
-      display: none;
-      padding: 18px 20px 28px;
-      max-width: 1280px;
-    }
-    section.active { display: block; }
     .toolbar {
       display: flex;
       align-items: end;
@@ -775,47 +844,70 @@ function explorerHtml(): string {
     }
     .error-text { color: var(--danger); }
     @media (max-width: 820px) {
-      main { grid-template-columns: 1fr; }
-      nav {
-        border-right: 0;
-        border-bottom: 1px solid var(--line);
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 4px;
+      body { overflow: auto; }
+      header {
+        align-items: flex-start;
+        flex-wrap: wrap;
+        min-height: 0;
       }
-      nav button { margin: 0; text-align: center; }
+      .menubar {
+        order: 3;
+        flex-basis: 100%;
+      }
+      main {
+        height: auto;
+        min-height: calc(100vh - 92px);
+        overflow: visible;
+        padding: 10px;
+      }
+      .tool-window {
+        position: static;
+        width: 100%;
+        max-width: none;
+        margin-bottom: 12px;
+        resize: vertical;
+      }
+      .tool-window.hidden {
+        display: none;
+      }
       .grid, .split { grid-template-columns: 1fr; }
-      header { align-items: flex-start; }
+      .window-titlebar { cursor: default; }
     }
   </style>
 </head>
 <body>
   <header>
     <h1>GemStone Explorer</h1>
+    <div class="menubar" role="menubar" aria-label="Window menu">
+      <button type="button" role="menuitem" data-window-open="inspect">Inspect</button>
+      <button type="button" role="menuitem" data-window-open="globals">Globals</button>
+      <button type="button" role="menuitem" data-window-open="roots">Roots</button>
+      <button type="button" role="menuitem" data-window-open="workspace">Workspace</button>
+      <button type="button" role="menuitem" data-window-open="classes">Classes</button>
+      <button type="button" role="menuitem" data-window-open="codegen">Codegen</button>
+      <button type="button" role="menuitem" id="openAllWindows">All</button>
+      <button type="button" role="menuitem" id="resetWindows">Reset</button>
+    </div>
     <div class="meta">
       <span class="status" id="statusLight"></span>
       <span id="statusText">Idle</span>
       <button class="action secondary" id="refreshStatus">Status</button>
     </div>
   </header>
-  <main>
-    <nav aria-label="Explorer views">
-      <button data-tab="inspect" aria-selected="true">Inspect</button>
-      <button data-tab="globals">Globals</button>
-      <button data-tab="roots">Roots</button>
-      <button data-tab="workspace">Workspace</button>
-      <button data-tab="classes">Classes</button>
-      <button data-tab="codegen">Codegen</button>
-    </nav>
-    <div>
-      <section id="inspect" class="active">
+  <main id="desktop" aria-label="Explorer workspace">
+      <section id="inspect" class="tool-window" data-window="inspect" data-default-left="16" data-default-top="16" style="--x: 16px; --y: 16px; --w: 420px;">
+        <div class="window-titlebar" data-drag-handle><h2>Inspect</h2><button class="window-button" type="button" data-window-close="inspect" aria-label="Close inspect">x</button></div>
+        <div class="window-body">
         <div class="toolbar">
           <label>OOP <input id="inspectOop" placeholder="123456789"></label>
           <button class="action" id="inspectRun">Inspect</button>
         </div>
         <div class="surface"><h2>Object</h2><pre id="inspectOutput"></pre></div>
+        </div>
       </section>
-      <section id="globals">
+      <section id="globals" class="tool-window" data-window="globals" data-default-left="456" data-default-top="16" style="--x: 456px; --y: 16px; --w: 650px;">
+        <div class="window-titlebar" data-drag-handle><h2>Globals</h2><button class="window-button" type="button" data-window-close="globals" aria-label="Close globals">x</button></div>
+        <div class="window-body">
         <div class="toolbar">
           <label>Filter <input id="globalsFilter" placeholder="election"></label>
           <label>Limit <input id="globalsLimit" type="number" min="0" max="200" value="50"></label>
@@ -825,8 +917,11 @@ function explorerHtml(): string {
           <div class="surface"><h2>UserGlobals</h2><div id="globalsTable"></div></div>
           <div class="surface"><h2>Selection</h2><pre id="globalsOutput"></pre></div>
         </div>
+        </div>
       </section>
-      <section id="roots">
+      <section id="roots" class="tool-window" data-window="roots" data-default-left="16" data-default-top="400" style="--x: 16px; --y: 400px; --w: 650px;">
+        <div class="window-titlebar" data-drag-handle><h2>Roots</h2><button class="window-button" type="button" data-window-close="roots" aria-label="Close roots">x</button></div>
+        <div class="window-body">
         <div class="toolbar">
           <label>Root <select id="rootName"></select></label>
           <label>Filter <input id="rootsFilter" placeholder="election"></label>
@@ -837,8 +932,11 @@ function explorerHtml(): string {
           <div class="surface"><h2>Entries</h2><div id="rootsTable"></div></div>
           <div class="surface"><h2>Selection</h2><pre id="rootsOutput"></pre></div>
         </div>
+        </div>
       </section>
-      <section id="workspace">
+      <section id="workspace" class="tool-window" data-window="workspace" data-default-left="696" data-default-top="400" style="--x: 696px; --y: 400px; --w: 620px;">
+        <div class="window-titlebar" data-drag-handle><h2>Workspace</h2><button class="window-button" type="button" data-window-close="workspace" aria-label="Close workspace">x</button></div>
+        <div class="window-body">
         <div class="toolbar">
           <label>Return <select id="evalReturn"><option>value</option><option>oop</option><option>inspect</option></select></label>
           <label class="rowline"><input id="evalCommit" type="checkbox"> Commit</label>
@@ -848,8 +946,11 @@ function explorerHtml(): string {
           <textarea id="evalSource">System stoneName</textarea>
           <div class="surface"><h2>Result</h2><pre id="evalOutput"></pre></div>
         </div>
+        </div>
       </section>
-      <section id="classes">
+      <section id="classes" class="tool-window hidden" data-window="classes" data-default-left="240" data-default-top="170" style="--x: 240px; --y: 170px; --w: 760px;">
+        <div class="window-titlebar" data-drag-handle><h2>Classes</h2><button class="window-button" type="button" data-window-close="classes" aria-label="Close classes">x</button></div>
+        <div class="window-body">
         <div class="toolbar">
           <label>Prefix <input id="classPrefix" value="Object"></label>
           <label>Limit <input id="classesLimit" type="number" min="0" max="200" value="50"></label>
@@ -862,8 +963,11 @@ function explorerHtml(): string {
           <div class="surface"><h2>Classes</h2><div id="classesTable"></div></div>
           <div class="surface"><h2>Description</h2><pre id="classOutput"></pre></div>
         </div>
+        </div>
       </section>
-      <section id="codegen">
+      <section id="codegen" class="tool-window hidden" data-window="codegen" data-default-left="320" data-default-top="250" style="--x: 320px; --y: 250px; --w: 760px;">
+        <div class="window-titlebar" data-drag-handle><h2>Codegen</h2><button class="window-button" type="button" data-window-close="codegen" aria-label="Close codegen">x</button></div>
+        <div class="window-body">
         <div class="toolbar">
           <button class="action" id="codegenRun">Preview</button>
         </div>
@@ -871,8 +975,8 @@ function explorerHtml(): string {
           <textarea id="codegenManifest">${manifest}</textarea>
           <div class="surface"><h2>Generated Module</h2><pre id="codegenOutput"></pre></div>
         </div>
+        </div>
       </section>
-    </div>
   </main>
   <script>
     const state = { roots: [] };
@@ -909,14 +1013,79 @@ function explorerHtml(): string {
       .replace(/"/g, "&quot;");
     const inspectLink = (oop) => "<button data-oop=\\"" + escapeHtml(oop) + "\\">" + escapeHtml(oop) + "</button>";
 
-    document.querySelectorAll("nav button").forEach((button) => {
-      button.addEventListener("click", () => {
-        document.querySelectorAll("nav button").forEach((item) => item.setAttribute("aria-selected", "false"));
-        document.querySelectorAll("section").forEach((item) => item.classList.remove("active"));
-        button.setAttribute("aria-selected", "true");
-        document.getElementById(button.dataset.tab).classList.add("active");
+    const desktop = document.getElementById("desktop");
+    const defaultVisibleWindows = new Set(["inspect", "globals", "roots", "workspace"]);
+    let nextWindowZ = 20;
+    const toolWindow = (name) => document.querySelector(".tool-window[data-window='" + name + "']");
+    const focusWindow = (name) => {
+      const win = toolWindow(name);
+      if (!win) return;
+      win.classList.remove("hidden");
+      document.querySelectorAll(".tool-window").forEach((item) => item.dataset.active = "false");
+      win.dataset.active = "true";
+      win.style.zIndex = String(++nextWindowZ);
+    };
+    const closeWindow = (name) => {
+      const win = toolWindow(name);
+      if (win) win.classList.add("hidden");
+    };
+    const resetWindows = () => {
+      document.querySelectorAll(".tool-window").forEach((win) => {
+        const name = win.dataset.window;
+        win.style.left = (win.dataset.defaultLeft || "16") + "px";
+        win.style.top = (win.dataset.defaultTop || "16") + "px";
+        win.style.removeProperty("z-index");
+        win.dataset.active = "false";
+        win.classList.toggle("hidden", !defaultVisibleWindows.has(name));
       });
-    });
+      nextWindowZ = 20;
+      focusWindow("inspect");
+    };
+    const openAllWindows = () => {
+      document.querySelectorAll(".tool-window").forEach((win) => focusWindow(win.dataset.window));
+    };
+    const setupFloatingWindows = () => {
+      document.querySelectorAll("[data-window-open]").forEach((button) => {
+        button.addEventListener("click", () => focusWindow(button.dataset.windowOpen));
+      });
+      document.querySelectorAll("[data-window-close]").forEach((button) => {
+        button.addEventListener("click", () => closeWindow(button.dataset.windowClose));
+      });
+      document.getElementById("openAllWindows").addEventListener("click", openAllWindows);
+      document.getElementById("resetWindows").addEventListener("click", resetWindows);
+      document.querySelectorAll(".tool-window").forEach((win) => {
+        win.addEventListener("pointerdown", () => focusWindow(win.dataset.window));
+        const handle = win.querySelector("[data-drag-handle]");
+        handle.addEventListener("pointerdown", (event) => {
+          if (event.button !== 0 || event.target.closest("button") || window.matchMedia("(max-width: 820px)").matches) return;
+          event.preventDefault();
+          focusWindow(win.dataset.window);
+          const pointerId = event.pointerId;
+          const startLeft = win.offsetLeft;
+          const startTop = win.offsetTop;
+          const startX = event.clientX;
+          const startY = event.clientY;
+          const move = (next) => {
+            const maxLeft = Math.max(8, desktop.clientWidth - 80);
+            const maxTop = Math.max(8, desktop.clientHeight - 48);
+            const left = Math.max(8, Math.min(maxLeft, startLeft + next.clientX - startX));
+            const top = Math.max(8, Math.min(maxTop, startTop + next.clientY - startY));
+            win.style.left = left + "px";
+            win.style.top = top + "px";
+          };
+          const done = () => {
+            handle.removeEventListener("pointermove", move);
+            handle.removeEventListener("pointerup", done);
+            handle.removeEventListener("lostpointercapture", done);
+          };
+          handle.setPointerCapture(pointerId);
+          handle.addEventListener("pointermove", move);
+          handle.addEventListener("pointerup", done);
+          handle.addEventListener("lostpointercapture", done);
+        });
+      });
+      resetWindows();
+    };
     document.body.addEventListener("click", async (event) => {
       const target = event.target;
       if (!(target instanceof HTMLElement)) return;
@@ -924,11 +1093,12 @@ function explorerHtml(): string {
       const selectedClass = target.dataset.className;
       if (selectedOop) {
         document.getElementById("inspectOop").value = selectedOop;
-        document.querySelector("nav button[data-tab='inspect']").click();
+        focusWindow("inspect");
         await runInspect();
       }
       if (selectedClass) {
         document.getElementById("className").value = selectedClass;
+        focusWindow("classes");
         await describeClass();
       }
     });
@@ -1040,6 +1210,7 @@ function explorerHtml(): string {
     document.getElementById("classDescribe").addEventListener("click", describeClass);
     document.getElementById("codegenRun").addEventListener("click", previewCodegen);
 
+    setupFloatingWindows();
     loadConfig().then(refreshStatus).catch((error) => setStatus(false, error.message));
   </script>
 </body>

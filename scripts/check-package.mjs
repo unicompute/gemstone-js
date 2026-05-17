@@ -468,6 +468,7 @@ assertSnippets(
     "npm view gemstone-js@$VERSION dist.integrity dist.signatures --json",
     "node scripts/verify-provenance-metadata.mjs npm-provenance.json",
     "npm audit signatures",
+    "npm publish --access public --tag alpha --provenance",
     "dist.integrity",
     "dist.signatures",
     "SHA256SUMS.txt",

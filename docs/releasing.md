@@ -130,8 +130,8 @@ so a malformed saved registry response is rejected before manual inspection.
    `npm run ci-artifact:review -- --dir <downloaded-artifact-dir>`.
 6. Run `GS_RUN_LIVE=1 npm run release-candidate:check` against the candidate
    native package artifacts.
-7. Publish with provenance:
+7. Publish with provenance using a prerelease dist-tag:
 
 ```sh
-npm publish --access public --provenance
+npm publish --access public --tag alpha --provenance
 ```

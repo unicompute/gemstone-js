@@ -31,6 +31,7 @@ interface ExplorerErrorBody {
 const ROOT_NAMES = ["UserGlobals", "Globals", "Published", "SessionMethods"];
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 200;
+const MAX_ROOT_FILTER_LENGTH = 120;
 const DEFAULT_METHOD_LIMIT = 300;
 const MAX_METHOD_LIMIT = 1000;
 const DEFAULT_CODEGEN_MANIFEST: RenderGeneratedModuleOptions = {
@@ -159,10 +160,12 @@ async function inspectEndpoint(url: URL) {
 
 async function globalsEndpoint(url: URL) {
   const limit = limitFromUrl(url);
+  const filter = rootFilterFromUrl(url);
   return withSession(async (session) => {
-    const items = await boundedRootItemsOop(session, "UserGlobals", limit + 1);
+    const items = await boundedRootItemsOop(session, "UserGlobals", limit + 1, filter);
     return {
       root: "UserGlobals",
+      filter,
       limit,
       truncated: items.length > limit,
       entries: items.slice(0, limit).map(([name, value]) => ({
@@ -175,12 +178,14 @@ async function globalsEndpoint(url: URL) {
 
 async function rootsEndpoint(url: URL) {
   const limit = limitFromUrl(url);
+  const filter = rootFilterFromUrl(url);
   const rootName = url.searchParams.get("root") || "UserGlobals";
   return withSession(async (session) => {
     const root = new PersistentRoot(session, rootName);
-    const items = await boundedRootItemsOop(session, root.rootName, limit + 1);
+    const items = await boundedRootItemsOop(session, root.rootName, limit + 1, filter);
     return {
       root: root.rootName,
+      filter,
       limit,
       truncated: items.length > limit,
       entries: items.slice(0, limit).map(([name, value]) => ({
@@ -273,23 +278,28 @@ async function codegenPreviewEndpoint(request: IncomingMessage) {
   };
 }
 
-async function boundedRootItemsOop(session: Session, rootName: string, maxItems: number) {
+async function boundedRootItemsOop(session: Session, rootName: string, maxItems: number, filter: string) {
   const root = new PersistentRoot(session, rootName);
   const source = `
-    | dict limit count encode |
+    | dict limit count encode filter |
     dict := ${root.rootName}.
     limit := ${maxItems}.
     count := 0.
+    filter := '${escapeSmalltalkStringLiteral(filter)}' asLowercase.
     ${escapedFieldEncoderSource("encode")}
     String streamContents: [:stream |
-      dict keysAndValuesDo: [:key :value |
+      dict keysAndValuesDo: [:key :value | | keyString matches |
         count < limit ifTrue: [
-          count := count + 1.
-          stream
-            nextPutAll: (encode value: key);
-            nextPut: $|;
-            nextPutAll: value asOop asString;
-            lf]]]
+          keyString := key asString.
+          matches := filter size = 0 or: [
+            (keyString asLowercase findString: filter startingAt: 1) > 0].
+          matches ifTrue: [
+            count := count + 1.
+            stream
+              nextPutAll: (encode value: key);
+              nextPut: $|;
+              nextPutAll: value asOop asString;
+              lf]]]]
   `;
   return parseKeyOopRows(await session.eval(source), root.rootName);
 }
@@ -407,6 +417,14 @@ function requestUrl(request: IncomingMessage): URL {
 
 function limitFromUrl(url: URL): number {
   return boundedIntegerFromUrl(url, "limit", DEFAULT_LIMIT, MAX_LIMIT);
+}
+
+function rootFilterFromUrl(url: URL): string {
+  const value = (url.searchParams.get("filter") ?? "").trim();
+  if (value.length > MAX_ROOT_FILTER_LENGTH) {
+    throw new Error(`filter must be ${MAX_ROOT_FILTER_LENGTH} characters or fewer.`);
+  }
+  return value;
 }
 
 function boundedIntegerFromUrl(url: URL, name: string, defaultValue: number, maxValue: number): number {
@@ -799,6 +817,7 @@ function explorerHtml(): string {
       </section>
       <section id="globals">
         <div class="toolbar">
+          <label>Filter <input id="globalsFilter" placeholder="election"></label>
           <label>Limit <input id="globalsLimit" type="number" min="0" max="200" value="50"></label>
           <button class="action" id="globalsRun">Load</button>
         </div>
@@ -810,6 +829,7 @@ function explorerHtml(): string {
       <section id="roots">
         <div class="toolbar">
           <label>Root <select id="rootName"></select></label>
+          <label>Filter <input id="rootsFilter" placeholder="election"></label>
           <label>Limit <input id="rootsLimit" type="number" min="0" max="200" value="50"></label>
           <button class="action" id="rootsRun">Load</button>
         </div>
@@ -935,8 +955,10 @@ function explorerHtml(): string {
       }
     }
     async function loadGlobals() {
+      const limit = document.getElementById("globalsLimit").value;
+      const filter = document.getElementById("globalsFilter").value;
       try {
-        const result = await api("/api/globals?limit=" + encodeURIComponent(document.getElementById("globalsLimit").value));
+        const result = await api("/api/globals?limit=" + encodeURIComponent(limit) + "&filter=" + encodeURIComponent(filter));
         table("globalsTable", result.entries, [
           { label: "Name", render: (row) => escapeHtml(row.name) },
           { label: "OOP", render: (row) => inspectLink(row.oop) },
@@ -949,8 +971,9 @@ function explorerHtml(): string {
     async function loadRoots() {
       const root = document.getElementById("rootName").value;
       const limit = document.getElementById("rootsLimit").value;
+      const filter = document.getElementById("rootsFilter").value;
       try {
-        const result = await api("/api/roots?root=" + encodeURIComponent(root) + "&limit=" + encodeURIComponent(limit));
+        const result = await api("/api/roots?root=" + encodeURIComponent(root) + "&limit=" + encodeURIComponent(limit) + "&filter=" + encodeURIComponent(filter));
         table("rootsTable", result.entries, [
           { label: "Name", render: (row) => escapeHtml(row.name) },
           { label: "OOP", render: (row) => inspectLink(row.oop) },

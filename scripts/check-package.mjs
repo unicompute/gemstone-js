@@ -18,6 +18,7 @@ try {
 
 const files = pack.files.map((file) => file.path);
 const fileSet = new Set(files);
+const packedFileByPath = new Map(pack.files.map((file) => [file.path, file]));
 const packageJson = JSON.parse(readFileSync("package.json", "utf8"));
 const nativeDeclaration = readFileSync("src/native-module.d.ts", "utf8");
 const ciWorkflow = readFileSync(".github/workflows/ci.yml", "utf8");
@@ -162,6 +163,23 @@ if (packageJson.bin?.["gemstone-js-api-contract"] !== "./scripts/api-contract.mj
 }
 if (packageJson.bin?.["gemstone-js-migrations"] !== "./scripts/migrations.mjs") {
   throw new Error("package.json bin.gemstone-js-migrations must point at ./scripts/migrations.mjs.");
+}
+for (const [name, target] of Object.entries(packageJson.bin ?? {})) {
+  if (!target.startsWith("./scripts/") || !target.endsWith(".mjs")) {
+    throw new Error(`package.json bin ${name} must point at a ./scripts/*.mjs entrypoint.`);
+  }
+  const packedPath = target.slice(2);
+  const packedFile = packedFileByPath.get(packedPath);
+  if (!packedFile) {
+    throw new Error(`npm pack is missing bin target ${name}: ${packedPath}.`);
+  }
+  if ((packedFile.mode & 0o111) === 0) {
+    throw new Error(`npm pack bin target ${name} must be executable: ${packedPath}.`);
+  }
+  const source = readFileSync(packedPath, "utf8");
+  if (!source.startsWith("#!/usr/bin/env node\n")) {
+    throw new Error(`bin target ${name} must start with a Node shebang: ${packedPath}.`);
+  }
 }
 runRequiredCheck("codegen manifest output", ["scripts/codegen.mjs", "--check", "examples/codegen.manifest.json", "examples/codegen.generated.ts"]);
 runRequiredCheck("decorated-source codegen output", [

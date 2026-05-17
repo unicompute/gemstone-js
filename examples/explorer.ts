@@ -3,10 +3,11 @@ import {
   PersistentRoot,
   Session,
   buildDoctorReport,
+  decodeEscapedField,
   escapeSmalltalkStringLiteral,
+  escapedFieldEncoderSource,
   oop,
   renderGeneratedModule,
-  type MarshalledValue,
   type RenderGeneratedModuleOptions,
   type SessionConfig,
 } from "gemstone-js";
@@ -159,7 +160,7 @@ async function inspectEndpoint(url: URL) {
 async function globalsEndpoint(url: URL) {
   const limit = limitFromUrl(url);
   return withSession(async (session) => {
-    const items = await session.globalItemsOop({ maxEntries: limit + 1 });
+    const items = await boundedRootItemsOop(session, "UserGlobals", limit + 1);
     return {
       root: "UserGlobals",
       limit,
@@ -177,7 +178,7 @@ async function rootsEndpoint(url: URL) {
   const rootName = url.searchParams.get("root") || "UserGlobals";
   return withSession(async (session) => {
     const root = new PersistentRoot(session, rootName);
-    const items = await root.itemsOop({ maxEntries: limit + 1 });
+    const items = await boundedRootItemsOop(session, root.rootName, limit + 1);
     return {
       root: root.rootName,
       limit,
@@ -270,6 +271,41 @@ async function codegenPreviewEndpoint(request: IncomingMessage) {
   return {
     code: renderGeneratedModule(manifest),
   };
+}
+
+async function boundedRootItemsOop(session: Session, rootName: string, maxItems: number) {
+  const root = new PersistentRoot(session, rootName);
+  const source = `
+    | dict limit count encode |
+    dict := ${root.rootName}.
+    limit := ${maxItems}.
+    count := 0.
+    ${escapedFieldEncoderSource("encode")}
+    String streamContents: [:stream |
+      dict keysAndValuesDo: [:key :value |
+        count < limit ifTrue: [
+          count := count + 1.
+          stream
+            nextPutAll: (encode value: key);
+            nextPut: $|;
+            nextPutAll: value asOop asString;
+            lf]]]
+  `;
+  return parseKeyOopRows(await session.eval(source), root.rootName);
+}
+
+function parseKeyOopRows(value: unknown, context: string): Array<[string, ReturnType<typeof oop>]> {
+  if (typeof value !== "string") return [];
+  return value
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .map((line) => {
+      const delimiter = line.indexOf("|");
+      if (delimiter < 0) throw new Error(`${context} item row is missing delimiter.`);
+      const key = decodeEscapedField(line.slice(0, delimiter));
+      const valueOop = line.slice(delimiter + 1);
+      return [key, oop(valueOop)];
+    });
 }
 
 async function classNames(session: Session, prefix: string, limit: number): Promise<string[]> {

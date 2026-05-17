@@ -1,5 +1,6 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import {
+  GemStoneError,
   PersistentRoot,
   Session,
   buildDoctorReport,
@@ -122,6 +123,10 @@ async function route(request: IncomingMessage, response: ServerResponse): Promis
   }
   if (request.method === "POST" && url.pathname === "/api/eval") {
     writeJson(response, 200, await safeJson(() => evalEndpoint(request)));
+    return;
+  }
+  if (request.method === "POST" && url.pathname === "/api/debug") {
+    writeJson(response, 200, await safeJson(() => debugEndpoint(request)));
     return;
   }
   if (request.method === "POST" && url.pathname === "/api/codegen/preview") {
@@ -267,6 +272,123 @@ async function evalEndpoint(request: IncomingMessage) {
       result,
     };
   }, { finalize: false });
+}
+
+async function debugEndpoint(request: IncomingMessage) {
+  const body = await readJsonBody(request);
+  const source = requiredBodyString(body, "source");
+  const returnKind = optionalBodyString(body, "returnKind") ?? "inspect";
+  if (!["value", "oop", "inspect"].includes(returnKind)) {
+    throw new Error("returnKind must be value, oop, or inspect.");
+  }
+
+  const session = await Session.connect(Session.configFromEnv());
+  const startedAt = Date.now();
+  try {
+    try {
+      const result = await session.execute(source);
+      const info = await session.runtime.err().catch(() => null);
+      if (info?.number) throw GemStoneError.fromInfo(info);
+      const payload = await debugSuccessPayload(session, result, returnKind);
+      await session.abort().catch(() => undefined);
+      return {
+        ok: true,
+        source,
+        returnKind,
+        elapsedMs: Date.now() - startedAt,
+        ...payload,
+      };
+    } catch (error) {
+      const problem = await debugProblemPayload(session, error);
+      await session.abort().catch(() => undefined);
+      return {
+        ok: false,
+        source,
+        returnKind,
+        elapsedMs: Date.now() - startedAt,
+        problem,
+      };
+    }
+  } finally {
+    await session.logout().catch(() => undefined);
+  }
+}
+
+async function debugSuccessPayload(session: Session, result: ReturnType<typeof oop>, returnKind: string) {
+  if (returnKind === "oop") {
+    return {
+      resultOop: result.toString(),
+    };
+  }
+  if (returnKind === "inspect") {
+    return {
+      resultOop: result.toString(),
+      result: await session.inspect(result),
+    };
+  }
+  return {
+    resultOop: result.toString(),
+    result: await session.marshalOop(result),
+  };
+}
+
+async function debugProblemPayload(session: Session, error: unknown) {
+  const record = typeof error === "object" && error !== null ? error as Record<string, unknown> : {};
+  const info = error instanceof GemStoneError ? error.info : record.info as Record<string, unknown> | undefined;
+  const inspections = await debugInspections(session, info);
+  return {
+    name: error instanceof Error ? error.name : "Error",
+    message: error instanceof Error ? error.message : String(error),
+    code: typeof record.code === "string" ? record.code : undefined,
+    number: error instanceof GemStoneError ? error.number : numericField(record.number),
+    fatal: error instanceof GemStoneError ? error.fatal : booleanField(record.fatal),
+    reason: typeof info?.reason === "string" ? info.reason : typeof record.reason === "string" ? record.reason : undefined,
+    categoryOop: oopStringField(info?.category),
+    contextOop: oopStringField(info?.context),
+    exceptionOop: oopStringField(info?.exceptionObj),
+    argOops: Array.isArray(info?.args) ? info.args.map(oopStringField).filter(Boolean) : undefined,
+    stack: debugStack(inspections),
+    inspections,
+  };
+}
+
+async function debugInspections(session: Session, info: Record<string, unknown> | undefined) {
+  const entries = [
+    ["context", info?.context],
+    ["exception", info?.exceptionObj],
+  ] as const;
+  const result: Record<string, unknown> = {};
+  for (const [name, value] of entries) {
+    if (typeof value !== "bigint") continue;
+    result[name] = await inspectForDebugger(session, value);
+  }
+  if (Array.isArray(info?.args)) {
+    result.args = await Promise.all(info.args
+      .filter((value): value is bigint => typeof value === "bigint")
+      .map((value) => inspectForDebugger(session, value)));
+  }
+  return result;
+}
+
+function debugStack(inspections: Record<string, unknown>): string | undefined {
+  const context = inspections.context as { inspection?: { printString?: unknown } } | undefined;
+  return typeof context?.inspection?.printString === "string"
+    ? context.inspection.printString
+    : undefined;
+}
+
+async function inspectForDebugger(session: Session, value: ReturnType<typeof oop>) {
+  try {
+    return {
+      oop: value.toString(),
+      inspection: await session.inspect(value),
+    };
+  } catch (error) {
+    return {
+      oop: value.toString(),
+      inspectionError: errorBody(error),
+    };
+  }
 }
 
 async function codegenPreviewEndpoint(request: IncomingMessage) {
@@ -509,6 +631,21 @@ function errorBody(error: unknown): ExplorerErrorBody {
     code: typeof record.code === "string" ? record.code : undefined,
     details: record.details,
   };
+}
+
+function numericField(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function booleanField(value: unknown): boolean | undefined {
+  return typeof value === "boolean" ? value : undefined;
+}
+
+function oopStringField(value: unknown): string | undefined {
+  if (typeof value === "bigint") return value.toString();
+  if (typeof value === "number" && Number.isSafeInteger(value)) return String(value);
+  if (typeof value === "string" && value.trim()) return value;
+  return undefined;
 }
 
 function parseExplorerArgs(args: readonly string[]): ExplorerOptions {
@@ -880,6 +1017,7 @@ function explorerHtml(): string {
     <h1>GemStone Explorer</h1>
     <div class="menubar" role="menubar" aria-label="Window menu">
       <button type="button" role="menuitem" data-window-open="inspect">Inspect</button>
+      <button type="button" role="menuitem" data-window-open="debugger">Debugger</button>
       <button type="button" role="menuitem" data-window-open="globals">Globals</button>
       <button type="button" role="menuitem" data-window-open="roots">Roots</button>
       <button type="button" role="menuitem" data-window-open="workspace">Workspace</button>
@@ -905,7 +1043,20 @@ function explorerHtml(): string {
         <div class="surface"><h2>Object</h2><pre id="inspectOutput"></pre></div>
         </div>
       </section>
-      <section id="globals" class="tool-window" data-window="globals" data-default-left="456" data-default-top="16" style="--x: 456px; --y: 16px; --w: 650px;">
+      <section id="debugger" class="tool-window" data-window="debugger" data-default-left="456" data-default-top="16" style="--x: 456px; --y: 16px; --w: 620px;">
+        <div class="window-titlebar" data-drag-handle><h2>Debugger</h2><button class="window-button" type="button" data-window-close="debugger" aria-label="Close debugger">x</button></div>
+        <div class="window-body">
+        <div class="toolbar">
+          <label>Return <select id="debugReturn"><option>inspect</option><option>value</option><option>oop</option></select></label>
+          <button class="action" id="debugRun">Debug</button>
+        </div>
+        <div class="split">
+          <textarea id="debugSource">1/0</textarea>
+          <div class="surface"><h2>Debug Report</h2><pre id="debugOutput"></pre></div>
+        </div>
+        </div>
+      </section>
+      <section id="globals" class="tool-window" data-window="globals" data-default-left="16" data-default-top="340" style="--x: 16px; --y: 340px; --w: 650px;">
         <div class="window-titlebar" data-drag-handle><h2>Globals</h2><button class="window-button" type="button" data-window-close="globals" aria-label="Close globals">x</button></div>
         <div class="window-body">
         <div class="toolbar">
@@ -919,7 +1070,7 @@ function explorerHtml(): string {
         </div>
         </div>
       </section>
-      <section id="roots" class="tool-window" data-window="roots" data-default-left="16" data-default-top="400" style="--x: 16px; --y: 400px; --w: 650px;">
+      <section id="roots" class="tool-window" data-window="roots" data-default-left="696" data-default-top="340" style="--x: 696px; --y: 340px; --w: 650px;">
         <div class="window-titlebar" data-drag-handle><h2>Roots</h2><button class="window-button" type="button" data-window-close="roots" aria-label="Close roots">x</button></div>
         <div class="window-body">
         <div class="toolbar">
@@ -934,7 +1085,7 @@ function explorerHtml(): string {
         </div>
         </div>
       </section>
-      <section id="workspace" class="tool-window" data-window="workspace" data-default-left="696" data-default-top="400" style="--x: 696px; --y: 400px; --w: 620px;">
+      <section id="workspace" class="tool-window hidden" data-window="workspace" data-default-left="456" data-default-top="200" style="--x: 456px; --y: 200px; --w: 620px;">
         <div class="window-titlebar" data-drag-handle><h2>Workspace</h2><button class="window-button" type="button" data-window-close="workspace" aria-label="Close workspace">x</button></div>
         <div class="window-body">
         <div class="toolbar">
@@ -1014,7 +1165,7 @@ function explorerHtml(): string {
     const inspectLink = (oop) => "<button data-oop=\\"" + escapeHtml(oop) + "\\">" + escapeHtml(oop) + "</button>";
 
     const desktop = document.getElementById("desktop");
-    const defaultVisibleWindows = new Set(["inspect", "globals", "roots", "workspace"]);
+    const defaultVisibleWindows = new Set(["inspect", "debugger", "globals", "roots"]);
     let nextWindowZ = 20;
     const toolWindow = (name) => document.querySelector(".tool-window[data-window='" + name + "']");
     const focusWindow = (name) => {
@@ -1168,6 +1319,20 @@ function explorerHtml(): string {
         out("evalOutput", error.body || error.message);
       }
     }
+    async function runDebug() {
+      try {
+        const result = await api("/api/debug", {
+          method: "POST",
+          body: JSON.stringify({
+            source: document.getElementById("debugSource").value,
+            returnKind: document.getElementById("debugReturn").value,
+          }),
+        });
+        out("debugOutput", result);
+      } catch (error) {
+        out("debugOutput", error.body || error.message);
+      }
+    }
     async function searchClasses() {
       const prefix = document.getElementById("classPrefix").value;
       const limit = document.getElementById("classesLimit").value;
@@ -1206,6 +1371,7 @@ function explorerHtml(): string {
     document.getElementById("globalsRun").addEventListener("click", loadGlobals);
     document.getElementById("rootsRun").addEventListener("click", loadRoots);
     document.getElementById("evalRun").addEventListener("click", runEval);
+    document.getElementById("debugRun").addEventListener("click", runDebug);
     document.getElementById("classesRun").addEventListener("click", searchClasses);
     document.getElementById("classDescribe").addEventListener("click", describeClass);
     document.getElementById("codegenRun").addEventListener("click", previewCodegen);

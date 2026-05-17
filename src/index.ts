@@ -106,10 +106,23 @@ export {
   type GemStoneArrayIndexMap,
   type GemStoneArgument,
   type GemStoneDictionaryArgument,
+  type GemStoneOopHandle,
   type MarshalledArray,
   type MarshalledDictionary,
   type MarshalledValue,
+  type PerformCall,
+  type PerformCallInput,
+  type PerformWithCall,
+  type PerformWithCallInput,
 } from "./client.ts";
+export {
+  SESSION_ENV_ALIAS_GROUPS,
+  sessionConfigFromEnv,
+  sessionEnvAliasConflicts,
+  type SessionEnv,
+  type SessionEnvAliasConflict,
+  type SessionEnvAliasField,
+} from "./session-env.ts";
 export {
   OOP_ASCII_NUL,
   OOP_FALSE,
@@ -163,7 +176,7 @@ export {
   type ValueConverterOptions,
 } from "./converters.ts";
 export { PersistentRoot } from "./persistent-root.ts";
-export { GsDict } from "./gsdict.ts";
+export { GsDict, type DictionaryReadbackOptions, type KeyedReadbackOptions } from "./gsdict.ts";
 export { OrderedCollection } from "./ordered-collection.ts";
 export {
   RcCounter,
@@ -181,6 +194,7 @@ export {
   GStoreError,
   GStoreTransaction,
   type GStoreJsonValue,
+  type GStoreReadOptions,
   type GStoreTransactionOptions,
 } from "./gstore.ts";
 export {
@@ -239,11 +253,17 @@ export { GSCollection, type ComparisonOp, type GSCollectionIndexKind, type GSCol
 export {
   OBJECT_LOG_LEVELS,
   ObjectLog,
+  formatObjectLogEntries,
+  formatObjectLogEntry,
   parseObjectLogEntries,
+  summarizeObjectLogEntries,
   type ObjectLogAddOptions,
   type ObjectLogEntry,
+  type ObjectLogFormatOptions,
   type ObjectLogLevelName,
   type ObjectLogPriority,
+  type ObjectLogReadOptions,
+  type ObjectLogSummary,
 } from "./object-log.ts";
 export {
   PooledSession,

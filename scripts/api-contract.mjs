@@ -15,6 +15,7 @@ const REQUIRED_BIN_ENTRIES = {
   "gemstone-js-benchmark-validate": "./scripts/benchmark-validate.mjs",
   "gemstone-js-benchmarks": "./scripts/benchmarks.mjs",
   "gemstone-js-bootstrap": "./scripts/bootstrap.mjs",
+  "gemstone-js-compare": "./scripts/compare.mjs",
   "gemstone-js-doctor": "./scripts/doctor.mjs",
   "gemstone-js-examples": "./scripts/examples.mjs",
   "gemstone-js-inspect": "./scripts/inspect.mjs",
@@ -24,6 +25,7 @@ const REQUIRED_SCHEMA_EXPORTS = {
   "./schemas/benchmark-baseline-manifest.schema.json": "./schemas/benchmark-baseline-manifest.schema.json",
   "./schemas/benchmark-report.schema.json": "./schemas/benchmark-report.schema.json",
   "./schemas/codegen-manifest.schema.json": "./schemas/codegen-manifest.schema.json",
+  "./schemas/comparison-report.schema.json": "./schemas/comparison-report.schema.json",
 };
 
 try {
@@ -156,16 +158,16 @@ function validatePackageJson(packageJson) {
   assertField(packageJson.name, "gemstone-js", "package name", failures);
   assertField(packageJson.type, "module", "package type", failures);
   assertField(packageJson.license, "MIT", "package license", failures);
-  assertField(packageJson.main, "./src/index.ts", "package main", failures);
-  assertField(packageJson.types, "./src/index.ts", "package types", failures);
+  assertField(packageJson.main, "./dist/index.js", "package main", failures);
+  assertField(packageJson.types, "./dist/index.d.ts", "package types", failures);
   if (packageJson.publishConfig?.provenance !== true) {
     failures.push("publishConfig.provenance must be true.");
   }
   if (packageJson.publishConfig?.access !== "public") {
     failures.push("publishConfig.access must be public.");
   }
-  if (packageJson.exports?.["."]?.import !== "./src/index.ts" || packageJson.exports?.["."]?.types !== "./src/index.ts") {
-    failures.push("package root export must point import/types at ./src/index.ts.");
+  if (packageJson.exports?.["."]?.import !== "./dist/index.js" || packageJson.exports?.["."]?.types !== "./dist/index.d.ts") {
+    failures.push("package root export must point import/types at dist/index.js and dist/index.d.ts.");
   }
   if (!String(packageJson.engines?.node ?? "").includes(">=24")) {
     failures.push("package engines.node must require Node >=24.");

@@ -842,6 +842,219 @@ test("ManagedOop.send marshals JavaScript arguments", async () => {
   await session.logout();
 });
 
+test("Session bulk perform sends one selector across receivers in one eval", async () => {
+  let runtime: MockGciRuntime;
+  const executeSources: string[] = [];
+  const responses = [
+    `${smallintToOop(3)}\n${smallintToOop(4)}\n`,
+    `${smallintToOop(9)}\n`,
+  ];
+  runtime = new MockGciRuntime({
+    async execute(source) {
+      executeSources.push(source);
+      return runtime.newString(responses.shift() ?? "");
+    },
+  });
+  const session = await Session.connect({ username: "u", password: "p", runtime });
+  const first = runtime.allocate();
+  const second = runtime.allocate();
+
+  assertEqual((await session.bulkPerformOop([], "size")).length, 0);
+  const results = await session.bulkPerformOop([first, second], "selector'withQuote", smallintToOop(1));
+  assertEqual(results[0], smallintToOop(3));
+  assertEqual(results[1], smallintToOop(4));
+  const source = executeSources[0];
+  assert(source.includes(`receivers at: 1 put: (Object _objectForOop: ${first.toString()}).`), "bulkPerformOop should render first receiver");
+  assert(source.includes(`receivers at: 2 put: (Object _objectForOop: ${second.toString()}).`), "bulkPerformOop should render second receiver");
+  assert(source.includes(`args at: 1 put: (Object _objectForOop: ${smallintToOop(1).toString()}).`), "bulkPerformOop should render raw OOP arguments");
+  assert(source.includes("selector := 'selector''withQuote' asSymbol."), "bulkPerformOop should escape selector literals");
+  assert(source.includes("perform: selector withArguments: args"), "bulkPerformOop should use dynamic selector sends");
+
+  const values = await session.performManyValue([first], "size");
+  assertEqual(values[0], 9n);
+  assertEqual(executeSources.length, 2);
+  await assertRejects(() => session.bulkPerformOop([first], ""), RangeError);
+
+  await session.logout();
+});
+
+test("Session bulk perform-with marshals JavaScript arguments once per batch", async () => {
+  let runtime: MockGciRuntime;
+  const executeSources: string[] = [];
+  const responses = [
+    `${smallintToOop(21)}\n${smallintToOop(22)}\n`,
+    `${smallintToOop(23)}\n`,
+  ];
+  runtime = new MockGciRuntime({
+    async execute(source) {
+      executeSources.push(source);
+      return runtime.newString(responses.shift() ?? "");
+    },
+  });
+  const session = await Session.connect({ username: "u", password: "p", runtime });
+  const first = runtime.allocate();
+  const second = runtime.allocate();
+
+  const results = await session.bulkPerformWith([first, second], "at:put:", 1, "value");
+  assertEqual(results[0], smallintToOop(21));
+  assertEqual(results[1], smallintToOop(22));
+  const valueOop = runtime.strings.get("value");
+  if (!valueOop) throw new Error("bulkPerformWith should allocate a GemStone string for JS string args");
+  const source = executeSources[0];
+  assert(source.includes(`args at: 1 put: (Object _objectForOop: ${smallintToOop(1).toString()}).`), "bulkPerformWith should marshal number args");
+  assert(source.includes(`args at: 2 put: (Object _objectForOop: ${valueOop.toString()}).`), "bulkPerformWith should marshal string args");
+
+  const values = await session.performManyValueWith([first], "at:", 1);
+  assertEqual(values[0], 23n);
+  assertEqual(executeSources.length, 2);
+
+  await session.logout();
+});
+
+test("Session bulk perform calls support mixed sends and aliases", async () => {
+  let runtime: MockGciRuntime;
+  const executeSources: string[] = [];
+  const responses = [
+    `${smallintToOop(11)}\n${smallintToOop(12)}\n${smallintToOop(13)}\n`,
+    `${smallintToOop(14)}\n`,
+  ];
+  runtime = new MockGciRuntime({
+    async execute(source) {
+      executeSources.push(source);
+      return runtime.newString(responses.shift() ?? "");
+    },
+  });
+  const session = await Session.connect({ username: "u", password: "p", runtime });
+  const first = runtime.allocate();
+  const second = session.typedOop(runtime.allocate());
+  const third = runtime.allocate();
+
+  assertEqual((await session.bulkPerformCallsOop([])).length, 0);
+  const results = await session.bulkPerformCallsOop([
+    { receiver: first, selector: "size" },
+    [second, "at:", [smallintToOop(1)]] as const,
+    [third, "selector'withQuote"] as const,
+  ]);
+  assertEqual(results[0], smallintToOop(11));
+  assertEqual(results[1], smallintToOop(12));
+  assertEqual(results[2], smallintToOop(13));
+  const source = executeSources[0];
+  assert(source.includes(`receivers at: 1 put: (Object _objectForOop: ${first.toString()}).`), "bulkPerformCallsOop should render object calls");
+  assert(source.includes(`receivers at: 2 put: (Object _objectForOop: ${second.oop.toString()}).`), "bulkPerformCallsOop should unwrap retained handles");
+  assert(source.includes("selectors at: 1 put: 'size' asSymbol."), "bulkPerformCallsOop should render first selector");
+  assert(source.includes("selectors at: 3 put: 'selector''withQuote' asSymbol."), "bulkPerformCallsOop should escape mixed selectors");
+  assert(source.includes("argsList at: 2 put: callArgs."), "bulkPerformCallsOop should render per-call argument arrays");
+  assert(source.includes("withArguments: (argsList at: index)"), "bulkPerformCallsOop should send with each call's args");
+
+  const values = await session.performCallsValue([{ receiver: first, selector: "size" }]);
+  assertEqual(values[0], 14n);
+  await assertRejects(() => session.bulkPerformCallsOop([[first, "size", [], "extra"] as never]), RangeError);
+
+  await second.release();
+  await session.logout();
+});
+
+test("Session bulk perform-with calls marshal mixed JavaScript arguments", async () => {
+  let runtime: MockGciRuntime;
+  const executeSources: string[] = [];
+  const responses = [
+    `${smallintToOop(31)}\n${smallintToOop(32)}\n`,
+    `${smallintToOop(33)}\n`,
+  ];
+  runtime = new MockGciRuntime({
+    async execute(source) {
+      executeSources.push(source);
+      return runtime.newString(responses.shift() ?? "");
+    },
+  });
+  const session = await Session.connect({ username: "u", password: "p", runtime });
+  const first = runtime.allocate();
+  const second = runtime.allocate();
+
+  const results = await session.bulkPerformCallsWithOop([
+    { receiver: first, selector: "at:", args: [1] },
+    [second, "at:put:", [1, "value"]] as const,
+  ]);
+  assertEqual(results[0], smallintToOop(31));
+  assertEqual(results[1], smallintToOop(32));
+  const valueOop = runtime.strings.get("value");
+  if (!valueOop) throw new Error("bulkPerformCallsWithOop should allocate a GemStone string for JS string args");
+  const source = executeSources[0];
+  assert(source.includes(`receivers at: 1 put: (Object _objectForOop: ${first.toString()}).`), "bulkPerformCallsWithOop should render object-call receivers");
+  assert(source.includes("selectors at: 2 put: 'at:put:' asSymbol."), "bulkPerformCallsWithOop should render mixed selectors");
+  assert(source.includes(`callArgs at: 1 put: (Object _objectForOop: ${smallintToOop(1).toString()}).`), "bulkPerformCallsWithOop should marshal number args");
+  assert(source.includes(`callArgs at: 2 put: (Object _objectForOop: ${valueOop.toString()}).`), "bulkPerformCallsWithOop should marshal string args");
+
+  const values = await session.performCallsValueWith([{ receiver: first, selector: "at:", args: [1] }]);
+  assertEqual(values[0], 33n);
+  await assertRejects(() => session.bulkPerformCallsWithOop([[first, "size", [], "extra"] as never]), RangeError);
+
+  await session.logout();
+});
+
+test("Session bulk perform object helpers retain returned handles", async () => {
+  let runtime: MockGciRuntime;
+  const responses: string[] = [];
+  runtime = new MockGciRuntime({
+    async execute() {
+      return runtime.newString(responses.shift() ?? "");
+    },
+  });
+  const session = await Session.connect({ username: "u", password: "p", runtime });
+  const first = runtime.allocate();
+  const second = runtime.allocate();
+  const childOne = runtime.allocate();
+  const childTwo = runtime.allocate();
+  const childThree = runtime.allocate();
+  const childFour = runtime.allocate();
+  const childFive = runtime.allocate();
+  const childSix = runtime.allocate();
+  responses.push(
+    `${childOne}\n${childTwo}\n`,
+    `${childThree}\n`,
+    `${childFour}\n`,
+    `${childFive}\n`,
+    `${childSix}\n`,
+  );
+
+  const objects = await session.bulkPerformObjects<{ name: string }>([first, second], "children");
+  assertEqual(objects[0].oop, childOne);
+  assertEqual(objects[1].oop, childTwo);
+
+  const withObjects = await session.performManyObjectsWith<{ name: string }>([first], "childNamed:", "primary");
+  assertEqual(withObjects[0].oop, childThree);
+  assert(runtime.calls.some((call) => call.method === "newString" && call.args[0] === "primary"), "performManyObjectsWith should marshal string args");
+
+  const callObjects = await session.performCallsObjects<{ name: string }>([
+    { receiver: first, selector: "child" },
+  ]);
+  assertEqual(callObjects[0].oop, childFour);
+
+  const callsWithObjects = await session.performCallsObjectsWith<{ name: string }>([
+    { receiver: second, selector: "childNamed:", args: ["secondary"] },
+  ]);
+  assertEqual(callsWithObjects[0].oop, childFive);
+
+  const directCallsWithObjects = await session.bulkPerformCallsObjectsWith<{ name: string }>([
+    [second, "childNamed:", ["tertiary"]],
+  ]);
+  assertEqual(directCallsWithObjects[0].oop, childSix);
+
+  await Promise.all([
+    ...objects,
+    ...withObjects,
+    ...callObjects,
+    ...callsWithObjects,
+    ...directCallsWithObjects,
+  ].map((item) => item.release()));
+  for (const child of [childOne, childTwo, childThree, childFour, childFive, childSix]) {
+    assert(runtime.calls.some((call) => call.method === "addOopToExportSet" && call.args[0] === child), `object helper should retain ${child}`);
+    assert(runtime.calls.some((call) => call.method === "removeOopFromExportSet" && call.args[0] === child), `released object helper should release ${child}`);
+  }
+
+  await session.logout();
+});
+
 test("Session.performObjectWith wraps object results as retained typed handles", async () => {
   const runtime = new MockGciRuntime();
   const session = await Session.connect({ username: "u", password: "p", runtime });
@@ -1048,6 +1261,8 @@ test("dictionaryToOop stores and retrieves string-key values", async () => {
   assertEqual(readback.enabled, true);
   assertEqual((await session.dictionaryEntries(dict)).name, "Alice");
   assertEqual((await session.dictionaryKeys(dict)).join(","), "name,retries,enabled");
+  assertEqual((await session.dictionaryKeys(dict, { maxEntries: 3 })).join(","), "name,retries,enabled");
+  await assertRejects(() => session.dictionaryKeys(dict, { maxEntries: 2 }), RangeError);
   assertEqual(await session.dictionarySize(dict), 3);
   assertEqual(await session.dictionaryIsEmpty(dict), false);
   const rawEntries = await session.dictionaryEntriesOop(dict);
@@ -1063,6 +1278,8 @@ test("dictionaryToOop stores and retrieves string-key values", async () => {
   assertEqual(await session.marshalOop(rawItems[0][1]), "Alice");
   const valueList = await session.dictionaryValueList(dict);
   assertEqual(valueList.join(","), "Alice,3,true");
+  assertEqual((await session.dictionaryValueList(dict, { maxEntries: 3 })).join(","), "Alice,3,true");
+  await assertRejects(() => session.dictionaryItems(dict, { maxEntries: 2 }), RangeError);
   const rawValueList = await session.dictionaryValueOops(dict);
   assertEqual(await session.marshalOop(rawValueList[0]), "Alice");
   const wrapped = session.typedOop(dict);
@@ -1305,9 +1522,12 @@ test("GsDict keys and entries list dictionary contents", async () => {
   dictOop = dict.oop;
 
   assertEqual((await dict.keys()).join(","), "name,city");
+  assertEqual((await dict.keys({ maxEntries: 2 })).join(","), "name,city");
+  await assertRejects(() => dict.keys({ maxEntries: 1 }), RangeError);
   const entries = await dict.entries();
   assertEqual(entries.name, "Ada");
   assertEqual(entries.city, "London");
+  assertEqual((await dict.entries({ maxEntries: 2 })).city, "London");
   const rawEntries = await dict.entriesOop();
   assertEqual(await session.marshalOop(rawEntries.name ?? OOP_NIL), "Ada");
   assertEqual(await session.marshalOop(rawEntries.city ?? OOP_NIL), "London");
@@ -1324,12 +1544,14 @@ test("GsDict keys and entries list dictionary contents", async () => {
   assertEqual(items[0][1], "Ada");
   assertEqual(items[1][0], "city");
   assertEqual(items[1][1], "London");
+  await assertRejects(() => dict.items({ maxEntries: 1 }), RangeError);
   const rawItems = await dict.itemsOop();
   assertEqual(rawItems[0][0], "name");
   assertEqual(await session.marshalOop(rawItems[0][1]), "Ada");
   assertEqual(rawItems[1][0], "city");
   assertEqual(await session.marshalOop(rawItems[1][1]), "London");
-  assertEqual(keyListCalls, 8);
+  await assertRejects(() => dict.valuesOop({ maxEntries: -1 }), RangeError);
+  assertEqual(keyListCalls, 12);
 
   await session.logout();
 });
@@ -1482,6 +1704,8 @@ test("globalSet and globalGet round-trip through UserGlobals", async () => {
   assertEqual(requiredGlobalOops.JsBridgeObject, object);
   assertEqual(requiredGlobalOops.JsBridgeDict, storedDict.oop);
   assertEqual((await session.globalKeys()).join(","), "JsBridgeValue,JsBridgeObject,JsBridgeDict");
+  assertEqual((await session.globalKeys({ maxEntries: 3 })).join(","), "JsBridgeValue,JsBridgeObject,JsBridgeDict");
+  await assertRejects(() => session.globalKeys({ maxEntries: 2 }), RangeError);
   assertEqual((await session.globalPick(["JsBridgeValue", "MissingGlobal"])).JsBridgeValue, "ready");
   const pickedOops = await session.globalPickOop(["JsBridgeObject", "MissingGlobal"]);
   assertEqual(pickedOops.JsBridgeObject, object);
@@ -1493,7 +1717,7 @@ test("globalSet and globalGet round-trip through UserGlobals", async () => {
   const pickedDicts = await session.globalPickDict(["JsBridgeDict", "MissingGlobal"]);
   assertEqual(await pickedDicts.JsBridgeDict?.get("status"), "nested");
   assertEqual(pickedDicts.MissingGlobal, null);
-  const entries = await session.globalEntries();
+  const entries = await session.globalEntries({ maxEntries: 3 });
   assertEqual(entries.JsBridgeValue, "ready");
   assertEqual(entries.JsBridgeObject, object);
   assertEqual(entries.JsBridgeDict, storedDict.oop);
@@ -1514,6 +1738,7 @@ test("globalSet and globalGet round-trip through UserGlobals", async () => {
   assertEqual(globalItems[1][1], object);
   assertEqual(globalItems[2][0], "JsBridgeDict");
   assertEqual(globalItems[2][1], storedDict.oop);
+  await assertRejects(() => session.globalItems({ maxEntries: 2 }), RangeError);
   const globalValuesOop = await session.globalValuesOop();
   assertEqual(await session.marshalOop(globalValuesOop[0]), "ready");
   assertEqual(globalValuesOop[1], object);
@@ -1525,7 +1750,7 @@ test("globalSet and globalGet round-trip through UserGlobals", async () => {
   assertEqual(globalItemsOop[1][1], object);
   assertEqual(globalItemsOop[2][0], "JsBridgeDict");
   assertEqual(globalItemsOop[2][1], storedDict.oop);
-  assertEqual(listCalls, 7);
+  assertEqual(listCalls, 10);
   const nullableObject = await session.globalGetObject<{ status: string }>("JsBridgeObject");
   if (!nullableObject) throw new Error("globalGetObject should return a typed handle for existing globals");
   assertEqual(nullableObject.oop, object);
@@ -1696,6 +1921,9 @@ test("PersistentRoot pick and entries read root values by listed names", async (
   const entries = await root.entries();
   assertEqual(entries.RootStatus, "ready");
   assertEqual(entries.RootEnabled, true);
+  assertEqual((await root.keys({ maxEntries: 2 })).join(","), "RootStatus,RootEnabled");
+  await assertRejects(() => root.keys({ maxEntries: 1 }), RangeError);
+  assertEqual((await root.entries({ maxEntries: 2 })).RootEnabled, true);
   const entriesOop = await root.entriesOop();
   assertEqual(await session.marshalOop(entriesOop.RootStatus ?? OOP_NIL), "ready");
   assertEqual(await session.marshalOop(entriesOop.RootEnabled ?? OOP_NIL), true);
@@ -1708,6 +1936,7 @@ test("PersistentRoot pick and entries read root values by listed names", async (
   assertEqual(items[0][1], "ready");
   assertEqual(items[1][0], "RootEnabled");
   assertEqual(items[1][1], true);
+  await assertRejects(() => root.items({ maxEntries: 1 }), RangeError);
   const rawValues = await root.valuesOop();
   assertEqual(await session.marshalOop(rawValues[0]), "ready");
   assertEqual(await session.marshalOop(rawValues[1]), true);
@@ -1716,7 +1945,7 @@ test("PersistentRoot pick and entries read root values by listed names", async (
   assertEqual(await session.marshalOop(rawItems[0][1]), "ready");
   assertEqual(rawItems[1][0], "RootEnabled");
   assertEqual(await session.marshalOop(rawItems[1][1]), true);
-  assertEqual(listCalls, 6);
+  assertEqual(listCalls, 10);
 
   await session.logout();
 });

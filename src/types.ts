@@ -2,7 +2,7 @@ import type { Oop } from "./oop.ts";
 import type { MetricsCollector, Tracer } from "./observability.ts";
 import type { ValueConverterRegistry } from "./converters.ts";
 
-export type RuntimeName = "node" | "deno" | "bun" | "mock";
+export type RuntimeName = "node" | "node-worker" | "deno" | "bun" | "mock";
 
 export interface GciErrorInfo {
   number: number;
@@ -51,6 +51,7 @@ export interface SessionConfig {
   hostPassword?: string;
   gemService?: string;
   libPath?: string;
+  nativeSessionWorker?: boolean;
   runtime?: GciRuntime;
   tracer?: Tracer;
   metrics?: MetricsCollector;
@@ -68,6 +69,7 @@ export interface ResolvedSessionConfig {
   hostPassword: string;
   gemService: string;
   libPath?: string;
+  nativeSessionWorker?: boolean;
   tracer?: Tracer;
   metrics?: MetricsCollector;
   valueConverters?: ValueConverterRegistry;

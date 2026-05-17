@@ -1,6 +1,8 @@
 #!/usr/bin/env node
-import { Session } from "../src/index.ts";
-import { runBenchmarksCli } from "../src/benchmarks.ts";
+import { loadPackageModule } from "./load-package-module.mjs";
+
+const { Session } = await loadPackageModule("index.ts");
+const { runBenchmarksCli } = await loadPackageModule("benchmarks.ts");
 
 process.exitCode = await runBenchmarksCli(process.argv.slice(2), {
   stdout: process.stdout,

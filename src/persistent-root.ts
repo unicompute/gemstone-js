@@ -1,4 +1,4 @@
-import { GsDict } from "./gsdict.ts";
+import { GsDict, type KeyedReadbackOptions } from "./gsdict.ts";
 import {
   ManagedOop,
   Session,
@@ -264,41 +264,41 @@ export class PersistentRoot {
     return result;
   }
 
-  async entries(): Promise<Record<string, MarshalledValue>> {
-    return this.pick(await this.keys());
+  async entries(options: KeyedReadbackOptions = {}): Promise<Record<string, MarshalledValue>> {
+    return this.pick(await this.keys(options));
   }
 
-  async entriesOop(): Promise<Record<string, Oop | null>> {
-    return this.pickOop(await this.keys());
+  async entriesOop(options: KeyedReadbackOptions = {}): Promise<Record<string, Oop | null>> {
+    return this.pickOop(await this.keys(options));
   }
 
-  async values(): Promise<MarshalledValue[]> {
-    return (await this.items()).map(([, value]) => value);
+  async values(options: KeyedReadbackOptions = {}): Promise<MarshalledValue[]> {
+    return (await this.items(options)).map(([, value]) => value);
   }
 
-  async valuesOop(): Promise<Oop[]> {
-    return (await this.itemsOop()).map(([, value]) => value);
+  async valuesOop(options: KeyedReadbackOptions = {}): Promise<Oop[]> {
+    return (await this.itemsOop(options)).map(([, value]) => value);
   }
 
-  async items(): Promise<Array<[string, MarshalledValue]>> {
+  async items(options: KeyedReadbackOptions = {}): Promise<Array<[string, MarshalledValue]>> {
     const result: Array<[string, MarshalledValue]> = [];
-    for (const key of await this.keys()) {
+    for (const key of await this.keys(options)) {
       result.push([key, await this.getValue(key)]);
     }
     return result;
   }
 
-  async itemsOop(): Promise<Array<[string, Oop]>> {
+  async itemsOop(options: KeyedReadbackOptions = {}): Promise<Array<[string, Oop]>> {
     const result: Array<[string, Oop]> = [];
-    for (const key of await this.keys()) {
+    for (const key of await this.keys(options)) {
       const value = await this.getOop(key);
       if (value !== null) result.push([key, value]);
     }
     return result;
   }
 
-  async keys(): Promise<string[]> {
-    return this.list();
+  async keys(options: KeyedReadbackOptions = {}): Promise<string[]> {
+    return this.list(options);
   }
 
   async size(): Promise<number> {
@@ -310,19 +310,28 @@ export class PersistentRoot {
     return await this.size() === 0;
   }
 
-  async list(): Promise<string[]> {
+  async list(options: KeyedReadbackOptions = {}): Promise<string[]> {
+    const maxEntries = normalizePersistentRootMaxEntries(options.maxEntries);
+    const tempSource = Number.isFinite(maxEntries) ? "| dict limit count |" : "| dict |";
+    const limitSource = Number.isFinite(maxEntries) ? `limit := ${maxEntries + 1}.\n      count := 0.` : "";
+    const writeGuardOpen = Number.isFinite(maxEntries) ? "count < limit ifTrue: [ count := count + 1." : "";
+    const writeGuardClose = Number.isFinite(maxEntries) ? "]" : "";
     const source = `
-      | dict |
+      ${tempSource}
       dict := ${this.rootName}.
+      ${limitSource}
       String streamContents: [:stream |
         dict keysAndValuesDo: [:key :value |
-          stream nextPutAll: key asString; lf]]
+          ${writeGuardOpen}
+          stream nextPutAll: key asString; lf
+          ${writeGuardClose}]]
     `;
     const result = await this.session.eval(source);
-    if (typeof result === "string") {
-      return result.split(/\r?\n/).filter(Boolean);
+    const keys = typeof result === "string" ? result.split(/\r?\n/).filter(Boolean) : [];
+    if (keys.length > maxEntries) {
+      throw new RangeError(`Persistent root ${this.rootName} readback exceeded maxEntries ${maxEntries}.`);
     }
-    return [];
+    return keys;
   }
 
   async #root(): Promise<Oop> {
@@ -359,6 +368,14 @@ function toSafeSize(value: MarshalledValue, collection: string): number {
   }
   if (typeof value === "number" && Number.isSafeInteger(value) && value >= 0) return value;
   throw new TypeError(`${collection} size must be a non-negative integer, got ${String(value)}.`);
+}
+
+function normalizePersistentRootMaxEntries(value: number | undefined): number {
+  if (value === undefined) return Number.POSITIVE_INFINITY;
+  if (!Number.isSafeInteger(value) || value < 0) {
+    throw new RangeError("Persistent root maxEntries must be a non-negative safe integer.");
+  }
+  return value;
 }
 
 function validatePersistentRootEntryName(name: string): string {

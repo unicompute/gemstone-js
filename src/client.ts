@@ -1,6 +1,6 @@
 import { createGciRuntime } from "./runtime/index.ts";
 import { serializeGciRuntime } from "./runtime/serialized.ts";
-import { GsDict } from "./gsdict.ts";
+import { GsDict, type KeyedReadbackOptions } from "./gsdict.ts";
 import { OrderedCollection } from "./ordered-collection.ts";
 import { RcCounter, RcKeyValueDictionary, RcQueue } from "./reduced-conflict.ts";
 import { ValueConverterRegistry } from "./converters.ts";
@@ -23,7 +23,8 @@ import {
   type Oop,
 } from "./oop.ts";
 import { NULL_METRICS, NULL_TRACER, observe, type MetricsCollector, type Tracer } from "./observability.ts";
-import { validateGemStoneGlobalName } from "./smalltalk-source.ts";
+import { sessionConfigFromEnv } from "./session-env.ts";
+import { escapeSmalltalkStringLiteral, objectForOopSource, validateGemStoneGlobalName } from "./smalltalk-source.ts";
 import {
   GemStoneConfigurationError,
   GemStoneError,
@@ -61,8 +62,27 @@ export type GemStoneArgument =
   | object
   | GemStoneArrayArgument
   | GemStoneDictionaryArgument;
+export type GemStoneOopHandle<T = unknown> = ManagedOop<T> | TypedOop<T> | Oop;
+export interface PerformCall {
+  receiver: GemStoneOopHandle;
+  selector: string;
+  args?: readonly GemStoneOopHandle[];
+}
+export type PerformCallInput =
+  | PerformCall
+  | readonly [GemStoneOopHandle, string]
+  | readonly [GemStoneOopHandle, string, readonly GemStoneOopHandle[]];
+export interface PerformWithCall {
+  receiver: GemStoneOopHandle;
+  selector: string;
+  args?: readonly GemStoneArgument[];
+}
+export type PerformWithCallInput =
+  | PerformWithCall
+  | readonly [GemStoneOopHandle, string]
+  | readonly [GemStoneOopHandle, string, readonly GemStoneArgument[]];
 type MaybePromise<T> = T | Promise<T>;
-type OopHandle<T = unknown> = TypedOop<T> | ManagedOop<T> | Oop;
+type OopHandle<T = unknown> = GemStoneOopHandle<T>;
 
 export class Session implements AsyncDisposable {
   readonly config: ResolvedSessionConfig;
@@ -81,8 +101,10 @@ export class Session implements AsyncDisposable {
   }
 
   static async connect(config: SessionConfig = {}): Promise<Session> {
-    const runtime = serializeGciRuntime(config.runtime ?? await createGciRuntime());
     const resolved = resolveSessionConfig(config);
+    const runtime = serializeGciRuntime(config.runtime ?? await createGciRuntime({
+      nativeSessionWorker: resolved.nativeSessionWorker,
+    }));
     await runtime.init(resolved.libPath);
 
     const stoneName = stoneNrs(resolved);
@@ -114,18 +136,7 @@ export class Session implements AsyncDisposable {
 
   static configFromEnv(overrides: SessionConfig = {}): SessionConfig {
     const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env ?? {};
-    return {
-      stone: env.GS_STONE ?? env.GS_STONE_NAME ?? "gs64stone",
-      netldi: env.GS_NETLDI ?? "netldi",
-      host: env.GS_HOST ?? "localhost",
-      username: env.GS_USERNAME,
-      password: env.GS_PASSWORD,
-      hostUsername: env.GS_HOST_USERNAME ?? "",
-      hostPassword: env.GS_HOST_PASSWORD ?? "",
-      gemService: env.GS_GEM_SERVICE ?? "gemnetobject",
-      libPath: env.GS_LIB_PATH,
-      ...overrides,
-    };
+    return sessionConfigFromEnv(env, overrides);
   }
 
   get sessionId(): number {
@@ -189,6 +200,190 @@ export class Session implements AsyncDisposable {
 
   async performObjectWith<T = unknown>(receiver: Oop, selector: string, ...args: GemStoneArgument[]): Promise<TypedOop<T>> {
     return this.typedOop<T>(await this.performWith(receiver, selector, ...args));
+  }
+
+  async bulkPerformOop(
+    receivers: Iterable<GemStoneOopHandle>,
+    selector: string,
+    ...args: GemStoneOopHandle[]
+  ): Promise<Oop[]> {
+    const receiverOops = Array.from(receivers, rawHandleOop);
+    if (receiverOops.length === 0) return [];
+    const argOops = args.map(rawHandleOop);
+    return this.#observe("bulk_perform_oop", { selector, argc: argOops.length, receiver_count: receiverOops.length }, async () => {
+      return parseOopStream(
+        await this.eval(bulkPerformSource(receiverOops, selector, argOops)),
+        "bulkPerformOop",
+      );
+    });
+  }
+
+  async bulkPerformValue(
+    receivers: Iterable<GemStoneOopHandle>,
+    selector: string,
+    ...args: GemStoneOopHandle[]
+  ): Promise<MarshalledValue[]> {
+    const results: MarshalledValue[] = [];
+    for (const item of await this.bulkPerformOop(receivers, selector, ...args)) {
+      results.push(await this.marshalOop(item));
+    }
+    return results;
+  }
+
+  async bulkPerformObjects<T = unknown>(
+    receivers: Iterable<GemStoneOopHandle>,
+    selector: string,
+    ...args: GemStoneOopHandle[]
+  ): Promise<TypedOop<T>[]> {
+    return this.#typedOops<T>(await this.bulkPerformOop(receivers, selector, ...args));
+  }
+
+  async bulkPerformWith(
+    receivers: Iterable<GemStoneOopHandle>,
+    selector: string,
+    ...args: GemStoneArgument[]
+  ): Promise<Oop[]> {
+    return this.bulkPerformOop(receivers, selector, ...await this.argumentsToOops(args));
+  }
+
+  async bulkPerformValueWith(
+    receivers: Iterable<GemStoneOopHandle>,
+    selector: string,
+    ...args: GemStoneArgument[]
+  ): Promise<MarshalledValue[]> {
+    const results: MarshalledValue[] = [];
+    for (const item of await this.bulkPerformWith(receivers, selector, ...args)) {
+      results.push(await this.marshalOop(item));
+    }
+    return results;
+  }
+
+  async bulkPerformObjectsWith<T = unknown>(
+    receivers: Iterable<GemStoneOopHandle>,
+    selector: string,
+    ...args: GemStoneArgument[]
+  ): Promise<TypedOop<T>[]> {
+    return this.#typedOops<T>(await this.bulkPerformWith(receivers, selector, ...args));
+  }
+
+  async bulkPerformCallsOop(calls: Iterable<PerformCallInput>): Promise<Oop[]> {
+    const performCalls = Array.from(calls, coercePerformCall);
+    if (performCalls.length === 0) return [];
+    return this.#observe("bulk_perform_calls_oop", { call_count: performCalls.length }, async () => {
+      return parseOopStream(
+        await this.eval(bulkPerformCallsSource(performCalls)),
+        "bulkPerformCallsOop",
+      );
+    });
+  }
+
+  async bulkPerformCallsValue(calls: Iterable<PerformCallInput>): Promise<MarshalledValue[]> {
+    const results: MarshalledValue[] = [];
+    for (const item of await this.bulkPerformCallsOop(calls)) {
+      results.push(await this.marshalOop(item));
+    }
+    return results;
+  }
+
+  async bulkPerformCallsObjects<T = unknown>(calls: Iterable<PerformCallInput>): Promise<TypedOop<T>[]> {
+    return this.#typedOops<T>(await this.bulkPerformCallsOop(calls));
+  }
+
+  async bulkPerformCallsWithOop(calls: Iterable<PerformWithCallInput>): Promise<Oop[]> {
+    const performCalls: PerformCall[] = [];
+    for (const call of calls) {
+      const normalized = coercePerformWithCall(call);
+      performCalls.push({
+        receiver: normalized.receiver,
+        selector: normalized.selector,
+        args: await this.argumentsToOops(normalized.args),
+      });
+    }
+    return this.bulkPerformCallsOop(performCalls);
+  }
+
+  async bulkPerformCallsValueWith(calls: Iterable<PerformWithCallInput>): Promise<MarshalledValue[]> {
+    const results: MarshalledValue[] = [];
+    for (const item of await this.bulkPerformCallsWithOop(calls)) {
+      results.push(await this.marshalOop(item));
+    }
+    return results;
+  }
+
+  async bulkPerformCallsObjectsWith<T = unknown>(calls: Iterable<PerformWithCallInput>): Promise<TypedOop<T>[]> {
+    return this.#typedOops<T>(await this.bulkPerformCallsWithOop(calls));
+  }
+
+  async performManyOop(
+    receivers: Iterable<GemStoneOopHandle>,
+    selector: string,
+    ...args: GemStoneOopHandle[]
+  ): Promise<Oop[]> {
+    return this.bulkPerformOop(receivers, selector, ...args);
+  }
+
+  async performManyValue(
+    receivers: Iterable<GemStoneOopHandle>,
+    selector: string,
+    ...args: GemStoneOopHandle[]
+  ): Promise<MarshalledValue[]> {
+    return this.bulkPerformValue(receivers, selector, ...args);
+  }
+
+  async performManyObjects<T = unknown>(
+    receivers: Iterable<GemStoneOopHandle>,
+    selector: string,
+    ...args: GemStoneOopHandle[]
+  ): Promise<TypedOop<T>[]> {
+    return this.bulkPerformObjects<T>(receivers, selector, ...args);
+  }
+
+  async performManyWith(
+    receivers: Iterable<GemStoneOopHandle>,
+    selector: string,
+    ...args: GemStoneArgument[]
+  ): Promise<Oop[]> {
+    return this.bulkPerformWith(receivers, selector, ...args);
+  }
+
+  async performManyValueWith(
+    receivers: Iterable<GemStoneOopHandle>,
+    selector: string,
+    ...args: GemStoneArgument[]
+  ): Promise<MarshalledValue[]> {
+    return this.bulkPerformValueWith(receivers, selector, ...args);
+  }
+
+  async performManyObjectsWith<T = unknown>(
+    receivers: Iterable<GemStoneOopHandle>,
+    selector: string,
+    ...args: GemStoneArgument[]
+  ): Promise<TypedOop<T>[]> {
+    return this.bulkPerformObjectsWith<T>(receivers, selector, ...args);
+  }
+
+  async performCallsOop(calls: Iterable<PerformCallInput>): Promise<Oop[]> {
+    return this.bulkPerformCallsOop(calls);
+  }
+
+  async performCallsValue(calls: Iterable<PerformCallInput>): Promise<MarshalledValue[]> {
+    return this.bulkPerformCallsValue(calls);
+  }
+
+  async performCallsObjects<T = unknown>(calls: Iterable<PerformCallInput>): Promise<TypedOop<T>[]> {
+    return this.bulkPerformCallsObjects<T>(calls);
+  }
+
+  async performCallsWithOop(calls: Iterable<PerformWithCallInput>): Promise<Oop[]> {
+    return this.bulkPerformCallsWithOop(calls);
+  }
+
+  async performCallsValueWith(calls: Iterable<PerformWithCallInput>): Promise<MarshalledValue[]> {
+    return this.bulkPerformCallsValueWith(calls);
+  }
+
+  async performCallsObjectsWith<T = unknown>(calls: Iterable<PerformWithCallInput>): Promise<TypedOop<T>[]> {
+    return this.bulkPerformCallsObjectsWith<T>(calls);
   }
 
   async argumentToOop(value: GemStoneArgument): Promise<Oop> {
@@ -633,16 +828,16 @@ export class Session implements AsyncDisposable {
     });
   }
 
-  async dictionaryOopToObject(dict: Oop): Promise<MarshalledDictionary> {
-    return this.dict(dict).entries();
+  async dictionaryOopToObject(dict: Oop, options: KeyedReadbackOptions = {}): Promise<MarshalledDictionary> {
+    return this.dict(dict).entries(options);
   }
 
-  async dictionaryValues(value: OopHandle): Promise<MarshalledDictionary> {
-    return this.dictionaryOopToObject(typeof value === "bigint" ? value : value.oop);
+  async dictionaryValues(value: OopHandle, options: KeyedReadbackOptions = {}): Promise<MarshalledDictionary> {
+    return this.dictionaryOopToObject(typeof value === "bigint" ? value : value.oop, options);
   }
 
-  async dictionaryKeys(value: OopHandle): Promise<string[]> {
-    return this.dict(rawHandleOop(value)).keys();
+  async dictionaryKeys(value: OopHandle, options: KeyedReadbackOptions = {}): Promise<string[]> {
+    return this.dict(rawHandleOop(value)).keys(options);
   }
 
   async dictionarySize(value: OopHandle): Promise<number> {
@@ -653,28 +848,28 @@ export class Session implements AsyncDisposable {
     return this.dict(rawHandleOop(value)).isEmpty();
   }
 
-  async dictionaryEntries(value: OopHandle): Promise<MarshalledDictionary> {
-    return this.dict(rawHandleOop(value)).entries();
+  async dictionaryEntries(value: OopHandle, options: KeyedReadbackOptions = {}): Promise<MarshalledDictionary> {
+    return this.dict(rawHandleOop(value)).entries(options);
   }
 
-  async dictionaryEntriesOop(value: OopHandle): Promise<Record<string, Oop | null>> {
-    return this.dict(rawHandleOop(value)).entriesOop();
+  async dictionaryEntriesOop(value: OopHandle, options: KeyedReadbackOptions = {}): Promise<Record<string, Oop | null>> {
+    return this.dict(rawHandleOop(value)).entriesOop(options);
   }
 
-  async dictionaryItems(value: OopHandle): Promise<Array<[string, MarshalledValue]>> {
-    return this.dict(rawHandleOop(value)).items();
+  async dictionaryItems(value: OopHandle, options: KeyedReadbackOptions = {}): Promise<Array<[string, MarshalledValue]>> {
+    return this.dict(rawHandleOop(value)).items(options);
   }
 
-  async dictionaryItemsOop(value: OopHandle): Promise<Array<[string, Oop]>> {
-    return this.dict(rawHandleOop(value)).itemsOop();
+  async dictionaryItemsOop(value: OopHandle, options: KeyedReadbackOptions = {}): Promise<Array<[string, Oop]>> {
+    return this.dict(rawHandleOop(value)).itemsOop(options);
   }
 
-  async dictionaryValueList(value: OopHandle): Promise<MarshalledValue[]> {
-    return this.dict(rawHandleOop(value)).values();
+  async dictionaryValueList(value: OopHandle, options: KeyedReadbackOptions = {}): Promise<MarshalledValue[]> {
+    return this.dict(rawHandleOop(value)).values(options);
   }
 
-  async dictionaryValueOops(value: OopHandle): Promise<Oop[]> {
-    return this.dict(rawHandleOop(value)).valuesOop();
+  async dictionaryValueOops(value: OopHandle, options: KeyedReadbackOptions = {}): Promise<Oop[]> {
+    return this.dict(rawHandleOop(value)).valuesOop(options);
   }
 
   async dictionaryHas(value: OopHandle, key: string): Promise<boolean> {
@@ -979,47 +1174,60 @@ export class Session implements AsyncDisposable {
     return result;
   }
 
-  async globalEntries(): Promise<Record<string, MarshalledValue>> {
-    return this.globalPick(await this.globalKeys());
+  async globalEntries(options: KeyedReadbackOptions = {}): Promise<Record<string, MarshalledValue>> {
+    return this.globalPick(await this.globalKeys(options));
   }
 
-  async globalEntriesOop(): Promise<Record<string, Oop | null>> {
-    return this.globalPickOop(await this.globalKeys());
+  async globalEntriesOop(options: KeyedReadbackOptions = {}): Promise<Record<string, Oop | null>> {
+    return this.globalPickOop(await this.globalKeys(options));
   }
 
-  async globalValues(): Promise<MarshalledValue[]> {
-    return (await this.globalItems()).map(([, value]) => value);
+  async globalValues(options: KeyedReadbackOptions = {}): Promise<MarshalledValue[]> {
+    return (await this.globalItems(options)).map(([, value]) => value);
   }
 
-  async globalValuesOop(): Promise<Oop[]> {
-    return (await this.globalItemsOop()).map(([, value]) => value);
+  async globalValuesOop(options: KeyedReadbackOptions = {}): Promise<Oop[]> {
+    return (await this.globalItemsOop(options)).map(([, value]) => value);
   }
 
-  async globalItems(): Promise<Array<[string, MarshalledValue]>> {
+  async globalItems(options: KeyedReadbackOptions = {}): Promise<Array<[string, MarshalledValue]>> {
     const result: Array<[string, MarshalledValue]> = [];
-    for (const key of await this.globalKeys()) {
+    for (const key of await this.globalKeys(options)) {
       result.push([key, await this.globalGet(key)]);
     }
     return result;
   }
 
-  async globalItemsOop(): Promise<Array<[string, Oop]>> {
+  async globalItemsOop(options: KeyedReadbackOptions = {}): Promise<Array<[string, Oop]>> {
     const result: Array<[string, Oop]> = [];
-    for (const key of await this.globalKeys()) {
+    for (const key of await this.globalKeys(options)) {
       const value = await this.globalGetOop(key);
       if (value !== null) result.push([key, value]);
     }
     return result;
   }
 
-  async globalKeys(): Promise<string[]> {
+  async globalKeys(options: KeyedReadbackOptions = {}): Promise<string[]> {
+    const maxEntries = normalizeKeyedReadbackMaxEntries(options.maxEntries, "UserGlobals maxEntries");
+    const tempSource = Number.isFinite(maxEntries) ? "| limit count |" : "";
+    const limitSource = Number.isFinite(maxEntries) ? `limit := ${maxEntries + 1}.\n        count := 0.` : "";
+    const writeGuardOpen = Number.isFinite(maxEntries) ? "count < limit ifTrue: [ count := count + 1." : "";
+    const writeGuardClose = Number.isFinite(maxEntries) ? "]" : "";
     const source = `
+      ${tempSource}
+      ${limitSource}
       String streamContents: [:stream |
         UserGlobals keysAndValuesDo: [:key :value |
-          stream nextPutAll: key asString; lf]]
+          ${writeGuardOpen}
+          stream nextPutAll: key asString; lf
+          ${writeGuardClose}]]
     `;
     const result = await this.eval(source);
-    return typeof result === "string" ? result.split(/\r?\n/).filter(Boolean) : [];
+    const keys = typeof result === "string" ? result.split(/\r?\n/).filter(Boolean) : [];
+    if (keys.length > maxEntries) {
+      throw new RangeError(`UserGlobals readback exceeded maxEntries ${maxEntries}.`);
+    }
+    return keys;
   }
 
   async globalSize(): Promise<number> {
@@ -1405,6 +1613,10 @@ export class Session implements AsyncDisposable {
     return new TypedOop<T>(this, value);
   }
 
+  #typedOops<T = unknown>(values: readonly Oop[]): TypedOop<T>[] {
+    return values.map((value) => this.typedOop<T>(value));
+  }
+
   classRef<T = unknown>(name: string): GemStoneClassRef<T> {
     return new GemStoneClassRef<T>(this, name);
   }
@@ -1710,8 +1922,8 @@ export function resolveSessionConfig(config: SessionConfig = {}): ResolvedSessio
   const username = fromEnv.username;
   const password = fromEnv.password;
   const missing: string[] = [];
-  if (!username) missing.push("username/GS_USERNAME");
-  if (!password) missing.push("password/GS_PASSWORD");
+  if (!username) missing.push("username/GS_USERNAME or GS_USER");
+  if (!password) missing.push("password/GS_PASSWORD or GS_PASS");
   if (missing.length) {
     throw new GemStoneConfigurationError(`GemStone credentials are required: missing ${missing.join(" and ")}.`);
   }
@@ -1725,6 +1937,7 @@ export function resolveSessionConfig(config: SessionConfig = {}): ResolvedSessio
     hostPassword: fromEnv.hostPassword ?? "",
     gemService: fromEnv.gemService ?? "gemnetobject",
     libPath: fromEnv.libPath,
+    nativeSessionWorker: fromEnv.nativeSessionWorker,
     tracer: fromEnv.tracer,
     metrics: fromEnv.metrics,
     valueConverters: fromEnv.valueConverters,
@@ -1757,6 +1970,153 @@ function rawHandleOop(value: OopHandle): Oop {
   return typeof value === "bigint" ? value : value.oop;
 }
 
+interface NormalizedPerformCall {
+  receiver: Oop;
+  selector: string;
+  args: Oop[];
+}
+
+interface NormalizedPerformWithCall {
+  receiver: GemStoneOopHandle;
+  selector: string;
+  args: readonly GemStoneArgument[];
+}
+
+function bulkPerformSource(receivers: readonly Oop[], selector: string, args: readonly Oop[]): string {
+  const selectorLiteral = `'${escapeSmalltalkStringLiteral(validatePerformSelector(selector))}'`;
+  const receiverPuts = receivers
+    .map((receiver, index) => `receivers at: ${index + 1} put: (${objectForOopSource(receiver)}).`)
+    .join("\n");
+  const argPuts = args
+    .map((arg, index) => `args at: ${index + 1} put: (${objectForOopSource(arg)}).`)
+    .join("\n");
+  return `
+    | receivers args selector stream |
+    receivers := Array new: ${receivers.length}.
+    ${receiverPuts}
+    args := Array new: ${args.length}.
+    ${argPuts}
+    selector := ${selectorLiteral} asSymbol.
+    stream := ''.
+    1 to: receivers size do: [:index | | result |
+      result := (receivers at: index) perform: selector withArguments: args.
+      stream := stream, result asOop asString, String lf asString].
+    stream
+  `;
+}
+
+function bulkPerformCallsSource(calls: readonly NormalizedPerformCall[]): string {
+  const receiverPuts: string[] = [];
+  const selectorPuts: string[] = [];
+  const argListPuts: string[] = [];
+  for (const [index, call] of calls.entries()) {
+    const arrayIndex = index + 1;
+    receiverPuts.push(`receivers at: ${arrayIndex} put: (${objectForOopSource(call.receiver)}).`);
+    selectorPuts.push(`selectors at: ${arrayIndex} put: '${escapeSmalltalkStringLiteral(validatePerformSelector(call.selector))}' asSymbol.`);
+    const argPuts = call.args
+      .map((arg, argIndex) => `  callArgs at: ${argIndex + 1} put: (${objectForOopSource(arg)}).`)
+      .join("\n");
+    argListPuts.push(`callArgs := Array new: ${call.args.length}.
+${argPuts}
+argsList at: ${arrayIndex} put: callArgs.`);
+  }
+  return `
+    | receivers selectors argsList callArgs stream |
+    receivers := Array new: ${calls.length}.
+    selectors := Array new: ${calls.length}.
+    argsList := Array new: ${calls.length}.
+    ${receiverPuts.join("\n")}
+    ${selectorPuts.join("\n")}
+    ${argListPuts.join("\n")}
+    stream := ''.
+    1 to: receivers size do: [:index | | result |
+      result := (receivers at: index)
+        perform: (selectors at: index)
+        withArguments: (argsList at: index).
+      stream := stream, result asOop asString, String lf asString].
+    stream
+  `;
+}
+
+function coercePerformCall(call: PerformCallInput): NormalizedPerformCall {
+  if (!Array.isArray(call)) {
+    const objectCall = call as PerformCall;
+    return normalizePerformCall(objectCall.receiver, objectCall.selector, objectCall.args ?? []);
+  }
+  if (call.length === 2) {
+    return normalizePerformCall(call[0], call[1], []);
+  }
+  if (call.length === 3) {
+    return normalizePerformCall(call[0], call[1], call[2]);
+  }
+  throw new RangeError("bulk perform calls must be [receiver, selector] or [receiver, selector, args].");
+}
+
+function coercePerformWithCall(call: PerformWithCallInput): NormalizedPerformWithCall {
+  if (!Array.isArray(call)) {
+    const objectCall = call as PerformWithCall;
+    return normalizePerformWithCall(objectCall.receiver, objectCall.selector, objectCall.args ?? []);
+  }
+  if (call.length === 2) {
+    return normalizePerformWithCall(call[0], call[1], []);
+  }
+  if (call.length === 3) {
+    return normalizePerformWithCall(call[0], call[1], call[2]);
+  }
+  throw new RangeError("bulk perform-with calls must be [receiver, selector] or [receiver, selector, args].");
+}
+
+function normalizePerformCall(
+  receiver: GemStoneOopHandle,
+  selector: string,
+  args: readonly GemStoneOopHandle[],
+): NormalizedPerformCall {
+  return {
+    receiver: rawHandleOop(receiver),
+    selector: validatePerformSelector(selector),
+    args: Array.from(args, rawHandleOop),
+  };
+}
+
+function normalizePerformWithCall(
+  receiver: GemStoneOopHandle,
+  selector: string,
+  args: readonly GemStoneArgument[],
+): NormalizedPerformWithCall {
+  return {
+    receiver,
+    selector: validatePerformSelector(selector),
+    args,
+  };
+}
+
+function validatePerformSelector(selector: string): string {
+  if (typeof selector !== "string") {
+    throw new TypeError("GemStone perform selector must be a string.");
+  }
+  if (selector.length === 0) {
+    throw new RangeError("GemStone perform selector must not be empty.");
+  }
+  return selector;
+}
+
+function parseOopStream(value: MarshalledValue, operation: string): Oop[] {
+  if (value === null || value === "") return [];
+  if (typeof value !== "string") {
+    throw new TypeError(`${operation} expected a newline-delimited OOP string, got ${String(value)}.`);
+  }
+  const results: Oop[] = [];
+  for (const line of value.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    if (!/^-?\d+$/.test(trimmed)) {
+      throw new TypeError(`${operation} received a non-OOP result row: ${trimmed}`);
+    }
+    results.push(oop(trimmed));
+  }
+  return results;
+}
+
 interface NormalizedArrayReadbackOptions {
   maxDepth: number;
   maxItems: number;
@@ -1780,6 +2140,14 @@ function normalizeOptionalLimit(value: number | undefined, field: string, minimu
   if (value === undefined) return Number.POSITIVE_INFINITY;
   if (!Number.isSafeInteger(value) || value < minimum) {
     throw new RangeError(`${field} must be a safe integer >= ${minimum}.`);
+  }
+  return value;
+}
+
+function normalizeKeyedReadbackMaxEntries(value: number | undefined, field: string): number {
+  if (value === undefined) return Number.POSITIVE_INFINITY;
+  if (!Number.isSafeInteger(value) || value < 0) {
+    throw new RangeError(`${field} must be a non-negative safe integer.`);
   }
   return value;
 }

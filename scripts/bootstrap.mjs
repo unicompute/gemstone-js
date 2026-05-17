@@ -1,6 +1,8 @@
 #!/usr/bin/env node
-import { Session } from "../src/index.ts";
-import { runBootstrapCli } from "../src/bootstrap.ts";
+import { loadPackageModule } from "./load-package-module.mjs";
+
+const { Session } = await loadPackageModule("index.ts");
+const { runBootstrapCli } = await loadPackageModule("bootstrap.ts");
 
 const code = await runBootstrapCli(process.argv.slice(2), {
   stdout: process.stdout,

@@ -277,6 +277,10 @@
       "from": "./scope.ts"
     },
     {
+      "name": "SESSION_ENV_ALIAS_GROUPS",
+      "from": "./session-env.ts"
+    },
+    {
       "name": "SerializedGciRuntime",
       "from": "./runtime/serialized.ts"
     },
@@ -459,6 +463,14 @@
     {
       "name": "formatMigrationStatus",
       "from": "./migrations.ts"
+    },
+    {
+      "name": "formatObjectLogEntries",
+      "from": "./object-log.ts"
+    },
+    {
+      "name": "formatObjectLogEntry",
+      "from": "./object-log.ts"
     },
     {
       "name": "gemstoneExpress",
@@ -681,6 +693,14 @@
       "from": "./runtime/serialized.ts"
     },
     {
+      "name": "sessionConfigFromEnv",
+      "from": "./session-env.ts"
+    },
+    {
+      "name": "sessionEnvAliasConflicts",
+      "from": "./session-env.ts"
+    },
+    {
       "name": "sessionScope",
       "from": "./scope.ts"
     },
@@ -695,6 +715,10 @@
     {
       "name": "smallintToOop",
       "from": "./oop.ts"
+    },
+    {
+      "name": "summarizeObjectLogEntries",
+      "from": "./object-log.ts"
     },
     {
       "name": "upgrade",
@@ -855,6 +879,10 @@
       "from": "./transactions.ts"
     },
     {
+      "name": "DictionaryReadbackOptions",
+      "from": "./gsdict.ts"
+    },
+    {
       "name": "DoctorCheck",
       "from": "./doctor.ts"
     },
@@ -904,6 +932,10 @@
     },
     {
       "name": "GStoreJsonValue",
+      "from": "./gstore.ts"
+    },
+    {
+      "name": "GStoreReadOptions",
       "from": "./gstore.ts"
     },
     {
@@ -979,6 +1011,10 @@
       "from": "./types.ts"
     },
     {
+      "name": "GemStoneOopHandle",
+      "from": "./client.ts"
+    },
+    {
       "name": "GemStoneSlotInspection",
       "from": "./types.ts"
     },
@@ -997,6 +1033,10 @@
     {
       "name": "HonoGemStoneOptions",
       "from": "./adapters/hono.ts"
+    },
+    {
+      "name": "KeyedReadbackOptions",
+      "from": "./gsdict.ts"
     },
     {
       "name": "LoginOptions",
@@ -1071,11 +1111,23 @@
       "from": "./object-log.ts"
     },
     {
+      "name": "ObjectLogFormatOptions",
+      "from": "./object-log.ts"
+    },
+    {
       "name": "ObjectLogLevelName",
       "from": "./object-log.ts"
     },
     {
       "name": "ObjectLogPriority",
+      "from": "./object-log.ts"
+    },
+    {
+      "name": "ObjectLogReadOptions",
+      "from": "./object-log.ts"
+    },
+    {
+      "name": "ObjectLogSummary",
       "from": "./object-log.ts"
     },
     {
@@ -1085,6 +1137,22 @@
     {
       "name": "Oop",
       "from": "./oop.ts"
+    },
+    {
+      "name": "PerformCall",
+      "from": "./client.ts"
+    },
+    {
+      "name": "PerformCallInput",
+      "from": "./client.ts"
+    },
+    {
+      "name": "PerformWithCall",
+      "from": "./client.ts"
+    },
+    {
+      "name": "PerformWithCallInput",
+      "from": "./client.ts"
     },
     {
       "name": "PoolConfig",
@@ -1173,6 +1241,18 @@
     {
       "name": "SessionConfig",
       "from": "./types.ts"
+    },
+    {
+      "name": "SessionEnv",
+      "from": "./session-env.ts"
+    },
+    {
+      "name": "SessionEnvAliasConflict",
+      "from": "./session-env.ts"
+    },
+    {
+      "name": "SessionEnvAliasField",
+      "from": "./session-env.ts"
     },
     {
       "name": "Span",

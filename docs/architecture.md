@@ -6,7 +6,13 @@ The first implementation slice follows `../plan.js.txt`:
   `GciRuntime` wrapper for each default `Session.connect()` call.
 - `src/runtime/node.ts` calls `@gemstone-js/native`, the napi-rs addon in
   `../gemstone-js-native`. The native module import is cached, but the Node GCI
-  wrapper is per session.
+  wrapper is per session. The default backend uses the raw synchronous `Gci`
+  object; `nativeSessionWorker: true` or `GS_NATIVE_SESSION_WORKER=1` selects
+  `createGciSessionWorker()` so each session's native calls are queued through
+  a dedicated worker-thread wrapper. Worker dispatch is strict: if the worker
+  object does not expose the expected native operations, runtime initialization
+  fails and closes the incomplete worker instead of falling back to the raw
+  module and bypassing the session-thread boundary.
 - `src/runtime/deno.ts` and `src/runtime/bun.ts` define the same low-level GCI
   surface through native FFI. Pointer-array and out-parameter calls use typed
   arrays so `perform()`, `fetchBytes()`, float conversion, `GciErr`, and
@@ -15,8 +21,8 @@ The first implementation slice follows `../plan.js.txt`:
 - `src/runtime/library-discovery.ts` mirrors the Rust/Python loader order:
   explicit path, `GS_LIB_PATH`, scan `GS_LIB`, then scan `GEMSTONE/lib`.
 - `src/client.ts` owns the public async `Session` API. This lets the native
-  implementation move blocking GCI calls to a dedicated session thread later
-  without changing user code.
+  implementation keep blocking GCI calls behind a selectable backend without
+  changing user code.
 - `Session.executeObject()`/`evalObject()` and
   `executeManaged()`/`evalManaged()` mirror gemstone-py's typed/managed execute
   helpers while keeping raw `execute()` and value-marshalling `eval()` explicit.
@@ -38,6 +44,9 @@ The first implementation slice follows `../plan.js.txt`:
 - `Session.dictionaryOopToObject()` and `dictionaryValues()` read GemStone
   `StringKeyValueDictionary` instances through the `GsDict` key-enumeration
   path, preserving the existing string-key and value-marshalling behavior.
+  Dictionary key, entry, item, and value-list readback accepts a `maxEntries`
+  bound through `KeyedReadbackOptions`; `DictionaryReadbackOptions` remains a
+  compatibility alias for dictionary callers.
   Session-level dictionary key/item/value-list, get/set/replace/remove,
   pick/require, and size helpers delegate to the same wrapper path for callers
   that have a raw dictionary OOP but do not need to keep a `GsDict` wrapper
@@ -45,6 +54,20 @@ The first implementation slice follows `../plan.js.txt`:
 - `Session.argumentToOop()` handles the common JS-to-GemStone path. Use
   `perform()` for raw OOP arguments; use `performWith()` when you want JS values
   converted into GemStone objects.
+- `Session.bulkPerformOop()` and `bulkPerformCallsOop()` mirror gemstone-py's
+  batched selector-send helpers. They render one Smalltalk eval that sends a
+  shared selector across many receivers or a mixed list of receiver/selector
+  calls, then parse newline-delimited `asOop` results back into branded OOPs.
+  The `bulkPerformValue()` and `bulkPerformCallsValue()` variants marshal each
+  returned OOP through the normal session marshalling path.
+- `Session.bulkPerformWith()` and `bulkPerformCallsWithOop()` add the same
+  batching shape for callers that want JavaScript argument marshalling first.
+  Arguments are converted through `argumentToOop()`/`argumentsToOops()` once
+  before the generated Smalltalk batch source is rendered.
+- `bulkPerformObjects()`, `bulkPerformObjectsWith()`,
+  `bulkPerformCallsObjects()`, and `bulkPerformCallsObjectsWith()` retain each
+  returned OOP as a `TypedOop<T>`, matching the single-send
+  `performObjectWith()` contract for batched object workflows.
 - `Session.classRef()` is the first explicit object-model layer: it caches class
   symbol resolution and exposes async class-side sends, object-returning sends,
   and allocation while keeping remote calls visible. Class names use the shared
@@ -55,8 +78,10 @@ The first implementation slice follows `../plan.js.txt`:
   aliases, object-named setter aliases for stored OOP handles, nested
   dictionary helpers including batch dictionary setters, send helpers,
   dictionary metadata, dictionary/root enumeration, replace/clear lifecycle
-  helpers for owned string-key dictionaries, global/root size helpers, and
-  required global/root accessors. `PersistentRoot.userGlobals()`,
+  helpers for owned string-key dictionaries, bounded dictionary/global/root
+  enumeration through `KeyedReadbackOptions`, global/root size helpers, and
+  required global/root accessors.
+  `PersistentRoot.userGlobals()`,
   `globals()`, `published()`, and `sessionMethods()` mirror the named
   SymbolDictionary constructors in gemstone-py.
 - `OrderedCollection` mirrors gemstone-py's plain GemStone ordered sequence
@@ -68,8 +93,10 @@ The first implementation slice follows `../plan.js.txt`:
 - `GStore` builds on `PersistentRoot` and `GsDict` rather than adding another
   storage layer. Each named store is a `StringKeyValueDictionary` under
   `UserGlobals.GStoreRoot`; values are JSON strings, transaction callbacks use
-  an in-memory snapshot plus dirty/delete buffers, and the caller's session owns
-  transaction visibility.
+  an in-memory snapshot plus dirty/delete buffers, `GStore.list()`, `read()`,
+  existence checks, and transaction snapshot loading accept
+  `KeyedReadbackOptions` bounds, and the caller's session owns transaction
+  visibility.
 - Migration helpers are intentionally library-first. Version metadata and
   advisory locks are JSON strings in `UserGlobals`, so the runner can use the
   existing root marshalling path and stay reviewable. The public API validates
@@ -108,9 +135,15 @@ The first implementation slice follows `../plan.js.txt`:
   dictionary string keys are passed through string-key GCI APIs and are not
   constrained by that policy. See `docs/naming.md`.
 - `ObjectLog` is a session-bound wrapper over GemStone `ObjectLogEntry`.
-  It reads batch ObjectLog rows into one escaped string payload and parses locally,
-  matching the `gemstone-py` parser contract while keeping commits and aborts
-  explicit through the caller's session.
+  It reads batch ObjectLog rows into one escaped string payload, supports
+  `maxEntries` sentinel bounds plus `{ level, order }` through
+  `ObjectLogReadOptions`, can fetch the newest tail without scanning from the
+  first row, filters requested levels on the GemStone side, exposes count and
+  presence checks without fetching rows, offers deterministic summary/format
+  helpers for operator output, supports level-scoped clear and descending-index
+  bulk deletion, preserves real log indexes, and parses locally, matching the
+  `gemstone-py` parser contract while keeping commits and aborts explicit
+  through the caller's session.
 - Query helpers render simple selector paths, expose collection metadata,
   can count/check predicate matches without materializing selected results, can
   read whole collections, bounded pages, indexed items, or collection endpoints

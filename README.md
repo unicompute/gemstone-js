@@ -11,6 +11,13 @@ native package; the TypeScript package can be tested locally with a mock runtime
 ## Current Status
 
 - Async-first API: `Session.connect()`, `execute()`, `perform()`,
+  `performWith()`, `performValueWith()`, `performObjectWith()`,
+  `bulkPerformOop()`/`bulkPerformValue()` and mixed-call
+  `bulkPerformCallsOop()`/`bulkPerformCallsValue()` with
+  `performMany*()`/`performCalls*()` aliases, plus `bulkPerformWith()` and
+  mixed-call `bulkPerformCallsWithOop()` variants that batch repeated sends
+  after normal JavaScript argument marshalling, retained object batch helpers
+  such as `bulkPerformObjects()` and `bulkPerformCallsObjectsWith()`,
   typed/managed execute helpers, `withTransaction()` with sync or async
   callbacks, framework-neutral `RequestScope`/`TransactionScope` helpers, and
   `AsyncDisposable` support.
@@ -54,7 +61,9 @@ native package; the TypeScript package can be tested locally with a mock runtime
   `dictionaryValues()`, `dictionaryKeys()`, `dictionarySize()`,
   `dictionaryIsEmpty()`, `dictionaryEntries()`, `dictionaryItems()`,
   raw `dictionaryEntriesOop()`/`dictionaryItemsOop()`,
-  value-list `dictionaryValueList()`, raw `dictionaryValueOops()`,
+  value-list `dictionaryValueList()`, raw `dictionaryValueOops()`, shared
+  `KeyedReadbackOptions`/`DictionaryReadbackOptions` `maxEntries` bounds for
+  dictionary key/value/item readback,
   direct dictionary `get`/`set`/`replace`/`remove`/`clear` plus
   `has`/`pick`/`require` helpers for raw, value, object, and nested-dictionary
   entries, `strDictGet()`, `strDictSet()`,
@@ -63,6 +72,7 @@ native package; the TypeScript package can be tested locally with a mock runtime
   nullable object/dictionary `globalPickObject()`/`globalPickDict()`,
   `globalEntries()`, raw `globalEntriesOop()`, `globalValues()`, `globalItems()`, raw
   `globalValuesOop()`/`globalItemsOop()`,
+  bounded `KeyedReadbackOptions` `maxEntries` options for global key/value/item readback,
   `globalSize()`/`globalIsEmpty()`,
   `globalSet()`/`globalSetValue()` and `globalSetAll()`/`globalSetAllValue()`, raw
   `globalSetOop()`/`globalSetAllOop()` plus object-named
@@ -81,6 +91,7 @@ native package; the TypeScript package can be tested locally with a mock runtime
   `replaceAllObject()`, dictionary `replaceAllDict()`, `clear()`,
   `remove()`/`delete()`, `has()`, `size()`, `isEmpty()`, `keys()`,
   `values()`, raw `valuesOop()`, `items()`, raw `itemsOop()`, `entries()`,
+  bounded `maxEntries` readback options,
   `toObject()`, raw `entriesOop()`, `pick()`, raw `pickOop()`,
   nullable object/dictionary `pickObject()`/`pickDict()`, bulk `hasAll()` and
   `removeAll()`/`deleteAll()`, required raw/value/object accessors plus object
@@ -107,8 +118,9 @@ native package; the TypeScript package can be tested locally with a mock runtime
   send/inspect helpers.
 - `GStore` provides a session-bound, named JSON key/value store under
   `UserGlobals.GStoreRoot`, with async transaction callbacks, read-only
-  snapshots, delete/remove helpers, and commit-conflict retry for conflict-like
-  commit failures.
+  snapshots, bounded `GStore.list()`/`read()`/transaction snapshot options,
+  static and instance existence checks, delete/remove helpers, and
+  commit-conflict retry for conflict-like commit failures.
 - Module-style migration helpers provide dependency-safe
   `planUpgrade()`/`planDowngrade()`, live `upgrade()`/`downgrade()`, current
   version/status reads, checksum validation, recorded dry-runs, and a
@@ -140,8 +152,9 @@ native package; the TypeScript package can be tested locally with a mock runtime
   GemStone-side roots used by the persistence helpers: `GStoreRoot`,
   `GSQueryRoot`, and `GemstoneJsBootstrapVersion`.
 - `gemstone-js-doctor` checks local runtime, GemStone environment variables,
-  GCI library discovery, optional native-package importability, and optional
-  live login/eval without printing configured secrets; see `docs/doctor.md`.
+  GCI library discovery, optional native-package importability, native worker
+  method-surface compatibility, and optional live login/eval without printing
+  configured secrets; see `docs/doctor.md`.
 - Session pool release is reset-aware: dirty sessions are aborted before reuse,
   failed resets are discarded, waiters are served with replacement sessions, and
   close rejects pending acquires. Explicit validation queries run without
@@ -165,8 +178,13 @@ native package; the TypeScript package can be tested locally with a mock runtime
 - `gemstone-js-examples` lists packaged examples, filters them by kind, prints
   JSON, guided plans, and runnable command lists for tooling, and can show an
   example file directly from the installed npm package. The packaged catalog
-  includes quickstart, data helpers, query helpers, migrations, ObjectLog,
-  codegen, and web adapter examples; see `docs/examples-guide.md`.
+  includes quickstart, data helpers, query helpers, bulk selector sends,
+  migrations, ObjectLog, codegen, and web adapter examples; see
+  `docs/examples-guide.md`.
+- `gemstone-js-compare` prints the local JS/Python, Rust/Python, and combined
+  ecosystem comparison, including scorecards, gap rows, next batches, batch
+  totals, and schema-versioned JSON output for release notes, CI, or planning
+  tools.
 - Result marshalling now converts GemStone `String` and `Symbol` objects back
   into JavaScript strings via `fetchString()` and class detection. Float OOPs are
   converted when the runtime reports that `GciOopToFlt_` succeeded.
@@ -176,9 +194,12 @@ native package; the TypeScript package can be tested locally with a mock runtime
   return typed `oop`, `class`, `classOop`, `printString`, size/byte-size, class
   hierarchy, slot, indexed-field, superclass, class instance-variable, and
   instance-count metadata for quick debugging of raw object handles and classes.
-- `ObjectLog` wraps GemStone `ObjectLogEntry` with async add, read, level
-  filter, size, clear, and delete helpers. Batched entry fetches use the same
-  escaped row parser shape as `gemstone-py`.
+- `ObjectLog` wraps GemStone `ObjectLogEntry` with async add, bounded read,
+  options-driven `{ level, order, maxEntries }` fetches, tail/latest reads,
+  server-side level filtering, latest-by-level helpers, count/presence checks,
+  summary/format helpers, size, level-scoped clear, and single/bulk delete
+  helpers. Batched entry fetches preserve real zero-based log indexes and use
+  the same escaped row parser shape as `gemstone-py`.
 - `GSCollection.search()` unwraps result arrays into typed handles,
   `GSCollection.searchOop()` returns raw handles, `all()`/`allOop()` read the
   collection as object handles, value helpers such as `allValues()`,
@@ -260,25 +281,42 @@ bin/schema metadata, and the checksum helper self-test, then uses
 `npm pack --dry-run` with a disposable cache to verify that the publishable
 tarball includes docs/examples while excluding tests and local build metadata.
 It also packs and extracts the tarball to verify installed API and bin wiring.
+`npm run live:check` is part of `verify`; it does not connect to GemStone, but
+guards the opt-in live test skip path and coverage shape.
+
+For the beta install path, native backend choice, generated-wrapper workflow,
+installed-package proof, and support boundary, see `docs/beta.md`.
+The final beta release-candidate gate is
+`GS_RUN_LIVE=1 npm run release-candidate:check`.
 
 Live GemStone checks are opt-in:
 
 ```sh
 GS_RUN_LIVE=1 npm run test:live
+GS_RUN_LIVE=1 GS_NATIVE_SESSION_WORKER=1 npm run test:live
+npm run test:live:worker
 ```
 
 The live smoke covers connect, execute, class-side sends, `performWith()`,
-string, float, nested array marshalling/value/raw/page readback, dictionary readback, global
+string, float, nested array marshalling/value/raw/page readback, bounded
+dictionary readback, bounded global
 lookup/enumeration/nullable object/bulk required/raw set/removal helpers,
 `GsDict` metadata, value/raw enumeration, replace/clear, nullable
 object/dictionary pick, bulk required-read, and bulk removal helpers, and
-`PersistentRoot` value, dictionary, key, size, pick, required-value, batch-value, bulk
+`PersistentRoot` value, dictionary, bounded key, size, pick, required-value, batch-value, bulk
 nullable object/dictionary pick, required-read, and bulk removal helpers, plus
 `GStore` JSON transaction round-trips. It
 also covers live query add/remove, `count()`, `exists()`, `first()`, `limit()`,
-and index create/remove when the backing collection supports GemStone index
-selectors, plus migration upgrade/downgrade/current-version round-trips with a
-dedicated metadata root and advisory lock.
+larger bounded query result paths, and index create/remove when the backing
+collection supports GemStone index selectors, generated wrapper value/raw
+OOP/object-return calls against built-in classes, migration
+upgrade/downgrade/current-version round-trips with a dedicated metadata root and
+advisory lock, and real `SessionPool`,
+queued-acquire pressure, `withSessionScope()`, and Fetch, Express, Fastify, and
+Hono adapter commit/abort lifecycles through local framework fakes.
+It also runs a focused `GciSessionWorker` backend stress path covering
+concurrent JavaScript-side calls, fetch bytes, retained object export-set
+retain/release, failed send recovery, and logout shutdown.
 
 The inspection helpers are also available from the command line. The command
 uses the same `GS_*` connection environment as `Session.configFromEnv()`:
@@ -316,6 +354,23 @@ npm run benchmark:baselines -- candidate.json --manifest .github/benchmarks/inde
 npm run benchmark:register -- candidate.json --manifest .github/benchmarks/index.json
 ```
 
+`Session.configFromEnv()` prefers the canonical JavaScript names
+`GS_USERNAME`, `GS_PASSWORD`, `GS_HOST`, `GS_NETLDI`, and `GS_GEM_SERVICE`.
+It also accepts the Pharo bridge live-test aliases `GS_USER`, `GS_PASS`,
+`GS_NETLDI_HOST`, `GS_NETLDI_NAME_OR_PORT`, and `GS_SERVICE`, so the same shell
+can drive both projects. Tooling can call `sessionConfigFromEnv()` and
+`sessionEnvAliasConflicts()` to apply the same policy outside `Session`.
+
+Node uses the raw `@gemstone-js/native` `Gci` binding by default. To run each
+session through the native package's dedicated worker-thread wrapper, set
+`GS_NATIVE_SESSION_WORKER=1` or pass `nativeSessionWorker: true` to
+`Session.connect()`. Keep the raw backend when debugging low-level GCI behavior;
+use the worker backend when you want blocking native calls queued onto one OS
+thread per session. Worker dispatch is strict, so missing worker methods fail
+at worker creation instead of falling back to raw native module calls. If the
+installed native package does not export `createGciSessionWorker()`, update
+`@gemstone-js/native` or disable the worker switch.
+
 ## Example
 
 ```ts
@@ -333,7 +388,19 @@ console.log(oop);
 ## Runtime Notes
 
 The current comparison with `gemstone-py` is tracked in
-`docs/gemstone-py-parity.md`.
+`docs/gemstone-js-vs-gemstone-py.md`, with implementation-level parity notes
+in `docs/gemstone-py-parity.md`. The Rust/Python ecosystem view is summarized
+in `docs/gemstone-rs-comparison.md` and is available from
+`gemstone-js-compare gemstone-rs --scorecard`.
+Machine-readable comparison output uses
+`schemas/comparison-report.schema.json`; pass `--output <path>` to save the
+selected JSON, Markdown, or human report for CI artifacts or release notes.
+Use `--scope beta` for the narrower beta-hardening estimate, or the default
+`--scope full` for the broader product-parity plan.
+CI can pin expected planning numbers with `--assert-total-batches`,
+`--assert-hours-min`, and `--assert-hours-max`, or enforce upper bounds with
+`--max-total-batches`, `--max-hours-min`, and `--max-hours-max`. Use `--quiet`
+for no output on passing guard checks.
 
 Node uses `@gemstone-js/native`, which is scaffolded in `../gemstone-js-native`
 and is intended to expose napi-rs bindings over the shared `gemstone-gci` Rust

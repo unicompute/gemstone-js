@@ -151,9 +151,9 @@ export function inspectCliUsage(): string {
     "  gemstone-js-inspect --oop <oop> --dump [--depth <n>] [--no-indexed-fields]",
     "  gemstone-js-inspect --class <name> [--json]",
     "",
-    "Connection settings are read from GS_USERNAME, GS_PASSWORD, GS_STONE,",
-    "GS_NETLDI, GS_HOST, GS_GEM_SERVICE, GS_HOST_USERNAME, GS_HOST_PASSWORD,",
-    "and GS_LIB_PATH.",
+    "Connection settings are read from GS_USERNAME/GS_USER, GS_PASSWORD/GS_PASS,",
+    "GS_STONE, GS_NETLDI/GS_NETLDI_NAME_OR_PORT, GS_HOST/GS_NETLDI_HOST,",
+    "GS_GEM_SERVICE/GS_SERVICE, GS_HOST_USERNAME, GS_HOST_PASSWORD, and GS_LIB_PATH.",
     "",
   ].join("\n");
 }

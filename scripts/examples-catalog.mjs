@@ -28,6 +28,13 @@ export const exampleCatalog = [
     command: "node --experimental-strip-types examples/query.ts",
   },
   {
+    name: "bulk-perform",
+    path: "examples/bulk-perform.ts",
+    kind: "query",
+    description: "Raw, marshalled-value, object-handle, and mixed-call bulk selector sends.",
+    command: "node --experimental-strip-types examples/bulk-perform.ts",
+  },
+  {
     name: "booking",
     path: "examples/booking.ts",
     kind: "codegen",
@@ -70,7 +77,7 @@ export const exampleCatalog = [
     name: "object-log",
     path: "examples/object-log.ts",
     kind: "ops",
-    description: "ObjectLog writes, entry fetches, and level-aware display.",
+    description: "ObjectLog writes, latest-entry fetches, counts, summaries, and level-aware filtering.",
     command: "node --experimental-strip-types examples/object-log.ts",
   },
   {
@@ -123,7 +130,7 @@ export const examplePlans = [
     name: "data-persistence",
     title: "Data Persistence",
     description: "Work through roots, dictionaries, query helpers, GStore, and migrations.",
-    examples: ["persistent-root", "query", "gstore", "migrations"],
+    examples: ["persistent-root", "query", "bulk-perform", "gstore", "migrations"],
   },
   {
     name: "typed-codegen",

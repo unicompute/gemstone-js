@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { Session } from "../src/index.ts";
-import { migrationStepsFromManifest, runMigrationsCli } from "../src/migrations.ts";
+import { loadPackageModule } from "./load-package-module.mjs";
+
+const { Session } = await loadPackageModule("index.ts");
+const { migrationStepsFromManifest, runMigrationsCli } = await loadPackageModule("migrations.ts");
 
 const code = await runMigrationsCli(process.argv.slice(2), {
   stdout: process.stdout,

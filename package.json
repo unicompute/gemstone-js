@@ -12,42 +12,44 @@
   "bugs": {
     "url": "https://github.com/unicompute/gemstone-js/issues"
   },
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./src/index.ts",
-      "import": "./src/index.ts"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
     },
     "./testing": {
-      "types": "./src/testing/mock-runtime.ts",
-      "import": "./src/testing/mock-runtime.ts"
+      "types": "./dist/testing/mock-runtime.d.ts",
+      "import": "./dist/testing/mock-runtime.js"
     },
     "./adapters": {
-      "types": "./src/adapters/index.ts",
-      "import": "./src/adapters/index.ts"
+      "types": "./dist/adapters/index.d.ts",
+      "import": "./dist/adapters/index.js"
     },
     "./adapters/express": {
-      "types": "./src/adapters/express.ts",
-      "import": "./src/adapters/express.ts"
+      "types": "./dist/adapters/express.d.ts",
+      "import": "./dist/adapters/express.js"
     },
     "./adapters/fastify": {
-      "types": "./src/adapters/fastify.ts",
-      "import": "./src/adapters/fastify.ts"
+      "types": "./dist/adapters/fastify.d.ts",
+      "import": "./dist/adapters/fastify.js"
     },
     "./adapters/fetch": {
-      "types": "./src/adapters/fetch.ts",
-      "import": "./src/adapters/fetch.ts"
+      "types": "./dist/adapters/fetch.d.ts",
+      "import": "./dist/adapters/fetch.js"
     },
     "./adapters/hono": {
-      "types": "./src/adapters/hono.ts",
-      "import": "./src/adapters/hono.ts"
+      "types": "./dist/adapters/hono.d.ts",
+      "import": "./dist/adapters/hono.js"
     },
+    "./schemas/comparison-report.schema.json": "./schemas/comparison-report.schema.json",
     "./schemas/codegen-manifest.schema.json": "./schemas/codegen-manifest.schema.json",
     "./schemas/benchmark-report.schema.json": "./schemas/benchmark-report.schema.json",
     "./schemas/benchmark-baseline-manifest.schema.json": "./schemas/benchmark-baseline-manifest.schema.json"
   },
   "bin": {
+    "gemstone-js-compare": "./scripts/compare.mjs",
     "gemstone-js-benchmark-baselines": "./scripts/benchmark-baselines.mjs",
     "gemstone-js-benchmark-compare": "./scripts/benchmark-compare.mjs",
     "gemstone-js-benchmark-register": "./scripts/benchmark-register.mjs",
@@ -62,6 +64,7 @@
   },
   "files": [
     "src",
+    "dist",
     "docs",
     "examples",
     "schemas",
@@ -72,20 +75,30 @@
     "scripts/benchmark-validate.mjs",
     "scripts/benchmarks.mjs",
     "scripts/bootstrap.mjs",
+    "scripts/build-dist.mjs",
     "scripts/check-checksums.mjs",
+    "scripts/check-comparison-reports.mjs",
     "scripts/check-installed-api-contract.mjs",
     "scripts/check-package.mjs",
     "scripts/check-examples.mjs",
+    "scripts/check-live-smoke.mjs",
+    "scripts/check-native-install.mjs",
     "scripts/check-public-surface.mjs",
+    "scripts/check-release-candidate.mjs",
+    "scripts/check-release-artifacts.mjs",
     "scripts/codegen.mjs",
+    "scripts/compare.mjs",
     "scripts/doctor.mjs",
     "scripts/examples-catalog.mjs",
     "scripts/examples.mjs",
     "scripts/inspect.mjs",
+    "scripts/load-package-module.mjs",
     "scripts/migrations.mjs",
     "scripts/public-surface.expected.json",
+    "scripts/review-ci-artifact.mjs",
     "scripts/scan-codegen.mjs",
     "scripts/verify-checksums.mjs",
+    "scripts/verify-provenance-metadata.mjs",
     "scripts/write-checksums.mjs",
     "LICENSE",
     "README.md"
@@ -93,7 +106,7 @@
   "scripts": {
     "test": "node --test tests/*.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "build": "tsc -p tsconfig.json --noEmit",
+    "build": "node scripts/build-dist.mjs",
     "benchmark:baselines": "node scripts/benchmark-baselines.mjs",
     "benchmark:compare": "node scripts/benchmark-compare.mjs",
     "benchmark:register": "node scripts/benchmark-register.mjs",
@@ -108,6 +121,8 @@
     "codegen:check": "node scripts/codegen.mjs --check examples/codegen.manifest.json examples/codegen.generated.ts",
     "codegen:scan": "node scripts/scan-codegen.mjs",
     "codegen:scan:check": "node scripts/scan-codegen.mjs --module --check --out examples/booking.decorators.generated.ts examples/booking.decorators.ts",
+    "compare": "node scripts/compare.mjs",
+    "compare:check": "node scripts/check-comparison-reports.mjs",
     "doctor": "node scripts/doctor.mjs",
     "examples": "node scripts/examples.mjs",
     "examples:json": "node scripts/examples.mjs --json",
@@ -118,8 +133,16 @@
     "public-surface:write": "node scripts/check-public-surface.mjs --write",
     "checksum:check": "node scripts/check-checksums.mjs",
     "checksum:verify": "node scripts/verify-checksums.mjs",
+    "provenance:check": "node scripts/verify-provenance-metadata.mjs --self-test",
+    "release:check": "node scripts/check-release-artifacts.mjs",
+    "release-candidate:check": "node scripts/check-release-candidate.mjs",
+    "ci-artifact:review": "node scripts/review-ci-artifact.mjs",
+    "native-install:check": "node scripts/check-native-install.mjs",
+    "live:check": "node scripts/check-live-smoke.mjs",
     "test:live": "GS_RUN_LIVE=1 node --test tests/live.test.ts",
-    "verify": "npm run typecheck && npm run codegen:check && npm run codegen:scan:check && npm run examples:check && npm run public-surface:check && npm run api-contract && npm test && npm run checksum:check && npm run pack:check && npm run api-contract:installed"
+    "test:live:worker": "GS_RUN_LIVE=1 GS_NATIVE_SESSION_WORKER=1 node --test tests/live.test.ts",
+    "prepack": "npm run build",
+    "verify": "npm run typecheck && npm run codegen:check && npm run codegen:scan:check && npm run examples:check && npm run compare:check && npm run public-surface:check && npm run build && npm run api-contract && npm test && npm run live:check && npm run checksum:check && npm run provenance:check && npm run pack:check && npm run release:check && npm run api-contract:installed"
   },
   "optionalDependencies": {
     "@gemstone-js/native": "0.1.0-alpha.0"

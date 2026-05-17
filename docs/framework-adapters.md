@@ -60,11 +60,17 @@ node --experimental-strip-types examples/web-hono.ts
 
 The examples rely on the usual GemStone environment variables accepted by
 `Session.configFromEnv()`: `GS_STONE`, `GS_NETLDI`, `GS_HOST`,
-`GS_USERNAME`, `GS_PASSWORD`, and related host-login settings.
+`GS_USERNAME`, `GS_PASSWORD`, and related host-login settings. Pharo bridge
+aliases are accepted too: `GS_USER`, `GS_PASS`, `GS_NETLDI_HOST`,
+`GS_NETLDI_NAME_OR_PORT`, and `GS_SERVICE`.
 `npm run examples:check` syntax-checks the committed examples without requiring
 the optional framework packages to be installed.
 `gemstone-js-examples --commands --kind web` prints the install and run commands
 for the runnable web examples from an installed package.
+The opt-in live regression, `GS_RUN_LIVE=1 npm run test:live`, also exercises
+`SessionPool`, `withSessionScope()`, and the Fetch adapter against a real Stone
+so commit-on-success and abort-on-status behavior are covered below the mock
+adapter tests.
 
 ## Adapter Notes
 

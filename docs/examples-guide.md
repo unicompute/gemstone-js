@@ -26,6 +26,15 @@ The command list intentionally includes only examples that can be run directly.
 Reference fixtures such as generated wrapper output and route-handler modules
 stay visible in the catalog but do not get direct run commands.
 
+Installed-package smoke checks should resolve examples through the CLI instead
+of assuming checkout-relative paths:
+
+```sh
+gemstone-js-examples --show quickstart
+gemstone-js-examples --show codegen-manifest
+gemstone-js-examples --show booking-decorators
+```
+
 ## Guided Plans
 
 The plan view groups examples by workflow:
@@ -39,7 +48,8 @@ gemstone-js-examples --json --plan web-service
 Current plans:
 
 - `first-session`: connect, evaluate, and write/read ObjectLog entries.
-- `data-persistence`: roots, dictionaries, query helpers, GStore, and migrations.
+- `data-persistence`: roots, dictionaries, query helpers, bulk selector sends,
+  GStore, and migrations.
 - `typed-codegen`: manifests, decorated source, and generated wrappers.
 - `web-service`: Fetch, route-handler, Express, Fastify, and Hono shapes.
 - `ops-release`: migration, ObjectLog, and codegen checks used before release.
@@ -56,15 +66,44 @@ export GS_USERNAME=DataCurator
 export GS_PASSWORD=swordfish
 ```
 
+The canonical JavaScript names above take precedence. Existing Pharo bridge
+shells can use `GS_USER`, `GS_PASS`, `GS_NETLDI_HOST`,
+`GS_NETLDI_NAME_OR_PORT`, and `GS_SERVICE` as compatibility aliases.
+Set `GS_NATIVE_SESSION_WORKER=1` when you want examples that call
+`Session.connect()` to use the optional Node `GciSessionWorker` backend instead
+of the raw `Gci` backend.
+
 The committed check path does not connect to GemStone:
 
 ```sh
 npm run examples:check
+npm run live:check
 ```
 
 That check syntax-checks TypeScript examples, parses JSON examples, validates
 catalog metadata, validates guided plans, and fails if an example file is not in
-the catalog.
+the catalog. The live-smoke guard does not connect to GemStone; it runs the
+`tests/live.test.ts` skip path and verifies that the opt-in live regression keeps
+covering connection setup, arrays, dictionaries, globals, persistent roots,
+GStore, query helpers, and migrations.
+
+Use `npm run test:live:worker` to run the same opt-in live suite with
+`GS_NATIVE_SESSION_WORKER=1`.
+
+## Codegen Examples
+
+The generated wrapper examples are committed so they can be reviewed like
+normal source:
+
+```sh
+npm run codegen:check
+npm run codegen:scan:check
+```
+
+`examples/codegen.manifest.json` demonstrates typed imports, typed arguments,
+array and dictionary argument marshalling, value returns, raw OOP returns, and
+retained typed-object returns. `examples/booking.decorators.ts` exercises the
+decorator scanner and emits `examples/booking.decorators.generated.ts`.
 
 ## Web Examples
 

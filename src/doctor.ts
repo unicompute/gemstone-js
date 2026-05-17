@@ -1,9 +1,44 @@
 import { readdirSync } from "node:fs";
 import { Session } from "./client.ts";
 import { resolveGciLibraryPath, type GciLibraryDiscoveryEnv, type GciLibraryDiscoveryHost } from "./runtime/library-discovery.ts";
+import { sessionConfigFromEnv, sessionEnvAliasConflicts, type SessionEnv } from "./session-env.ts";
 import type { SessionConfig } from "./types.ts";
 
 type MaybePromise<T> = T | Promise<T>;
+
+const REQUIRED_NATIVE_SESSION_WORKER_METHODS = [
+  "init",
+  "encrypt",
+  "setNet",
+  "loginEx",
+  "logout",
+  "commit",
+  "abort",
+  "err",
+  "executeStr",
+  "perform",
+  "newString",
+  "newSymbol",
+  "newOop",
+  "resolveSymbol",
+  "fetchClass",
+  "fetchSize",
+  "fetchBytes",
+  "getSessionId",
+  "setSessionId",
+  "needsCommit",
+  "inTransaction",
+  "fltToOop",
+  "oopToFlt",
+  "symDictAt",
+  "symDictAtPut",
+  "symDictAtObjPut",
+  "strKeyValueDictAt",
+  "strKeyValueDictAtPut",
+  "addOopToExportSet",
+  "removeOopFromExportSet",
+  "close",
+] as const;
 
 export type DoctorStatus = "ok" | "warning" | "error";
 
@@ -23,6 +58,7 @@ export interface DoctorConfigReport {
   hostUsernameSet: boolean;
   hostPasswordSet: boolean;
   gemService: string;
+  nativeSessionWorker: boolean;
   libPath?: string;
 }
 
@@ -43,7 +79,7 @@ export interface DoctorOptions {
   env?: GciLibraryDiscoveryEnv & Record<string, string | undefined>;
   live?: boolean;
   native?: boolean;
-  nativeProbe?: () => MaybePromise<DoctorCheck>;
+  nativeProbe?: (options: { nativeSessionWorker: boolean }) => MaybePromise<DoctorCheck>;
   connect?: (config: SessionConfig) => Promise<DoctorSession>;
   libraryHost?: GciLibraryDiscoveryHost;
 }
@@ -52,7 +88,7 @@ export interface DoctorCliIo {
   stdout: { write(chunk: string): void };
   stderr: { write(chunk: string): void };
   env?: GciLibraryDiscoveryEnv & Record<string, string | undefined>;
-  nativeProbe?: () => MaybePromise<DoctorCheck>;
+  nativeProbe?: (options: { nativeSessionWorker: boolean }) => MaybePromise<DoctorCheck>;
   connect?: (config: SessionConfig) => Promise<DoctorSession>;
 }
 
@@ -65,15 +101,18 @@ interface DoctorCliOptions {
 
 export async function buildDoctorReport(options: DoctorOptions = {}): Promise<DoctorReport> {
   const env = options.env ?? defaultEnv();
-  const config = configFromEnv(env);
+  const config = sessionConfigFromEnv(env);
   const checks: DoctorCheck[] = [
     runtimeCheck(),
     credentialsCheck(config, options.live === true),
+    ...environmentAliasConflictChecks(env),
     libraryCheck(config, env, options.libraryHost ?? defaultLibraryHost()),
   ];
 
   if (options.native !== false) {
-    checks.push(await (options.nativeProbe ?? defaultNativeProbe)());
+    checks.push(await (options.nativeProbe ?? defaultNativeProbe)({
+      nativeSessionWorker: config.nativeSessionWorker === true,
+    }));
   }
   if (options.live) {
     checks.push(await liveCheck(config, options.connect ?? ((sessionConfig) => Session.connect(sessionConfig))));
@@ -154,20 +193,6 @@ function parseDoctorArgs(args: readonly string[]): DoctorCliOptions {
   return options;
 }
 
-function configFromEnv(env: GciLibraryDiscoveryEnv & Record<string, string | undefined>): SessionConfig {
-  return {
-    stone: env.GS_STONE ?? env.GS_STONE_NAME ?? "gs64stone",
-    netldi: env.GS_NETLDI ?? "netldi",
-    host: env.GS_HOST ?? "localhost",
-    username: env.GS_USERNAME,
-    password: env.GS_PASSWORD,
-    hostUsername: env.GS_HOST_USERNAME ?? "",
-    hostPassword: env.GS_HOST_PASSWORD ?? "",
-    gemService: env.GS_GEM_SERVICE ?? "gemnetobject",
-    libPath: env.GS_LIB_PATH,
-  };
-}
-
 function runtimeCheck(): DoctorCheck {
   const name = runtimeName();
   if (name === "unknown") {
@@ -186,8 +211,8 @@ function runtimeCheck(): DoctorCheck {
 
 function credentialsCheck(config: SessionConfig, live: boolean): DoctorCheck {
   const missing = [];
-  if (!config.username) missing.push("GS_USERNAME");
-  if (!config.password) missing.push("GS_PASSWORD");
+  if (!config.username) missing.push("GS_USERNAME/GS_USER");
+  if (!config.password) missing.push("GS_PASSWORD/GS_PASS");
   if (missing.length === 0) {
     return {
       name: "credentials",
@@ -200,6 +225,17 @@ function credentialsCheck(config: SessionConfig, live: boolean): DoctorCheck {
     status: live ? "error" : "warning",
     message: `missing ${missing.join(" and ")}${live ? "; live checks cannot run" : ""}`,
   };
+}
+
+function environmentAliasConflictChecks(env: SessionEnv): DoctorCheck[] {
+  const conflicts = sessionEnvAliasConflicts(env);
+  if (conflicts.length === 0) return [];
+  return [{
+    name: "environment-aliases",
+    status: "warning",
+    message: `conflicting environment aliases: ${conflicts.map(({ canonical, alias }) => `${canonical}/${alias}`).join(", ")}; canonical values win`,
+    details: { conflicts },
+  }];
 }
 
 function libraryCheck(
@@ -223,15 +259,48 @@ function libraryCheck(
   };
 }
 
-async function defaultNativeProbe(): Promise<DoctorCheck> {
+async function defaultNativeProbe(options: { nativeSessionWorker: boolean }): Promise<DoctorCheck> {
   try {
     const native = await import("@gemstone-js/native");
     const exports = Object.keys(native).filter((name) => name !== "default").sort();
+    const sessionWorkerAvailable = typeof native.createGciSessionWorker === "function";
+    const missingWorkerMethods = options.nativeSessionWorker && sessionWorkerAvailable
+      ? missingNativeSessionWorkerMethods(native)
+      : [];
+    if (options.nativeSessionWorker && !sessionWorkerAvailable) {
+      return {
+        name: "native-package",
+        status: "error",
+        message: "GS_NATIVE_SESSION_WORKER is enabled but @gemstone-js/native does not export createGciSessionWorker",
+        details: { exports, nativeSessionWorker: true, sessionWorkerAvailable },
+      };
+    }
+    if (options.nativeSessionWorker && missingWorkerMethods.length > 0) {
+      return {
+        name: "native-package",
+        status: "error",
+        message: `GS_NATIVE_SESSION_WORKER is enabled but GciSessionWorker is missing methods: ${missingWorkerMethods.join(", ")}`,
+        details: {
+          exports,
+          nativeSessionWorker: true,
+          sessionWorkerAvailable,
+          sessionWorkerSurfaceComplete: false,
+          missingWorkerMethods,
+        },
+      };
+    }
     return {
       name: "native-package",
       status: "ok",
-      message: "@gemstone-js/native is importable",
-      details: { exports },
+      message: options.nativeSessionWorker
+        ? "@gemstone-js/native is importable and supports GciSessionWorker"
+        : "@gemstone-js/native is importable",
+      details: {
+        exports,
+        nativeSessionWorker: options.nativeSessionWorker,
+        sessionWorkerAvailable,
+        ...(options.nativeSessionWorker ? { sessionWorkerSurfaceComplete: true } : {}),
+      },
     };
   } catch (error) {
     return {
@@ -241,6 +310,13 @@ async function defaultNativeProbe(): Promise<DoctorCheck> {
       details: { error: errorMessage(error) },
     };
   }
+}
+
+function missingNativeSessionWorkerMethods(native: Record<string, unknown>): string[] {
+  const Worker = native.GciSessionWorker as { prototype?: Record<string, unknown> } | undefined;
+  const prototype = Worker?.prototype;
+  if (!prototype) return [...REQUIRED_NATIVE_SESSION_WORKER_METHODS];
+  return REQUIRED_NATIVE_SESSION_WORKER_METHODS.filter((method) => typeof prototype[method] !== "function");
 }
 
 async function liveCheck(
@@ -291,6 +367,7 @@ function reportConfig(config: SessionConfig): DoctorConfigReport {
     hostUsernameSet: Boolean(config.hostUsername),
     hostPasswordSet: Boolean(config.hostPassword),
     gemService: config.gemService ?? "gemnetobject",
+    nativeSessionWorker: config.nativeSessionWorker === true,
     ...(config.libPath ? { libPath: config.libPath } : {}),
   };
 }

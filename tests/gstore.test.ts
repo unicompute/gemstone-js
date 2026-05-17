@@ -42,7 +42,16 @@ test("GStore transactions persist JSON values under GStoreRoot", async () => {
     beta: ["a", "b"],
     plain: "text",
   });
+  assert.equal(await GStore.has(session, "sample.db"), true);
+  assert.equal(await GStore.exists(session, "sample.db"), true);
+  assert.equal(await store.exists(), true);
+  assert.equal(await store.has(), true);
+  assert.equal(await GStore.has(session, "missing.db"), false);
   assert.deepEqual(await GStore.list(session), ["sample.db"]);
+  assert.deepEqual(await GStore.list(session, { maxEntries: 1 }), ["sample.db"]);
+  assert.deepEqual(await store.read({ maxEntries: 3 }), snapshot);
+  await assert.rejects(() => store.read({ maxEntries: 2 }), RangeError);
+  await assert.rejects(() => store.transaction((txn) => txn.keys(), { readOnly: true, maxReadEntries: 2 }), RangeError);
   assert(runtime.calls.some((call) => call.method === "commit"), "write transaction should commit");
   await session.logout();
 });
@@ -68,6 +77,32 @@ test("GStore buffers deletes and aborts cleanly", async () => {
   });
   assert.equal(abortResult, undefined);
   assert.deepEqual(await store.read(), { keep: true, added: 7 });
+  await session.logout();
+});
+
+test("GStore ignores stale missing-key abort errors before snapshots", async () => {
+  const runtime = newGStoreRuntime();
+  runtime.abort = async () => {
+    runtime.record("abort");
+    return false;
+  };
+  runtime.err = async () => {
+    runtime.record("err");
+    return {
+      number: 2021,
+      fatal: false,
+      message: "a LookupError occurred (error 2021), reason:rtErrKeyNotFound, A reference using the non-existent key 'sample.db' was made into the dictionary",
+    };
+  };
+  const session = await Session.connect({ username: "u", password: "p", runtime });
+  const store = await GStore.open(session, "sample.db");
+
+  await store.transaction((txn) => {
+    txn.set("alpha", "value");
+  });
+
+  assert.deepEqual(await store.read(), { alpha: "value" });
+  assert(runtime.calls.some((call) => call.method === "err"), "stale abort failure should inspect runtime error info");
   await session.logout();
 });
 
@@ -110,7 +145,11 @@ test("GStore remove helpers delete named stores and root", async () => {
   await GStore.open(session, "two.db");
 
   assert.deepEqual(new Set(await GStore.list(session)), new Set(["one.db", "two.db"]));
+  assert.equal(await GStore.has(session, "one.db"), true);
+  assert.equal(await GStore.exists(session, "missing.db"), false);
+  await assert.rejects(() => GStore.list(session, { maxEntries: 1 }), RangeError);
   assert.equal(await GStore.remove(session, "one.db"), true);
+  assert.equal(await GStore.has(session, "one.db"), false);
   assert.deepEqual(await GStore.list(session), ["two.db"]);
   assert.equal(await GStore.rm(session, "missing.db"), false);
   assert.equal(await GStore.removeAll(session), true);

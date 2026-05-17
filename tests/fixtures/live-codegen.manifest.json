@@ -1,0 +1,37 @@
+{
+  "$schema": "../../schemas/codegen-manifest.schema.json",
+  "imports": [
+    {
+      "from": "../../src/index.ts",
+      "typeNames": ["MarshalledValue", "Oop", "Session", "TypedOop"]
+    }
+  ],
+  "functions": [
+    {
+      "exportedName": "generatedObjectPrintString",
+      "className": "Object",
+      "selector": "printString",
+      "argNames": [],
+      "sessionType": "Session",
+      "returnType": "MarshalledValue"
+    },
+    {
+      "exportedName": "generatedObjectClassOop",
+      "className": "Object",
+      "selector": "yourself",
+      "argNames": [],
+      "sessionType": "Session",
+      "returnType": "Oop",
+      "returnKind": "oop"
+    },
+    {
+      "exportedName": "generatedNewObject",
+      "className": "Object",
+      "selector": "new",
+      "argNames": [],
+      "sessionType": "Session",
+      "returnType": "TypedOop<unknown>",
+      "returnKind": "object"
+    }
+  ]
+}

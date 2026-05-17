@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 import { readFile, writeFile } from "node:fs/promises";
-import { renderGeneratedModule, validateGeneratedModuleOptions } from "../src/codegen.ts";
+import { loadPackageModule } from "./load-package-module.mjs";
+
+const { renderGeneratedModule, validateGeneratedModuleOptions } = await loadPackageModule("codegen.ts");
 
 const { check, help, manifestPath, outputPath, extra } = parseArgs(process.argv.slice(2));
 

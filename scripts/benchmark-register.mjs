@@ -1,5 +1,7 @@
 #!/usr/bin/env node
-import { runBenchmarkRegisterCli } from "../src/benchmark-baselines.ts";
+import { loadPackageModule } from "./load-package-module.mjs";
+
+const { runBenchmarkRegisterCli } = await loadPackageModule("benchmark-baselines.ts");
 
 process.exitCode = await runBenchmarkRegisterCli(process.argv.slice(2), {
   stdout: process.stdout,

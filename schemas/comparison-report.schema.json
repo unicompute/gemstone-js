@@ -1,0 +1,235 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://unicompute.github.io/gemstone-js/schemas/comparison-report.schema.json",
+  "title": "gemstone-js comparison report",
+  "type": "object",
+  "required": ["$schema", "schema_version", "comparison", "scope", "view", "title", "answer"],
+  "properties": {
+    "$schema": {
+      "const": "./schemas/comparison-report.schema.json"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "comparison": {
+      "enum": ["gemstone-js", "gemstone-rs", "all"]
+    },
+    "scope": {
+      "enum": ["full", "beta"]
+    },
+    "view": {
+      "enum": ["summary", "scorecard", "gaps", "next", "totals", "batches"]
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "answer": {
+      "type": "string",
+      "minLength": 1
+    },
+    "fullGuide": {
+      "type": "string",
+      "minLength": 1
+    },
+    "rows": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/summaryRow"
+      }
+    },
+    "gaps": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/gap"
+      }
+    },
+    "batch": {
+      "$ref": "#/$defs/batch"
+    },
+    "nextBatch": {
+      "$ref": "#/$defs/batch"
+    },
+    "topGap": {
+      "$ref": "#/$defs/gap"
+    },
+    "totalBatches": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "hoursMin": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "hoursMax": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "batches": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/batch"
+      }
+    },
+    "comparisons": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/comparisonEntry"
+      }
+    },
+    "gemstonePyUseWhen": {
+      "$ref": "#/$defs/stringList"
+    },
+    "projectUseWhen": {
+      "$ref": "#/$defs/stringList"
+    },
+    "gemstonePyStrengths": {
+      "$ref": "#/$defs/stringList"
+    },
+    "projectStrengths": {
+      "$ref": "#/$defs/stringList"
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "stringList": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "summaryRow": {
+      "type": "object",
+      "required": ["topic", "gemstonePy", "project", "recommendation"],
+      "properties": {
+        "topic": {
+          "type": "string",
+          "minLength": 1
+        },
+        "gemstonePy": {
+          "type": "string",
+          "minLength": 1
+        },
+        "project": {
+          "type": "string",
+          "minLength": 1
+        },
+        "recommendation": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "gap": {
+      "type": "object",
+      "required": ["priority", "area", "gemstonePyStrength", "projectGap", "nextAction", "verifyWith"],
+      "properties": {
+        "priority": {
+          "type": "string",
+          "minLength": 1
+        },
+        "area": {
+          "type": "string",
+          "minLength": 1
+        },
+        "gemstonePyStrength": {
+          "type": "string",
+          "minLength": 1
+        },
+        "projectGap": {
+          "type": "string",
+          "minLength": 1
+        },
+        "nextAction": {
+          "type": "string",
+          "minLength": 1
+        },
+        "verifyWith": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "batch": {
+      "type": "object",
+      "required": ["number", "focus", "hoursMin", "hoursMax", "outcome", "verifyWith"],
+      "properties": {
+        "number": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "focus": {
+          "type": "string",
+          "minLength": 1
+        },
+        "hoursMin": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "hoursMax": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "outcome": {
+          "type": "string",
+          "minLength": 1
+        },
+        "verifyWith": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "comparisonEntry": {
+      "type": "object",
+      "required": ["comparison", "scope"],
+      "properties": {
+        "comparison": {
+          "enum": ["gemstone-js", "gemstone-rs"]
+        },
+        "scope": {
+          "enum": ["full", "beta"]
+        },
+        "answer": {
+          "type": "string",
+          "minLength": 1
+        },
+        "totalBatches": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "hoursMin": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "hoursMax": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "batches": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/batch"
+          }
+        },
+        "batch": {
+          "$ref": "#/$defs/batch"
+        },
+        "gap": {
+          "$ref": "#/$defs/gap"
+        },
+        "gaps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/gap"
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

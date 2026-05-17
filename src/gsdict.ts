@@ -11,6 +11,12 @@ import type { GemStoneInspection } from "./types.ts";
 
 type OopHandle<T = unknown> = TypedOop<T> | ManagedOop<T> | Oop;
 
+export interface KeyedReadbackOptions {
+  maxEntries?: number;
+}
+
+export type DictionaryReadbackOptions = KeyedReadbackOptions;
+
 export class GsDict implements AsyncDisposable {
   readonly session: Session;
   readonly oop: Oop;
@@ -175,16 +181,28 @@ export class GsDict implements AsyncDisposable {
     return await this.size() === 0;
   }
 
-  async keys(): Promise<string[]> {
+  async keys(options: KeyedReadbackOptions = {}): Promise<string[]> {
+    const maxEntries = normalizeDictionaryMaxEntries(options.maxEntries);
+    const tempSource = Number.isFinite(maxEntries) ? "| dict limit count |" : "| dict |";
+    const limitSource = Number.isFinite(maxEntries) ? `limit := ${maxEntries + 1}.\n      count := 0.` : "";
+    const writeGuardOpen = Number.isFinite(maxEntries) ? "count < limit ifTrue: [ count := count + 1." : "";
+    const writeGuardClose = Number.isFinite(maxEntries) ? "]" : "";
     const source = `
-      | dict |
+      ${tempSource}
       dict := Object _objectForOop: ${this.oop.toString()}.
+      ${limitSource}
       String streamContents: [:stream |
         dict keysAndValuesDo: [:key :value |
-          stream nextPutAll: key asString; lf]]
+          ${writeGuardOpen}
+          stream nextPutAll: key asString; lf
+          ${writeGuardClose}]]
     `;
     const result = await this.session.eval(source);
-    return typeof result === "string" ? result.split(/\r?\n/).filter(Boolean) : [];
+    const keys = typeof result === "string" ? result.split(/\r?\n/).filter(Boolean) : [];
+    if (keys.length > maxEntries) {
+      throw new RangeError(`GemStone dictionary readback exceeded maxEntries ${maxEntries}.`);
+    }
+    return keys;
   }
 
   async pick(keys: readonly string[]): Promise<Record<string, MarshalledValue>> {
@@ -224,37 +242,37 @@ export class GsDict implements AsyncDisposable {
     return result;
   }
 
-  async entries(): Promise<Record<string, MarshalledValue>> {
-    return this.pick(await this.keys());
+  async entries(options: KeyedReadbackOptions = {}): Promise<Record<string, MarshalledValue>> {
+    return this.pick(await this.keys(options));
   }
 
-  async entriesOop(): Promise<Record<string, Oop | null>> {
-    return this.pickOop(await this.keys());
+  async entriesOop(options: KeyedReadbackOptions = {}): Promise<Record<string, Oop | null>> {
+    return this.pickOop(await this.keys(options));
   }
 
-  async toObject(): Promise<Record<string, MarshalledValue>> {
-    return this.entries();
+  async toObject(options: KeyedReadbackOptions = {}): Promise<Record<string, MarshalledValue>> {
+    return this.entries(options);
   }
 
-  async values(): Promise<MarshalledValue[]> {
-    return (await this.items()).map(([, value]) => value);
+  async values(options: KeyedReadbackOptions = {}): Promise<MarshalledValue[]> {
+    return (await this.items(options)).map(([, value]) => value);
   }
 
-  async valuesOop(): Promise<Oop[]> {
-    return (await this.itemsOop()).map(([, value]) => value);
+  async valuesOop(options: KeyedReadbackOptions = {}): Promise<Oop[]> {
+    return (await this.itemsOop(options)).map(([, value]) => value);
   }
 
-  async items(): Promise<Array<[string, MarshalledValue]>> {
+  async items(options: KeyedReadbackOptions = {}): Promise<Array<[string, MarshalledValue]>> {
     const result: Array<[string, MarshalledValue]> = [];
-    for (const key of await this.keys()) {
+    for (const key of await this.keys(options)) {
       result.push([key, await this.get(key)]);
     }
     return result;
   }
 
-  async itemsOop(): Promise<Array<[string, Oop]>> {
+  async itemsOop(options: KeyedReadbackOptions = {}): Promise<Array<[string, Oop]>> {
     const result: Array<[string, Oop]> = [];
-    for (const key of await this.keys()) {
+    for (const key of await this.keys(options)) {
       const value = await this.getOop(key);
       if (value !== null) result.push([key, value]);
     }
@@ -377,6 +395,14 @@ function toSafeSize(value: MarshalledValue): number {
 function toBoolean(value: MarshalledValue, operation: string): boolean {
   if (typeof value === "boolean") return value;
   throw new TypeError(`${operation} must answer a boolean, got ${String(value)}.`);
+}
+
+function normalizeDictionaryMaxEntries(value: number | undefined): number {
+  if (value === undefined) return Number.POSITIVE_INFINITY;
+  if (!Number.isSafeInteger(value) || value < 0) {
+    throw new RangeError("GemStone dictionary maxEntries must be a non-negative safe integer.");
+  }
+  return value;
 }
 
 function rawOop<T>(value: OopHandle<T>): Oop {

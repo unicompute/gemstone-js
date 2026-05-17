@@ -1,4 +1,4 @@
-import { GsDict } from "./gsdict.ts";
+import { GsDict, type KeyedReadbackOptions } from "./gsdict.ts";
 import { PersistentRoot } from "./persistent-root.ts";
 import type { Session } from "./client.ts";
 
@@ -14,8 +14,11 @@ export type GStoreJsonValue =
 
 export interface GStoreTransactionOptions {
   readOnly?: boolean;
+  maxReadEntries?: number;
   maxRetries?: number;
 }
+
+export type GStoreReadOptions = KeyedReadbackOptions;
 
 type MaybePromise<T> = T | Promise<T>;
 
@@ -155,9 +158,18 @@ export class GStore {
     return store;
   }
 
-  static async list(session: Session): Promise<string[]> {
+  static async list(session: Session, options: KeyedReadbackOptions = {}): Promise<string[]> {
     const root = await findGStoreRoot(session);
-    return root ? root.keys() : [];
+    return root ? root.keys(options) : [];
+  }
+
+  static async has(session: Session, name: string): Promise<boolean> {
+    const root = await findGStoreRoot(session);
+    return root ? root.has(name) : false;
+  }
+
+  static async exists(session: Session, name: string): Promise<boolean> {
+    return this.has(session, name);
   }
 
   static async remove(session: Session, name: string): Promise<boolean> {
@@ -182,8 +194,16 @@ export class GStore {
     return this;
   }
 
-  async read(): Promise<Record<string, GStoreJsonValue>> {
-    return readFile(await this.#file());
+  async exists(): Promise<boolean> {
+    return GStore.has(this.session, this.name);
+  }
+
+  async has(): Promise<boolean> {
+    return this.exists();
+  }
+
+  async read(options: GStoreReadOptions = {}): Promise<Record<string, GStoreJsonValue>> {
+    return readFile(await this.#file(), options);
   }
 
   async transaction<T>(
@@ -196,20 +216,20 @@ export class GStore {
     const maxRetries = normalizeMaxRetries(options.maxRetries ?? 10);
     let transaction: GStoreTransaction | undefined;
     try {
-      await this.session.abort();
-      transaction = new GStoreTransaction(await this.read(), readOnly);
+      await abortGStoreSession(this.session);
+      transaction = new GStoreTransaction(await this.read({ maxEntries: options.maxReadEntries }), readOnly);
       let result: T;
       try {
         result = await fn(transaction);
       } catch (error) {
         transaction.close();
-        await this.session.abort();
+        await abortGStoreSession(this.session);
         if (error instanceof GStoreAbortTransaction) return undefined;
         throw error;
       }
       transaction.close();
       if (readOnly || !transaction.dirty) {
-        await this.session.abort();
+        await abortGStoreSession(this.session);
         return result;
       }
       await this.#commitWithRetry(transaction.dirtyEntries(), transaction.deletedKeys(), maxRetries);
@@ -262,9 +282,9 @@ async function findGStoreRoot(session: Session): Promise<GsDict | null> {
   return PersistentRoot.userGlobals(session).getDict(GSTORE_ROOT);
 }
 
-async function readFile(file: GsDict): Promise<Record<string, GStoreJsonValue>> {
+async function readFile(file: GsDict, options: GStoreReadOptions = {}): Promise<Record<string, GStoreJsonValue>> {
   const result: Record<string, GStoreJsonValue> = {};
-  for (const [key, raw] of await file.items()) {
+  for (const [key, raw] of await file.items(options)) {
     result[key] = deserializeGStoreValue(raw);
   }
   return result;
@@ -332,4 +352,19 @@ function normalizeMaxRetries(value: number): number {
 function isLikelyCommitConflict(error: unknown): boolean {
   const text = error instanceof Error ? `${error.message} ${String((error as { reason?: unknown }).reason ?? "")}` : String(error);
   return /conflict/i.test(text);
+}
+
+async function abortGStoreSession(session: Session): Promise<void> {
+  try {
+    await session.abort();
+  } catch (error) {
+    if (isIgnorableGStoreAbortError(error)) return;
+    throw error;
+  }
+}
+
+function isIgnorableGStoreAbortError(error: unknown): boolean {
+  const number = (error as { number?: unknown }).number;
+  const text = error instanceof Error ? error.message : String(error);
+  return number === 2021 && /rtErrKeyNotFound|non-existent key/i.test(text);
 }

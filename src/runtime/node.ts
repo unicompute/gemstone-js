@@ -4,27 +4,67 @@ import type { GciErrorInfo, GciRuntime, LoginOptions, SymDictLookup } from "../t
 type NativeModule = Record<string, unknown>;
 type NativeGci = Record<string, unknown>;
 
+const REQUIRED_SESSION_WORKER_METHODS = [
+  "init",
+  "encrypt",
+  "setNet",
+  "loginEx",
+  "logout",
+  "commit",
+  "abort",
+  "err",
+  "executeStr",
+  "perform",
+  "newString",
+  "newSymbol",
+  "newOop",
+  "resolveSymbol",
+  "fetchClass",
+  "fetchSize",
+  "fetchBytes",
+  "getSessionId",
+  "setSessionId",
+  "needsCommit",
+  "inTransaction",
+  "fltToOop",
+  "oopToFlt",
+  "symDictAt",
+  "symDictAtPut",
+  "symDictAtObjPut",
+  "strKeyValueDictAt",
+  "strKeyValueDictAtPut",
+  "addOopToExportSet",
+  "removeOopFromExportSet",
+  "close",
+] as const;
+
+export interface NodeRuntimeOptions {
+  nativeSessionWorker?: boolean;
+  nativeModule?: NativeModule | Promise<NativeModule>;
+  env?: Record<string, string | undefined>;
+}
+
 let nativeModulePromise: Promise<NativeModule> | undefined;
 
-export function createNodeRuntime(): GciRuntime {
+export function createNodeRuntime(options: NodeRuntimeOptions = {}): GciRuntime {
   let nativeGci: NativeGci | undefined;
+  const useSessionWorker = options.nativeSessionWorker ?? nativeSessionWorkerFromEnv(options.env);
 
   async function call(method: string, ...args: unknown[]): Promise<unknown> {
-    const native = await loadNative();
+    const native = await loadRuntimeNative(options);
     if (!nativeGci) await runtime.init();
-    return optionalCall(nativeGci, native, method, ...args);
+    return optionalCall(nativeGci, native, method, { strictTarget: useSessionWorker }, ...args);
   }
 
   const runtime: GciRuntime = {
-    name: "node",
+    name: useSessionWorker ? "node-worker" : "node",
 
     async init(libPath?: string): Promise<number | void> {
-      const native = await loadNative();
+      const native = await loadRuntimeNative(options);
       if (!nativeGci) {
-        const Gci = native.Gci as { new (libPath?: string): NativeGci } | undefined;
-        nativeGci = Gci ? new Gci(libPath) : native;
+        nativeGci = await createNativeTarget(native, libPath, useSessionWorker);
       }
-      return await optionalCall(nativeGci, native, "init", libPath) as number | void;
+      return await optionalCall(nativeGci, native, "init", { strictTarget: useSessionWorker }, libPath) as number | void;
     },
 
     async encrypt(password: string): Promise<string> {
@@ -44,7 +84,14 @@ export function createNodeRuntime(): GciRuntime {
     },
 
     async logout(_sessionId?: number): Promise<void> {
-      await call("logout");
+      if (!nativeGci) return;
+      const native = await loadRuntimeNative(options);
+      try {
+        await optionalCall(nativeGci, native, "logout", { strictTarget: useSessionWorker });
+      } finally {
+        await closeNativeTarget(nativeGci);
+        nativeGci = undefined;
+      }
     },
 
     async commit(): Promise<boolean> {
@@ -96,6 +143,7 @@ export function createNodeRuntime(): GciRuntime {
       const bytes = await call("fetchBytes", value.toString(), start, count);
       if (bytes instanceof Uint8Array) return bytes;
       if (Array.isArray(bytes)) return Uint8Array.from(bytes as number[]);
+      if (isSerializedBuffer(bytes)) return Uint8Array.from(bytes.data);
       throw new TypeError("Expected native fetchBytes() to return Uint8Array.");
     },
 
@@ -146,12 +194,12 @@ export function createNodeRuntime(): GciRuntime {
 
     async addOopToExportSet(value: Oop): Promise<void> {
       if (!nativeGci) await runtime.init();
-      await optionalCall(nativeGci, await loadNative(), "addOopToExportSet", value.toString());
+      await optionalCall(nativeGci, await loadRuntimeNative(options), "addOopToExportSet", { strictTarget: useSessionWorker }, value.toString());
     },
 
     async removeOopFromExportSet(value: Oop): Promise<void> {
       if (!nativeGci) await runtime.init();
-      await optionalCall(nativeGci, await loadNative(), "removeOopFromExportSet", value.toString());
+      await optionalCall(nativeGci, await loadRuntimeNative(options), "removeOopFromExportSet", { strictTarget: useSessionWorker }, value.toString());
     },
   };
 
@@ -159,6 +207,10 @@ export function createNodeRuntime(): GciRuntime {
 }
 
 export const gci: GciRuntime = createNodeRuntime();
+
+async function loadRuntimeNative(options: NodeRuntimeOptions): Promise<NativeModule> {
+  return options.nativeModule ? await options.nativeModule : loadNative();
+}
 
 async function loadNative(): Promise<NativeModule> {
   nativeModulePromise ??= import("@gemstone-js/native").catch((error: unknown) => {
@@ -170,12 +222,91 @@ async function loadNative(): Promise<NativeModule> {
   return nativeModulePromise;
 }
 
-async function optionalCall(target: NativeGci | undefined, native: NativeModule, method: string, ...args: unknown[]): Promise<unknown> {
-  const fn = (target?.[method] ?? native[method]) as ((...args: unknown[]) => unknown) | undefined;
-  if (!fn) {
-    throw new Error(`@gemstone-js/native does not export ${method}().`);
+async function createNativeTarget(native: NativeModule, libPath: string | undefined, useSessionWorker: boolean): Promise<NativeGci> {
+  if (useSessionWorker) {
+    const createWorker = native.createGciSessionWorker as ((libPath?: string | null) => NativeGci) | undefined;
+    if (!createWorker) {
+      throw new Error(
+        "@gemstone-js/native does not export createGciSessionWorker(). Update @gemstone-js/native to a worker-capable version or disable GS_NATIVE_SESSION_WORKER.",
+      );
+    }
+    const worker = createWorker(libPath ?? null);
+    const missingMethods = missingNativeTargetMethods(worker, REQUIRED_SESSION_WORKER_METHODS);
+    if (missingMethods.length > 0) {
+      await closeNativeTarget(worker).catch(() => undefined);
+      throw new Error(`GciSessionWorker is missing required methods: ${missingMethods.join(", ")}.`);
+    }
+    return worker;
   }
-  return await fn.apply(target ?? native, args);
+  const Gci = native.Gci as { new (libPath?: string): NativeGci } | undefined;
+  return Gci ? new Gci(libPath) : native;
+}
+
+function missingNativeTargetMethods(target: NativeGci, methods: readonly string[]): string[] {
+  return methods.filter((method) => typeof target[method] !== "function");
+}
+
+async function closeNativeTarget(target: NativeGci): Promise<void> {
+  const close = target.close as (() => unknown) | undefined;
+  if (typeof close === "function") await close.call(target);
+}
+
+interface OptionalCallOptions {
+  strictTarget?: boolean;
+}
+
+async function optionalCall(
+  target: NativeGci | undefined,
+  native: NativeModule,
+  method: string,
+  options: OptionalCallOptions,
+  ...args: unknown[]
+): Promise<unknown> {
+  const { fn, receiver, owner } = resolveOptionalCallTarget(target, native, method, options);
+  if (!fn) {
+    throw new Error(`${owner} does not export ${method}().`);
+  }
+  return await fn.apply(receiver, args);
+}
+
+function resolveOptionalCallTarget(
+  target: NativeGci | undefined,
+  native: NativeModule,
+  method: string,
+  options: OptionalCallOptions,
+): { fn: ((...args: unknown[]) => unknown) | undefined; receiver: NativeGci | NativeModule; owner: string } {
+  if (options.strictTarget && target) {
+    return {
+      fn: typeof target[method] === "function" ? target[method] as (...args: unknown[]) => unknown : undefined,
+      receiver: target,
+      owner: "GciSessionWorker",
+    };
+  }
+  if (target && typeof target[method] === "function") {
+    return {
+      fn: target[method] as (...args: unknown[]) => unknown,
+      receiver: target,
+      owner: "@gemstone-js/native",
+    };
+  }
+  return {
+    fn: typeof native[method] === "function" ? native[method] as (...args: unknown[]) => unknown : undefined,
+    receiver: native,
+    owner: "@gemstone-js/native",
+  };
+}
+
+function nativeSessionWorkerFromEnv(env = defaultNodeEnv()): boolean {
+  return envFlag(env.GS_NATIVE_SESSION_WORKER);
+}
+
+function defaultNodeEnv(): Record<string, string | undefined> {
+  return (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env ?? {};
+}
+
+function envFlag(value: string | undefined): boolean {
+  if (value === undefined || value === "") return false;
+  return ["1", "true", "yes", "on"].includes(value.toLowerCase());
 }
 
 export function normalizeNativeErrorInfo(value: unknown): GciErrorInfo {
@@ -197,4 +328,13 @@ function oopFrom(value: unknown): Oop {
     return oop(value);
   }
   throw new TypeError(`Expected OOP-compatible bigint, number, or string; got ${typeof value}.`);
+}
+
+function isSerializedBuffer(value: unknown): value is { data: number[] } {
+  return Boolean(
+    value
+      && typeof value === "object"
+      && Array.isArray((value as { data?: unknown }).data)
+      && (value as { data: unknown[] }).data.every((item) => typeof item === "number"),
+  );
 }

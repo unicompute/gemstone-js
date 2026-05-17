@@ -79,4 +79,43 @@ declare module "@gemstone-js/native" {
     addOopToExportSet(oop: string): void;
     removeOopFromExportSet(oop: string): void;
   }
+
+  export class GciSessionWorker {
+    constructor(libPath?: string | null);
+    call(method: string, ...args: unknown[]): Promise<unknown>;
+    close(): Promise<void>;
+    init(libPath?: string): Promise<number>;
+    libraryPath(): Promise<string>;
+    encrypt(password: string): Promise<string>;
+    setNet(stoneName: string, hostUsername: string, encryptedHostPassword: string, gemService: string): Promise<void>;
+    loginEx(options: LoginOptions): Promise<number>;
+    logout(): Promise<number>;
+    commit(): Promise<boolean>;
+    abort(): Promise<boolean>;
+    err(): Promise<GciErrorInfo | null>;
+    executeStr(source: string, receiver?: string): Promise<string>;
+    perform(receiver: string, selector: string, args?: string[]): Promise<string>;
+    newString(value: string): Promise<string>;
+    newSymbol(value: string): Promise<string>;
+    newOop(classOop: string): Promise<string>;
+    resolveSymbol(name: string, symbolList?: string): Promise<string>;
+    fetchClass(oop: string): Promise<string>;
+    fetchSize(oop: string): Promise<number>;
+    fetchBytes(oop: string, start: number, count: number): Promise<Uint8Array>;
+    getSessionId(): Promise<number>;
+    setSessionId(sessionId: number): Promise<void>;
+    needsCommit(): Promise<boolean>;
+    inTransaction(): Promise<boolean>;
+    fltToOop(value: number): Promise<string>;
+    oopToFlt(oop: string): Promise<number>;
+    symDictAt(dict: string, key: string): Promise<SymDictLookup>;
+    symDictAtPut(dict: string, key: string, value: string): Promise<void>;
+    symDictAtObjPut(dict: string, key: string, value: string): Promise<void>;
+    strKeyValueDictAt(dict: string, key: string): Promise<string>;
+    strKeyValueDictAtPut(dict: string, key: string, value: string): Promise<void>;
+    addOopToExportSet(oop: string): Promise<void>;
+    removeOopFromExportSet(oop: string): Promise<void>;
+  }
+
+  export function createGciSessionWorker(libPath?: string | null): GciSessionWorker;
 }

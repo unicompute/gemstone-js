@@ -1,12 +1,14 @@
 #!/usr/bin/env node
 import { readFile, writeFile } from "node:fs/promises";
 import ts from "typescript";
-import {
+import { loadPackageModule } from "./load-package-module.mjs";
+
+const {
   inferGeneratedReturnKind,
   inferSelector,
   renderGeneratedModule,
   validateGeneratedModuleOptions,
-} from "../src/codegen.ts";
+} = await loadPackageModule("codegen.ts");
 
 const TYPE_PRINTER = ts.createPrinter({ removeComments: true });
 

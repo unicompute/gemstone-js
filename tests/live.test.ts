@@ -3,14 +3,26 @@ import test from "node:test";
 import {
   GSCollection,
   GStore,
+  ObjectLog,
   PersistentRoot,
   Session,
+  SessionPool,
   currentVersion,
   downgrade,
+  gemstoneExpress,
+  gemstoneFastify,
+  gemstoneFetch,
+  gemstoneHono,
   smallintToOop,
   upgrade,
+  withSessionScope,
   type MigrationStep,
 } from "../src/index.ts";
+import {
+  generatedNewObject,
+  generatedObjectClassOop,
+  generatedObjectPrintString,
+} from "./fixtures/live-codegen.generated.ts";
 
 const runLive = process.env.GS_RUN_LIVE === "1";
 
@@ -22,6 +34,17 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
   const objectClass = session.classRef("Object");
   const objectClassOop = await objectClass.oop();
   assert.equal(await objectClass.sendOop("yourself"), objectClassOop);
+  assert.match(String(await generatedObjectPrintString(session)), /Object/);
+  assert.equal(await generatedObjectClassOop(session), objectClassOop);
+  const generatedObject = await generatedNewObject(session);
+  assert.equal(generatedObject.session, session);
+  await generatedObject.release();
+  const liveBulkObjects = await session.bulkPerformObjects([objectClassOop], "new");
+  assert.equal(liveBulkObjects.length, 1);
+  await Promise.all(liveBulkObjects.map((item) => item.release()));
+  const liveBulkCallObjects = await session.performCallsObjectsWith([{ receiver: objectClassOop, selector: "new" }]);
+  assert.equal(liveBulkCallObjects.length, 1);
+  await Promise.all(liveBulkCallObjects.map((item) => item.release()));
   const executedObject = await session.executeObject("Object new");
   assert.equal(executedObject.session, session);
   await executedObject.release();
@@ -29,9 +52,45 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
   assert.equal(executedManaged.session, session);
   await executedManaged.release();
   assert.equal(await session.performValueWith(smallintToOop(7), "yourself"), 7n);
+  assert.deepEqual(await session.bulkPerformOop([smallintToOop(7), smallintToOop(8)], "yourself"), [
+    smallintToOop(7),
+    smallintToOop(8),
+  ]);
+  assert.deepEqual(await session.performManyValue([smallintToOop(7), smallintToOop(8)], "yourself"), [7n, 8n]);
+  assert.deepEqual(await session.performCallsValue([
+    { receiver: smallintToOop(7), selector: "yourself" },
+    [smallintToOop(8), "yourself"],
+  ]), [7n, 8n]);
+  assert.deepEqual(await session.bulkPerformValueWith([smallintToOop(7), smallintToOop(8)], "+", 1), [8n, 9n]);
+  assert.deepEqual(await session.performCallsValueWith([
+    { receiver: smallintToOop(7), selector: "+", args: [1] },
+    [smallintToOop(8), "+", [1]],
+  ]), [8n, 9n]);
 
   const stringOop = await session.newString("gemstone-js live");
   assert.equal(await session.marshalOop(stringOop), "gemstone-js live");
+
+  const objectLog = new ObjectLog(session);
+  const objectLogLabel = `gemstone-js live objectlog ${Date.now()}`;
+  const objectLogEntriesToDelete: Array<{ index: number }> = [];
+  try {
+    await objectLog.info(`${objectLogLabel} info`);
+    await objectLog.error(`${objectLogLabel} error`);
+    assert.equal(await objectLog.hasEntries(), true);
+    assert.equal(await objectLog.hasEntries("error"), true);
+    assert.ok(await objectLog.count() >= 2);
+    assert.ok(await objectLog.countFor("error") >= 1);
+    const recentObjectLogEntries = await objectLog.latest(50);
+    objectLogEntriesToDelete.push(...recentObjectLogEntries.filter((entry) => entry.label.startsWith(objectLogLabel)));
+    assert.equal(recentObjectLogEntries.some((entry) => entry.label === `${objectLogLabel} info`), true);
+    const recentObjectLogErrors = await objectLog.latestFor("error", 50);
+    objectLogEntriesToDelete.push(...recentObjectLogErrors.filter((entry) => entry.label.startsWith(objectLogLabel)));
+    assert.equal(recentObjectLogErrors.some((entry) => entry.label === `${objectLogLabel} error`), true);
+    const recentObjectLogErrorsViaOptions = await objectLog.entries({ level: "error", order: "newest", maxEntries: 50 });
+    assert.equal(recentObjectLogErrorsViaOptions.some((entry) => entry.label === `${objectLogLabel} error`), true);
+  } finally {
+    await objectLog.deleteAll(objectLogEntriesToDelete);
+  }
 
   const floatOop = await session.floatOop(1.25);
   assert.equal(await session.marshalOop(floatOop), 1.25);
@@ -137,6 +196,9 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
   assert.equal(await dict.isEmpty(), false);
   assert.deepEqual(await dict.hasAll(["status", "missing"]), { status: true, missing: false });
   assert.deepEqual(new Set(await dict.keys()), new Set(["status", "count"]));
+  assert.deepEqual(new Set(await dict.keys({ maxEntries: 2 })), new Set(["status", "count"]));
+  await assert.rejects(() => dict.keys({ maxEntries: 1 }), RangeError);
+  assert.equal((await session.dictionaryEntries(dict.oop, { maxEntries: 2 })).status, "ready");
   assert.equal((await dict.entries()).status, "ready");
   assert.deepEqual(new Set(await dict.values()), new Set(["ready", 2n]));
   assert.deepEqual(new Map(await dict.items()).get("status"), "ready");
@@ -191,6 +253,10 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
   const gstoreName = `${key}.db`;
   const gstore = await GStore.open(session, gstoreName);
   try {
+    assert.equal(await GStore.has(session, gstoreName), true);
+    assert.equal(await GStore.exists(session, gstoreName), true);
+    assert.equal(await gstore.exists(), true);
+    assert.equal(await gstore.has(), true);
     await gstore.transaction((txn) => {
       txn.set("alpha", { name: "Tariq", count: 2 });
       txn.set("beta", ["a", "b"]);
@@ -200,10 +266,15 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
       alpha: { name: "Tariq", count: 2 },
       beta: ["a", "b"],
     });
-    assert.equal((await GStore.list(session)).includes(gstoreName), true);
+    assert.deepEqual(await gstore.read({ maxEntries: 2 }), gstoreSnapshot);
+    await assert.rejects(() => gstore.read({ maxEntries: 1 }), RangeError);
+    const liveGStoreNames = await GStore.list(session);
+    assert.equal(liveGStoreNames.includes(gstoreName), true);
+    assert.equal((await GStore.list(session, { maxEntries: liveGStoreNames.length })).includes(gstoreName), true);
   } finally {
     await GStore.remove(session, gstoreName);
   }
+  assert.equal(await GStore.has(session, gstoreName), false);
   await session.globalSetAllValue({ [globalKey]: "global", [globalExtraKey]: "global-extra" });
   await session.globalSetValue(globalValueKey, "global-value");
   await session.globalSetAllOop({ [globalObjectKey]: object });
@@ -236,7 +307,10 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
   assert.equal(await (await session.globalPickDict([globalDictKey, `${globalKey}_Missing`]))[globalDictKey]?.requireValue("status"), "global-dict");
   assert.equal(await (await session.globalRequireDict(globalDictKey)).requireValue("status"), "global-dict");
   assert.equal(await (await session.globalRequireAllDict([globalDictKey]))[globalDictKey].requireValue("status"), "global-dict");
-  assert.equal((await session.globalKeys()).includes(globalKey), true);
+  const liveGlobalKeys = await session.globalKeys();
+  assert.equal(liveGlobalKeys.includes(globalKey), true);
+  assert.equal((await session.globalKeys({ maxEntries: liveGlobalKeys.length })).includes(globalKey), true);
+  await assert.rejects(() => session.globalKeys({ maxEntries: 0 }), RangeError);
   assert.ok(await session.globalSize() > 0);
   assert.equal(await session.globalIsEmpty(), false);
   assert.deepEqual(await session.globalPick([globalKey, `${globalKey}_Missing`]), { [globalKey]: "global", [`${globalKey}_Missing`]: null });
@@ -285,7 +359,10 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
   assert.deepEqual(await root.hasAll([key, `${key}_Missing`]), { [key]: true, [`${key}_Missing`]: false });
   assert.equal(await root.requireValue(key), "ok");
   assert.deepEqual(await root.requireAllValue([key]), { [key]: "ok" });
-  assert.equal((await root.keys()).includes(key), true);
+  const liveRootKeys = await root.keys();
+  assert.equal(liveRootKeys.includes(key), true);
+  assert.equal((await root.keys({ maxEntries: liveRootKeys.length })).includes(key), true);
+  await assert.rejects(() => root.keys({ maxEntries: 0 }), RangeError);
   assert.ok(await root.size() > 0);
   assert.equal(await root.isEmpty(), false);
   assert.deepEqual(await root.pick([key, `${key}_Missing`]), { [key]: "ok", [`${key}_Missing`]: null });
@@ -384,9 +461,45 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
   assert.equal(await query.isEmpty(), true);
   assert.equal(await session.globalDelete(queryKey), true);
 
+  const largeQueryKey = `${key}_LargeQuery`;
+  const largeQueryCollection = await session.execute(`
+    | collection |
+    collection := OrderedCollection new.
+    1 to: 30 do: [:index |
+      collection add: (((index <= 20) ifTrue: ['batch'] ifFalse: ['tail']) -> index)].
+    collection
+  `);
+  await session.globalSetOop(largeQueryKey, largeQueryCollection);
+  const largeQuery = new GSCollection(session, largeQueryKey);
+  try {
+    assert.equal(await largeQuery.size(), 30);
+    assert.equal(await largeQuery.count("key", "=", "batch"), 20);
+    assert.equal(await largeQuery.exists("value", ">=", 30), true);
+    assert.equal(await largeQuery.any("key", "=", "tail"), true);
+    assert.equal(await largeQuery.none("value", ">", 30), true);
+    const largeLimited = await largeQuery.limit("key", "=", "batch", 5);
+    assert.equal(largeLimited.length, 5);
+    await Promise.all(largeLimited.map((item) => item.release()));
+    assert.equal((await largeQuery.takeOop("key", "=", "tail", 3)).length, 3);
+    assert.notEqual(await largeQuery.firstOop("key", "=", "tail"), null);
+    assert.equal((await largeQuery.pageOop(21, 10)).length, 10);
+  } finally {
+    await session.globalDelete(largeQueryKey).catch(() => false);
+  }
+
   const migrationRootKey = `${key}_Migrations`;
   const migrationLockKey = `${key}_MigrationsLock`;
   const migrationProbeKey = `${key}_MigrationProbe`;
+  const scopeCommitKey = `${key}_ScopeCommit`;
+  const scopeAbortKey = `${key}_ScopeAbort`;
+  const fetchCommitKey = `${key}_FetchCommit`;
+  const fetchAbortKey = `${key}_FetchAbort`;
+  const expressCommitKey = `${key}_ExpressCommit`;
+  const expressAbortKey = `${key}_ExpressAbort`;
+  const fastifyCommitKey = `${key}_FastifyCommit`;
+  const fastifyAbortKey = `${key}_FastifyAbort`;
+  const honoCommitKey = `${key}_HonoCommit`;
+  const honoAbortKey = `${key}_HonoAbort`;
   const migrationStep: MigrationStep = {
     id: "001_live_probe",
     checksum: "live-smoke",
@@ -424,5 +537,204 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
     await session.commit().catch(() => undefined);
   }
 
+  const poolEvents: string[] = [];
+  await using pool = new SessionPool({
+    ...Session.configFromEnv(),
+    name: "gemstone-js-live-pool",
+    maxSize: 1,
+    validationIntervalMs: 0,
+    validationQuery: "1 + 1",
+    eventListener: (event) => poolEvents.push(event.name),
+  });
+  assert.equal(await pool.warm(1), 1);
+  assert.equal(pool.stats().idle, 1);
+  assert.equal(await pool.withSession((pooled) => pooled.eval("3 + 4")), 7n);
+  assert.ok(poolEvents.includes("session_created"));
+  assert.ok(poolEvents.includes("session_acquired"));
+  assert.ok(poolEvents.includes("session_released"));
+
+  const heldLease = await pool.acquire();
+  const queuedLeasePromise = pool.acquire(1_000);
+  await new Promise((resolve) => setTimeout(resolve, 25));
+  assert.equal(pool.stats().pendingAcquires, 1);
+  await heldLease.release({ clean: true });
+  const queuedLease = await queuedLeasePromise;
+  assert.equal(await queuedLease.session.eval("5 + 6"), 11n);
+  await queuedLease.release({ clean: true });
+  assert.equal(pool.stats().pendingAcquires, 0);
+  assert.ok(poolEvents.includes("acquire_queued"));
+
+  assert.equal(await withSessionScope({ pool }, async (scoped) => {
+    await scoped.globalSetValue(scopeCommitKey, "scope-commit");
+    return scoped.globalGetValue(scopeCommitKey);
+  }), "scope-commit");
+  assert.equal(await pool.withSession((pooled) => pooled.globalGetValue(scopeCommitKey)), "scope-commit");
+
+  await assert.rejects(
+    () => withSessionScope({ pool }, async (scoped) => {
+      await scoped.globalSetValue(scopeAbortKey, "scope-abort");
+      throw new Error("live request scope failure");
+    }),
+    /live request scope failure/,
+  );
+  assert.equal(await pool.withSession((pooled) => pooled.globalHas(scopeAbortKey)), false);
+
+  const fetchApp = gemstoneFetch(async (_request, context) => {
+    await context.session.globalSetValue(fetchCommitKey, "fetch-commit");
+    return new Response(String(await context.session.eval("4 + 5")), { status: 201 });
+  }, { pool, serverErrorStatus: 500 });
+  const fetchResponse = await fetchApp(new Request("http://gemstone-js.test/live"));
+  assert.equal(fetchResponse.status, 201);
+  assert.equal(await fetchResponse.text(), "9");
+  assert.equal(await pool.withSession((pooled) => pooled.globalGetValue(fetchCommitKey)), "fetch-commit");
+
+  const fetchAbortApp = gemstoneFetch(async (_request, context) => {
+    await context.session.globalSetValue(fetchAbortKey, "fetch-abort");
+    return new Response("bad request", { status: 400 });
+  }, { pool, serverErrorStatus: 400 });
+  const fetchAbortResponse = await fetchAbortApp(new Request("http://gemstone-js.test/live-abort"));
+  assert.equal(fetchAbortResponse.status, 400);
+  assert.equal(await pool.withSession((pooled) => pooled.globalHas(fetchAbortKey)), false);
+
+  const expressMiddleware = gemstoneExpress({ pool, serverErrorStatus: 400 });
+  const expressReq: Record<string, unknown> = {};
+  const expressRes = new LiveFakeExpressResponse(201);
+  await expressMiddleware(expressReq, expressRes, (error?: unknown) => {
+    if (error) throw error;
+  });
+  const expressSession = expressReq.gemstoneSession as Session;
+  await expressSession.globalSetValue(expressCommitKey, "express-commit");
+  await expressRes.emit("finish");
+  assert.equal(await pool.withSession((pooled) => pooled.globalGetValue(expressCommitKey)), "express-commit");
+
+  const expressAbortReq: Record<string, unknown> = {};
+  const expressAbortRes = new LiveFakeExpressResponse(400);
+  await expressMiddleware(expressAbortReq, expressAbortRes, (error?: unknown) => {
+    if (error) throw error;
+  });
+  await (expressAbortReq.gemstoneSession as Session).globalSetValue(expressAbortKey, "express-abort");
+  await expressAbortRes.emit("finish");
+  assert.equal(await pool.withSession((pooled) => pooled.globalHas(expressAbortKey)), false);
+
+  const fastifyHooks = new Map<string, Function>();
+  await gemstoneFastify({
+    decorateRequest() {},
+    addHook(name: string, fn: Function) {
+      fastifyHooks.set(name, fn);
+    },
+  }, { pool, serverErrorStatus: 400 });
+  const fastifyRequest: Record<string, unknown> = {};
+  await fastifyHooks.get("onRequest")?.(fastifyRequest);
+  await (fastifyRequest.gemstoneSession as Session).globalSetValue(fastifyCommitKey, "fastify-commit");
+  await fastifyHooks.get("onResponse")?.(fastifyRequest, { statusCode: 201 });
+  assert.equal(await pool.withSession((pooled) => pooled.globalGetValue(fastifyCommitKey)), "fastify-commit");
+
+  const fastifyAbortRequest: Record<string, unknown> = {};
+  await fastifyHooks.get("onRequest")?.(fastifyAbortRequest);
+  await (fastifyAbortRequest.gemstoneSession as Session).globalSetValue(fastifyAbortKey, "fastify-abort");
+  await fastifyHooks.get("onResponse")?.(fastifyAbortRequest, { statusCode: 400 });
+  assert.equal(await pool.withSession((pooled) => pooled.globalHas(fastifyAbortKey)), false);
+
+  const honoMiddleware = gemstoneHono({ pool, serverErrorStatus: 400 });
+  const honoContext = new LiveFakeHonoContext(201);
+  await honoMiddleware(honoContext, async () => {
+    const honoSession = honoContext.get("gemstoneSession") as Session;
+    await honoSession.globalSetValue(honoCommitKey, "hono-commit");
+  });
+  assert.equal(await pool.withSession((pooled) => pooled.globalGetValue(honoCommitKey)), "hono-commit");
+
+  const honoAbortContext = new LiveFakeHonoContext(400);
+  await honoMiddleware(honoAbortContext, async () => {
+    const honoSession = honoAbortContext.get("gemstoneSession") as Session;
+    await honoSession.globalSetValue(honoAbortKey, "hono-abort");
+  });
+  assert.equal(await pool.withSession((pooled) => pooled.globalHas(honoAbortKey)), false);
+
+  await withSessionScope({ pool }, async (scoped) => {
+    await scoped.globalDeleteAll([
+      scopeCommitKey,
+      fetchCommitKey,
+      expressCommitKey,
+      expressAbortKey,
+      fastifyCommitKey,
+      fastifyAbortKey,
+      honoCommitKey,
+      honoAbortKey,
+    ]);
+  });
+  assert.equal(await pool.withSession((pooled) => pooled.globalHas(scopeCommitKey)), false);
+  assert.equal(await pool.withSession((pooled) => pooled.globalHas(fetchCommitKey)), false);
+
   await session.abort();
 });
+
+test("live GemStone worker backend stress", { skip: runLive ? false : "set GS_RUN_LIVE=1 to run live GemStone checks" }, async () => {
+  const session = await Session.connect({
+    ...Session.configFromEnv(),
+    nativeSessionWorker: true,
+  });
+
+  try {
+    assert.equal(session.runtime.name, "node-worker");
+    assert.deepEqual(await Promise.all([
+      session.eval("100 + 1"),
+      session.eval("100 + 2"),
+      session.performValueWith(smallintToOop(103), "yourself"),
+    ]), [101n, 102n, 103n]);
+
+    const workerText = await session.newString("worker backend live");
+    assert.equal(new TextDecoder().decode(await session.runtime.fetchBytes(workerText, 1, 6)), "worker");
+
+    const retained = await session.executeObject("Object new");
+    await retained.release();
+
+    await assert.rejects(
+      () => session.runtime.fetchBytes(workerText, 0, 1),
+      Error,
+    );
+    await session.abort().catch(() => undefined);
+    assert.equal(await session.eval("40 + 2"), 42n);
+  } finally {
+    await session.logout();
+  }
+
+  assert.equal(session.loggedIn, false);
+});
+
+class LiveFakeExpressResponse {
+  readonly statusCode: number;
+  readonly #handlers = new Map<string, Array<() => void | Promise<void>>>();
+
+  constructor(statusCode: number) {
+    this.statusCode = statusCode;
+  }
+
+  on(name: string, handler: () => void | Promise<void>): void {
+    const handlers = this.#handlers.get(name) ?? [];
+    handlers.push(handler);
+    this.#handlers.set(name, handlers);
+  }
+
+  async emit(name: string): Promise<void> {
+    for (const handler of this.#handlers.get(name) ?? []) {
+      await handler();
+    }
+  }
+}
+
+class LiveFakeHonoContext {
+  readonly values = new Map<string, unknown>();
+  readonly res: { status: number };
+
+  constructor(status: number) {
+    this.res = { status };
+  }
+
+  set(key: string, value: unknown): void {
+    this.values.set(key, value);
+  }
+
+  get(key: string): unknown {
+    return this.values.get(key);
+  }
+}

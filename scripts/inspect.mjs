@@ -1,6 +1,8 @@
 #!/usr/bin/env node
-import { Session } from "../src/index.ts";
-import { runInspectCli } from "../src/inspection-cli.ts";
+import { loadPackageModule } from "./load-package-module.mjs";
+
+const { Session } = await loadPackageModule("index.ts");
+const { runInspectCli } = await loadPackageModule("inspection-cli.ts");
 
 const code = await runInspectCli(process.argv.slice(2), {
   stdout: process.stdout,

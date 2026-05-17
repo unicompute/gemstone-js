@@ -1,6 +1,8 @@
 #!/usr/bin/env node
-import { Session } from "../src/index.ts";
-import { runDoctorCli } from "../src/doctor.ts";
+import { loadPackageModule } from "./load-package-module.mjs";
+
+const { Session } = await loadPackageModule("index.ts");
+const { runDoctorCli } = await loadPackageModule("doctor.ts");
 
 const code = await runDoctorCli(process.argv.slice(2), {
   stdout: process.stdout,

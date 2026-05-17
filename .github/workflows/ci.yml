@@ -23,6 +23,7 @@ jobs:
       - run: npm pack --json
       - run: node scripts/write-checksums.mjs .tgz
       - run: node scripts/verify-checksums.mjs SHA256SUMS.txt
+      - run: npm run ci-artifact:review -- --dir .
       - uses: actions/upload-artifact@v4
         with:
           name: gemstone-js-package-node-${{ matrix.node }}

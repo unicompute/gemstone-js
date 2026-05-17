@@ -15,7 +15,7 @@ import {
   validateFetchCount,
   validateFetchStart,
 } from "../src/runtime/ffi-buffers.ts";
-import { normalizeNativeErrorInfo } from "../src/runtime/node.ts";
+import { createNodeRuntime, normalizeNativeErrorInfo } from "../src/runtime/node.ts";
 
 const registeredTests: Array<() => Promise<void>> = [];
 
@@ -99,6 +99,141 @@ test("Node runtime normalizes rich native GciErr fields", () => {
   assertEqual(info.args?.[0], oop(1003));
   assertEqual(info.args?.[1], oop(1004));
   assertEqual(info.args?.[2], oop(1005));
+});
+
+test("Node runtime preserves module fallback receiver for raw native layouts", async () => {
+  const calls: string[] = [];
+  const nativeModule = {
+    tag: "native-module",
+    Gci: class {
+      init() {
+        calls.push("gci:init");
+        return 1;
+      }
+    },
+    executeStr(this: { tag: string }, source: string, receiver: string) {
+      calls.push(`module:executeStr:${this.tag}:${source}:${receiver}`);
+      return "22";
+    },
+    logout(this: { tag: string }) {
+      calls.push(`module:logout:${this.tag}`);
+    },
+  };
+  const runtime = createNodeRuntime({ nativeModule });
+
+  assertEqual(await runtime.init(), 1);
+  assertEqual(await runtime.executeStr("20 + 2"), oop(22));
+  await runtime.logout();
+
+  assert(calls.includes("gci:init"), "raw Gci instance should handle init");
+  assert(
+    calls.some((call) => call.startsWith("module:executeStr:native-module:20 + 2:")),
+    "raw module fallback should use the native module as its receiver",
+  );
+  assert(calls.includes("module:logout:native-module"), "raw module fallback logout should use the native module as its receiver");
+});
+
+test("Node runtime can route calls through GciSessionWorker", async () => {
+  const calls: string[] = [];
+  const runtime = createNodeRuntime({
+    nativeSessionWorker: true,
+    nativeModule: {
+      createGciSessionWorker(libPath?: string | null) {
+        calls.push(`createWorker:${libPath}`);
+        return completeNativeWorker({
+          async init(path?: string) {
+            calls.push(`init:${path}`);
+            return 1;
+          },
+          async executeStr(source: string, receiver?: string) {
+            calls.push(`executeStr:${source}:${receiver}`);
+            return "22";
+          },
+          async perform(receiver: string, selector: string, args: string[] = []) {
+            calls.push(`perform:${receiver}:${selector}:${args.join(",")}`);
+            return "24";
+          },
+          async fetchBytes(value: string, start: number, count: number) {
+            calls.push(`fetchBytes:${value}:${start}:${count}`);
+            return { __gemstoneNativeType: "Buffer", data: [65, 66, 67] };
+          },
+          async logout() {
+            calls.push("logout");
+          },
+          async close() {
+            calls.push("close");
+          },
+        });
+      },
+    },
+  });
+
+  assertEqual(runtime.name, "node-worker");
+  assertEqual(await runtime.init("/tmp/libgcirpc-test.dylib"), 1);
+  assertEqual(await runtime.executeStr("20 + 2"), oop(22));
+  assertEqual(await runtime.perform(oop(1), "yourself", [oop(2)]), oop(24));
+  assertEqual(new TextDecoder().decode(await runtime.fetchBytes(oop(3), 1, 3)), "ABC");
+  await runtime.logout();
+
+  assert(calls.includes("createWorker:/tmp/libgcirpc-test.dylib"), "worker factory should receive the configured library path");
+  assert(calls.includes("close"), "worker logout should close the worker thread");
+});
+
+test("Node runtime validates worker surface before dispatch", async () => {
+  const calls: string[] = [];
+  const runtime = createNodeRuntime({
+    nativeSessionWorker: true,
+    nativeModule: {
+      createGciSessionWorker() {
+        calls.push("createWorker");
+        const worker = completeNativeWorker({
+          async close() {
+            calls.push("worker:close");
+          },
+        });
+        delete worker.fetchBytes;
+        return worker;
+      },
+      async fetchBytes() {
+        calls.push("raw:fetchBytes");
+        return new Uint8Array([88]);
+      },
+    },
+  });
+
+  await assertRejectsMessage(
+    () => runtime.fetchBytes(oop(3), 1, 1),
+    Error,
+    /GciSessionWorker is missing required methods: fetchBytes/,
+  );
+
+  assert(calls.includes("createWorker"), "worker target should be created before surface validation");
+  assert(!calls.includes("raw:fetchBytes"), "worker backend must not fall back to raw native module calls");
+  assert(calls.includes("worker:close"), "incomplete worker target should be closed after failed validation");
+});
+
+test("Node runtime enables GciSessionWorker from GS_NATIVE_SESSION_WORKER", async () => {
+  let workerCreated = false;
+  const runtime = createNodeRuntime({
+    env: { GS_NATIVE_SESSION_WORKER: "1" },
+    nativeModule: {
+      createGciSessionWorker() {
+        workerCreated = true;
+        return completeNativeWorker({
+          async init() {
+            return 1;
+          },
+          async logout() {},
+          async close() {},
+        });
+      },
+    },
+  });
+
+  assertEqual(runtime.name, "node-worker");
+  assertEqual(await runtime.init(), 1);
+  assert(workerCreated, "GS_NATIVE_SESSION_WORKER=1 should select createGciSessionWorker()");
+  await runtime.logout();
 });
 
 test("Deno runtime marshals pointer-buffer GCI calls", async () => {
@@ -302,6 +437,89 @@ function expectUint8Array(value: unknown, label: string): Uint8Array {
   return value;
 }
 
+function completeNativeWorker(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    async init() {
+      return 1;
+    },
+    async encrypt(password: string) {
+      return `encrypted:${password}`;
+    },
+    async setNet() {},
+    async loginEx() {
+      return 1;
+    },
+    async logout() {
+      return 0;
+    },
+    async commit() {
+      return true;
+    },
+    async abort() {
+      return true;
+    },
+    async err() {
+      return null;
+    },
+    async executeStr() {
+      return "22";
+    },
+    async perform() {
+      return "24";
+    },
+    async newString() {
+      return "100";
+    },
+    async newSymbol() {
+      return "101";
+    },
+    async newOop() {
+      return "102";
+    },
+    async resolveSymbol() {
+      return "103";
+    },
+    async fetchClass() {
+      return "104";
+    },
+    async fetchSize() {
+      return 0;
+    },
+    async fetchBytes() {
+      return new Uint8Array();
+    },
+    async getSessionId() {
+      return 1;
+    },
+    async setSessionId() {},
+    async needsCommit() {
+      return false;
+    },
+    async inTransaction() {
+      return false;
+    },
+    async fltToOop() {
+      return "105";
+    },
+    async oopToFlt() {
+      return 1.25;
+    },
+    async symDictAt() {
+      return { value: "106", assoc: "107" };
+    },
+    async symDictAtPut() {},
+    async symDictAtObjPut() {},
+    async strKeyValueDictAt() {
+      return "108";
+    },
+    async strKeyValueDictAtPut() {},
+    async addOopToExportSet() {},
+    async removeOopFromExportSet() {},
+    async close() {},
+    ...overrides,
+  };
+}
+
 function writeFakeGciErr(buffer: Uint8Array): void {
   const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
   view.setBigUint64(0, oop(1000), true);
@@ -360,6 +578,25 @@ async function assertRejects(fn: () => Promise<unknown>, expected: new (...args:
   } catch (error) {
     if (error instanceof expected) return;
     throw new Error(`expected ${expected.name}, got ${error instanceof Error ? error.name : String(error)}`);
+  }
+  throw new Error(`expected ${expected.name}, got no rejection`);
+}
+
+async function assertRejectsMessage(
+  fn: () => Promise<unknown>,
+  expected: new (...args: never[]) => Error,
+  pattern: RegExp,
+): Promise<void> {
+  try {
+    await fn();
+  } catch (error) {
+    if (!(error instanceof expected)) {
+      throw new Error(`expected ${expected.name}, got ${error instanceof Error ? error.name : String(error)}`);
+    }
+    if (!pattern.test(error.message)) {
+      throw new Error(`expected error message to match ${pattern}, got ${JSON.stringify(error.message)}`);
+    }
+    return;
   }
   throw new Error(`expected ${expected.name}, got no rejection`);
 }

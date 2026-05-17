@@ -72,6 +72,98 @@ test("doctor live check connects, evaluates, and logs out", async () => {
   assert.equal(report.checks.find((check) => check.name === "live-login")?.status, "ok");
 });
 
+test("doctor reports requested native session worker capability", async () => {
+  let workerRequested = false;
+  const report = await buildDoctorReport({
+    env: {
+      GS_USERNAME: "DataCurator",
+      GS_PASSWORD: "swordfish",
+      GS_NATIVE_SESSION_WORKER: "1",
+    },
+    nativeProbe: async (options) => {
+      workerRequested = options.nativeSessionWorker;
+      return {
+        name: "native-package",
+        status: "error",
+        message: "worker missing in fixture",
+        details: { nativeSessionWorker: options.nativeSessionWorker, sessionWorkerAvailable: false },
+      };
+    },
+  });
+
+  assert.equal(workerRequested, true);
+  assert.equal(report.status, "error");
+  assert.equal(report.config.nativeSessionWorker, true);
+  const check = report.checks.find((candidate) => candidate.name === "native-package");
+  assert.equal(check?.status, "error");
+  assert.deepEqual(check?.details, { nativeSessionWorker: true, sessionWorkerAvailable: false });
+});
+
+test("doctor accepts Pharo bridge compatibility environment aliases", async () => {
+  const calls: string[] = [];
+  const session: DoctorSession = {
+    async eval(source) {
+      calls.push(`eval:${source}`);
+      return 2;
+    },
+    async logout() {
+      calls.push("logout");
+    },
+  };
+
+  const report = await buildDoctorReport({
+    live: true,
+    native: false,
+    env: {
+      GS_STONE_NAME: "aliasStone",
+      GS_USER: "DataCurator",
+      GS_PASS: "swordfish",
+      GS_NETLDI_HOST: "stone.example.com",
+      GS_NETLDI_NAME_OR_PORT: "50377",
+      GS_SERVICE: "gemnetobject-special",
+    },
+    connect: async (config) => {
+      calls.push(`connect:${config.username}@${config.host}:${config.netldi}:${config.gemService}`);
+      return session;
+    },
+  });
+
+  assert.equal(report.status, "warning");
+  assert.equal(report.config.usernameSet, true);
+  assert.equal(report.config.passwordSet, true);
+  assert.equal(report.config.stone, "aliasStone");
+  assert.equal(report.config.host, "stone.example.com");
+  assert.equal(report.config.netldi, "50377");
+  assert.equal(report.config.gemService, "gemnetobject-special");
+  assert.deepEqual(calls, [
+    "connect:DataCurator@stone.example.com:50377:gemnetobject-special",
+    "eval:1 + 1",
+    "logout",
+  ]);
+});
+
+test("doctor warns when canonical and alias environment values conflict", async () => {
+  const report = await buildDoctorReport({
+    native: false,
+    env: {
+      GS_USERNAME: "SystemUser",
+      GS_USER: "DataCurator",
+      GS_PASSWORD: "canonical-secret",
+      GS_PASS: "alias-secret",
+      GS_HOST: "canonical.example.com",
+      GS_NETLDI_HOST: "alias.example.com",
+    },
+  });
+
+  const check = report.checks.find((candidate) => candidate.name === "environment-aliases");
+  assert.equal(check?.status, "warning");
+  assert.match(check?.message ?? "", /GS_USERNAME\/GS_USER/);
+  assert.match(check?.message ?? "", /GS_PASSWORD\/GS_PASS/);
+  assert.match(check?.message ?? "", /GS_HOST\/GS_NETLDI_HOST/);
+  assert.match(check?.message ?? "", /canonical values win/);
+  assert.doesNotMatch(JSON.stringify(check), /canonical-secret|alias-secret/);
+});
+
 test("doctor CLI renders JSON and exits nonzero for failed live checks", async () => {
   const io = fakeIo();
   const code = await runDoctorCli(["--json", "--live", "--no-native"], io);

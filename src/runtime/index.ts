@@ -1,8 +1,10 @@
 import type { GciRuntime } from "../types.ts";
 
 let overrideRuntime: GciRuntime | undefined;
-let overrideRuntimeFactory: (() => GciRuntime | Promise<GciRuntime>) | undefined;
-let detectedRuntimeFactory: Promise<() => GciRuntime | Promise<GciRuntime>> | undefined;
+type RuntimeFactoryOptions = { nativeSessionWorker?: boolean };
+type RuntimeFactory = (options?: RuntimeFactoryOptions) => GciRuntime | Promise<GciRuntime>;
+let overrideRuntimeFactory: RuntimeFactory | undefined;
+let detectedRuntimeFactory: Promise<RuntimeFactory> | undefined;
 
 export function setGciRuntimeForTesting(runtime: GciRuntime | undefined): void {
   overrideRuntime = runtime;
@@ -11,7 +13,7 @@ export function setGciRuntimeForTesting(runtime: GciRuntime | undefined): void {
 }
 
 export function setGciRuntimeFactoryForTesting(
-  factory: (() => GciRuntime | Promise<GciRuntime>) | undefined,
+  factory: RuntimeFactory | undefined,
 ): void {
   overrideRuntimeFactory = factory;
   overrideRuntime = undefined;
@@ -24,15 +26,15 @@ export async function getGciRuntime(): Promise<GciRuntime> {
   return createGciRuntime();
 }
 
-export async function createGciRuntime(): Promise<GciRuntime> {
+export async function createGciRuntime(options: RuntimeFactoryOptions = {}): Promise<GciRuntime> {
   if (overrideRuntime) return overrideRuntime;
-  if (overrideRuntimeFactory) return overrideRuntimeFactory();
+  if (overrideRuntimeFactory) return overrideRuntimeFactory(options);
   detectedRuntimeFactory ??= detectRuntimeFactory();
   const factory = await detectedRuntimeFactory;
-  return factory();
+  return factory(options);
 }
 
-async function detectRuntimeFactory(): Promise<() => GciRuntime | Promise<GciRuntime>> {
+async function detectRuntimeFactory(): Promise<RuntimeFactory> {
   const globals = globalThis as {
     Deno?: unknown;
     Bun?: unknown;

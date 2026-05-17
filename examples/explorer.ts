@@ -1593,8 +1593,28 @@ function explorerHtml(): string {
       grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
       gap: 14px;
     }
-    .debugger-stack {
-      grid-column: 1 / -1;
+    .debugger-stack-pane {
+      min-height: 170px;
+      margin-bottom: 14px;
+    }
+    .debugger-stack-pane #debugStackTable {
+      max-height: 230px;
+      overflow: auto;
+    }
+    .debug-stack-row {
+      cursor: pointer;
+    }
+    .debug-stack-row:hover td,
+    .debug-stack-row.active td {
+      background: #e8f3f1;
+      color: #0b5f59;
+    }
+    .debug-stack-row:focus {
+      outline: 2px solid #0f766e;
+      outline-offset: -2px;
+    }
+    .debug-stack-index {
+      font-weight: 700;
     }
     .debug-toolbar-group {
       display: flex;
@@ -1765,6 +1785,7 @@ function explorerHtml(): string {
             <button class="action secondary" id="debugInspectException">Inspect Exception</button>
           </span>
         </div>
+        <div class="surface debugger-stack-pane"><h2>Context Stack</h2><div id="debugStackTable"></div></div>
         <div class="debugger-workbench">
           <textarea class="debugger-source" id="debugSource">1/0</textarea>
           <div class="debugger-side">
@@ -1773,7 +1794,6 @@ function explorerHtml(): string {
           </div>
         </div>
         <div class="debugger-grid">
-          <div class="surface debugger-stack"><h2>Context Stack</h2><div id="debugStackTable"></div></div>
           <div class="surface"><h2>Raw Stack</h2><pre id="debugStackOutput"></pre></div>
           <div class="surface"><h2>Objects</h2><div id="debugObjectsTable"></div></div>
           <div class="surface"><h2>Arguments</h2><div id="debugArgsTable"></div></div>
@@ -1902,6 +1922,8 @@ function explorerHtml(): string {
       symbolUser: "",
       symbolDictionary: "",
       lastDebug: null,
+      debugFrames: [],
+      selectedDebugFrame: null,
       classBrowser: {
         dictionary: "",
         className: "Object",
@@ -2406,8 +2428,11 @@ function explorerHtml(): string {
       state.lastDebug = result;
       out("debugOutput", result);
       const source = result.source || document.getElementById("debugSource").value;
-      out("debugSourcePreview", String(source || "").split("\\n").map((line, index) => (index === 0 ? ">> " : "   ") + line).join("\\n"));
       if (result.ok) {
+        state.debugFrames = [];
+        state.selectedDebugFrame = null;
+        renderDebugStack([]);
+        renderDebugSourcePreview(source, null);
         const inspection = result.result && result.result.printString ? result.result : null;
         out("debugSummaryOutput", [
           "status: ok",
@@ -2418,7 +2443,6 @@ function explorerHtml(): string {
           inspection ? "result: " + inspection.printString : "",
         ].filter(Boolean).join("\\n"));
         out("debugStackOutput", "");
-        table("debugStackTable", [], []);
         table("debugObjectsTable", result.resultOop ? [{ role: "result", oop: result.resultOop, inspection }] : [], [
           { label: "Role", render: (row) => escapeHtml(row.role) },
           { label: "OOP", render: (row) => inspectLink(row.oop) },
@@ -2441,14 +2465,10 @@ function explorerHtml(): string {
         "exception oop: " + (problem.exceptionOop || ""),
       ].join("\\n"));
       out("debugStackOutput", problem.stack || "");
-      table("debugStackTable", parseContextStack(problem.stack), [
-        { label: "#", render: (row) => escapeHtml(row.index) },
-        { label: "Receiver / Class", render: (row) => escapeHtml(row.receiver) },
-        { label: "Selector", render: (row) => escapeHtml(row.selector) },
-        { label: "Step", render: (row) => escapeHtml(row.step) },
-        { label: "Line", render: (row) => escapeHtml(row.line) },
-        { label: "Frame", render: (row) => escapeHtml(row.text) },
-      ]);
+      state.debugFrames = parseContextStack(problem.stack);
+      state.selectedDebugFrame = state.debugFrames.length ? state.debugFrames[0].index : null;
+      renderDebugStack(state.debugFrames);
+      renderDebugSourcePreview(source, selectedDebugFrame());
       const inspections = problem.inspections || {};
       const objectRows = ["context", "exception"].map((role) => {
         const entry = inspections[role] || {};
@@ -2501,13 +2521,74 @@ function explorerHtml(): string {
         };
       });
     }
+    function selectedDebugFrame() {
+      return state.debugFrames.find((row) => row.index === state.selectedDebugFrame) || null;
+    }
+    function renderDebugSourcePreview(source, frame) {
+      const frameHeader = frame
+        ? [
+            "frame #" + frame.index,
+            frame.receiver ? "receiver: " + frame.receiver : "",
+            frame.selector ? "selector: " + frame.selector : "",
+            frame.step ? "step: " + frame.step : "",
+            frame.line ? "line: " + frame.line : "",
+          ].filter(Boolean).join("\\n") + "\\n\\n"
+        : "";
+      const sourceText = String(source || "")
+        .split("\\n")
+        .map((line, index) => (index === 0 ? ">> " : "   ") + line)
+        .join("\\n");
+      out("debugSourcePreview", frameHeader + sourceText);
+    }
+    function renderDebugStack(rows) {
+      const element = document.getElementById("debugStackTable");
+      if (!element) return;
+      if (!rows || rows.length === 0) {
+        element.innerHTML = "<div style=\\"padding:12px;color:var(--muted)\\">No stack frames</div>";
+        return;
+      }
+      element.innerHTML = [
+        "<table><thead><tr>",
+        "<th>#</th><th>Receiver / Class</th><th>Selector</th><th>Step</th><th>Line</th><th>Frame</th>",
+        "</tr></thead><tbody>",
+        ...rows.map((row) => {
+          const active = row.index === state.selectedDebugFrame ? " active" : "";
+          return [
+            "<tr class=\\"debug-stack-row" + active + "\\" data-debug-frame-index=\\"" + escapeHtml(row.index) + "\\" tabindex=\\"0\\" aria-selected=\\"" + (active ? "true" : "false") + "\\">",
+            "<td class=\\"debug-stack-index\\">" + escapeHtml(row.index) + "</td>",
+            "<td>" + escapeHtml(row.receiver) + "</td>",
+            "<td>" + escapeHtml(row.selector) + "</td>",
+            "<td>" + escapeHtml(row.step) + "</td>",
+            "<td>" + escapeHtml(row.line) + "</td>",
+            "<td>" + escapeHtml(row.text) + "</td>",
+            "</tr>",
+          ].join("");
+        }),
+        "</tbody></table>",
+      ].join("");
+    }
+    function selectDebugFrame(index, focusRow) {
+      const frameIndex = Number(index);
+      const frame = state.debugFrames.find((row) => row.index === frameIndex);
+      if (!frame) return;
+      state.selectedDebugFrame = frame.index;
+      renderDebugStack(state.debugFrames);
+      renderDebugSourcePreview(state.lastDebug?.source || document.getElementById("debugSource").value, frame);
+      if (focusRow) {
+        const row = document.querySelector("#debugStackTable [data-debug-frame-index=\\"" + frame.index + "\\"]");
+        if (row) row.focus();
+      }
+      setStatus(true, "Selected debugger frame #" + frame.index + (frame.selector ? ": " + frame.selector : ""));
+    }
     function clearDebugReport(message) {
       state.lastDebug = null;
+      state.debugFrames = [];
+      state.selectedDebugFrame = null;
       out("debugSummaryOutput", message || "");
       out("debugSourcePreview", "");
       out("debugStackOutput", "");
       out("debugOutput", "");
-      table("debugStackTable", [], []);
+      renderDebugStack([]);
       table("debugObjectsTable", [], []);
       table("debugArgsTable", [], []);
     }
@@ -2695,6 +2776,30 @@ function explorerHtml(): string {
     document.getElementById("debugTerminate").addEventListener("click", () => clearDebugReport("Terminated local debug report. No GemStone process is retained by the current stateless debugger."));
     document.getElementById("debugInspectContext").addEventListener("click", () => inspectDebugTarget("context"));
     document.getElementById("debugInspectException").addEventListener("click", () => inspectDebugTarget("exception"));
+    document.getElementById("debugStackTable").addEventListener("click", (event) => {
+      const row = event.target.closest("[data-debug-frame-index]");
+      if (!row) return;
+      selectDebugFrame(row.dataset.debugFrameIndex);
+    });
+    document.getElementById("debugStackTable").addEventListener("keydown", (event) => {
+      const row = event.target.closest("[data-debug-frame-index]");
+      if (!row) return;
+      const indexes = state.debugFrames.map((frame) => frame.index);
+      const current = indexes.indexOf(Number(row.dataset.debugFrameIndex));
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        selectDebugFrame(row.dataset.debugFrameIndex);
+        return;
+      }
+      if (current < 0) return;
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        selectDebugFrame(indexes[Math.min(indexes.length - 1, current + 1)], true);
+      } else if (event.key === "ArrowUp") {
+        event.preventDefault();
+        selectDebugFrame(indexes[Math.max(0, current - 1)], true);
+      }
+    });
     document.getElementById("classBrowserLoad").addEventListener("click", loadClassBrowserDictionaries);
     document.getElementById("classMeta").addEventListener("change", () => {
       if (state.classBrowser.className) void loadClassBrowserCategories();

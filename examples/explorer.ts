@@ -37,6 +37,17 @@ interface DebugContextFrame {
   receiverClass: string;
   selector: string;
   printString: string;
+  source: string;
+  sourceOffset: number;
+  stepPoint: number;
+  variables: DebugFrameVariable[];
+}
+
+interface DebugFrameVariable {
+  name: string;
+  oop: string;
+  className: string;
+  value: string;
 }
 
 const ROOT_NAMES = ["UserGlobals", "Globals", "Published", "SessionMethods"];
@@ -776,12 +787,57 @@ async function debugContextFrames(session: Session, contextOop: ReturnType<typeo
     ${escapedFieldEncoderSource("encode")}
     String streamContents: [:stream |
       [ctx notNil and: [index < limit]] whileTrue: [
-        | receiver receiverOop receiverClass selector text nextCtx |
+        | detail receiver receiverOop receiverClass selector text source sourceOffset stepPoint tempNames tempValues variableText nextCtx |
+        detail := [obj _gsiDebuggerDetailedReportAt: index + 1] on: Error do: [:ex | nil].
         receiver := [ctx receiver] on: Error do: [:ex | nil].
         receiverOop := receiver isNil ifTrue: [''] ifFalse: [[receiver asOop asString] on: Error do: [:ex | '']].
         receiverClass := receiver isNil ifTrue: [''] ifFalse: [[receiver class name asString] on: Error do: [:ex | receiver class printString]].
         selector := [[ctx selector asString] on: Error do: [:ex | '']] on: Error do: [:ex | ''].
         text := [ctx printString] on: Error do: [:ex | ''].
+        source := [[detail at: 9] on: Error do: [:ex | '']] on: Error do: [:ex | ''].
+        source isNil ifTrue: [source := ''].
+        source isEmpty ifTrue: [
+          source := [[ctx sourceCode] on: Error do: [:ex | '']] on: Error do: [:ex | '']].
+        source isNil ifTrue: [source := ''].
+        source isEmpty ifTrue: [
+          source := [[ctx sourceString] on: Error do: [:ex | '']] on: Error do: [:ex | '']].
+        source isNil ifTrue: [source := ''].
+        source isEmpty ifTrue: [
+          source := [[[ctx method] sourceString] on: Error do: [:ex | '']] on: Error do: [:ex | '']].
+        source isNil ifTrue: [source := ''].
+        source isEmpty ifTrue: [
+          source := [[[ctx homeMethod] sourceString] on: Error do: [:ex | '']] on: Error do: [:ex | '']].
+        source isNil ifTrue: [source := ''].
+        source := source size > 4000 ifTrue: [source copyFrom: 1 to: 4000] ifFalse: [source].
+        stepPoint := [[detail at: 5] on: Error do: [:ex | 0]] on: Error do: [:ex | 0].
+        sourceOffset := 0.
+        [ | offsets stepIndex rawOffset |
+          offsets := [detail at: 6] on: Error do: [:ex | #()].
+          stepIndex := [stepPoint asInteger] on: Error do: [:ex | 0].
+          stepIndex > 0 ifTrue: [
+            rawOffset := [offsets at: stepIndex ifAbsent: [0]] on: Error do: [:ex | 0].
+            sourceOffset := [rawOffset asInteger] on: Error do: [:ex | 0]]
+        ] on: Error do: [:ex | sourceOffset := 0].
+        variableText := String streamContents: [:varStream |
+          tempNames := [[detail at: 7] on: Error do: [:ex | #()]] on: Error do: [:ex | #()].
+          tempValues := [[detail at: 8] on: Error do: [:ex | #()]] on: Error do: [:ex | #()].
+          [1 to: tempNames size do: [:i |
+            | name value valueOop valueClass valueText |
+            name := [tempNames at: i] on: Error do: [:ex | ''].
+            value := [tempValues at: i ifAbsent: [nil]] on: Error do: [:ex | nil].
+            valueOop := [value asOop asString] on: Error do: [:ex | ''].
+            valueClass := value isNil ifTrue: [''] ifFalse: [[value class name asString] on: Error do: [:ex | value class printString]].
+            valueText := [value printString] on: Error do: [:ex | ''].
+            i > 1 ifTrue: [varStream lf].
+            varStream
+              nextPutAll: (encode value: name asString);
+              tab;
+              nextPutAll: valueOop;
+              tab;
+              nextPutAll: (encode value: valueClass);
+              tab;
+              nextPutAll: (encode value: valueText)]
+          ] on: Error do: [:ex | ]].
         stream
           nextPutAll: index asString;
           nextPut: $|;
@@ -794,6 +850,14 @@ async function debugContextFrames(session: Session, contextOop: ReturnType<typeo
           nextPutAll: (encode value: selector);
           nextPut: $|;
           nextPutAll: (encode value: text);
+          nextPut: $|;
+          nextPutAll: (encode value: source);
+          nextPut: $|;
+          nextPutAll: sourceOffset asString;
+          nextPut: $|;
+          nextPutAll: stepPoint asString;
+          nextPut: $|;
+          nextPutAll: (encode value: variableText);
           lf.
         nextCtx := [ctx sender] on: Error do: [:ex | nil].
         ctx := nextCtx.
@@ -808,7 +872,18 @@ function parseDebugContextFrames(value: unknown): DebugContextFrame[] {
     .split(/\r?\n/)
     .filter(Boolean)
     .map((line) => {
-      const [index, contextOop, receiverOop, receiverClass, selector, printString] = line.split("|");
+      const [
+        index,
+        contextOop,
+        receiverOop,
+        receiverClass,
+        selector,
+        printString,
+        source,
+        sourceOffset,
+        stepPoint,
+        variables,
+      ] = line.split("|");
       return {
         index: Number(index),
         contextOop: contextOop ?? "",
@@ -816,9 +891,30 @@ function parseDebugContextFrames(value: unknown): DebugContextFrame[] {
         receiverClass: decodeEscapedField(receiverClass ?? ""),
         selector: decodeEscapedField(selector ?? ""),
         printString: decodeEscapedField(printString ?? ""),
+        source: decodeEscapedField(source ?? ""),
+        sourceOffset: Number(sourceOffset ?? 0) || 0,
+        stepPoint: Number(stepPoint ?? 0) || 0,
+        variables: parseDebugFrameVariables(decodeEscapedField(variables ?? "")),
       };
     })
     .filter((row) => Number.isFinite(row.index) && row.contextOop);
+}
+
+function parseDebugFrameVariables(value: string): DebugFrameVariable[] {
+  if (!value.trim()) return [];
+  return value
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .map((line) => {
+      const [name, oopValue, className, printString] = line.split("\t");
+      return {
+        name: decodeEscapedField(name ?? ""),
+        oop: oopValue ?? "",
+        className: decodeEscapedField(className ?? ""),
+        value: decodeEscapedField(printString ?? ""),
+      };
+    })
+    .filter((row) => row.name);
 }
 
 async function inspectForDebugger(session: Session, value: ReturnType<typeof oop>) {
@@ -1687,6 +1783,13 @@ function explorerHtml(): string {
     .debug-stack-index {
       font-weight: 700;
     }
+    .frame-detail-grid {
+      display: grid;
+      grid-template-columns: minmax(260px, 0.35fr) minmax(0, 0.65fr);
+      gap: 14px;
+      align-items: start;
+      margin-top: 14px;
+    }
     .debug-toolbar-group {
       display: flex;
       align-items: center;
@@ -1788,7 +1891,7 @@ function explorerHtml(): string {
       .tool-window.hidden {
         display: none;
       }
-      .grid, .split, .debugger-workbench, .debugger-grid, .class-browser-grid, .browser-panes, .class-detail-grid, .symbol-grid { grid-template-columns: 1fr; }
+      .grid, .split, .debugger-workbench, .debugger-grid, .frame-detail-grid, .class-browser-grid, .browser-panes, .class-detail-grid, .symbol-grid { grid-template-columns: 1fr; }
       .window-titlebar { cursor: default; }
     }
   </style>
@@ -1853,11 +1956,16 @@ function explorerHtml(): string {
           </span>
           <span class="debug-toolbar-group" aria-label="Debugger inspect controls">
             <button class="action secondary" id="debugInspectFrame">Inspect Frame</button>
+            <button class="action secondary" id="debugInspectReceiver">Inspect Receiver</button>
             <button class="action secondary" id="debugInspectContext">Inspect Context</button>
             <button class="action secondary" id="debugInspectException">Inspect Exception</button>
           </span>
         </div>
         <div class="surface debugger-stack-pane"><h2>Context Stack</h2><div id="debugStackTable"></div></div>
+        <div class="frame-detail-grid">
+          <div class="surface"><h2>Selected Frame</h2><pre id="debugFrameOutput"></pre></div>
+          <div class="surface"><h2>Frame Variables</h2><div id="debugVariablesTable"></div></div>
+        </div>
         <div class="debugger-workbench">
           <textarea class="debugger-source" id="debugSource">1/0</textarea>
           <div class="debugger-side">
@@ -2505,6 +2613,7 @@ function explorerHtml(): string {
         state.selectedDebugFrame = null;
         renderDebugStack([]);
         renderDebugSourcePreview(source, null);
+        renderDebugFrameDetails(null);
         const inspection = result.result && result.result.printString ? result.result : null;
         out("debugSummaryOutput", [
           "status: ok",
@@ -2541,6 +2650,7 @@ function explorerHtml(): string {
       state.selectedDebugFrame = state.debugFrames.length ? state.debugFrames[0].index : null;
       renderDebugStack(state.debugFrames);
       renderDebugSourcePreview(source, selectedDebugFrame());
+      renderDebugFrameDetails(selectedDebugFrame());
       const inspections = problem.inspections || {};
       const objectRows = ["context", "exception"].map((role) => {
         const entry = inspections[role] || {};
@@ -2570,7 +2680,14 @@ function explorerHtml(): string {
     }
     async function inspectDebugTarget(kind) {
       const problem = state.lastDebug?.problem || {};
-      const value = kind === "frame" ? selectedDebugFrame()?.contextOop : kind === "context" ? problem.contextOop : problem.exceptionOop;
+      const frame = selectedDebugFrame();
+      const value = kind === "frame"
+        ? frame?.contextOop
+        : kind === "receiver"
+          ? frame?.receiverOop
+          : kind === "context"
+            ? problem.contextOop
+            : problem.exceptionOop;
       if (!value) return;
       document.getElementById("inspectOop").value = value;
       focusWindow("inspect");
@@ -2592,6 +2709,10 @@ function explorerHtml(): string {
           text: frame.printString || "",
           receiver: frame.receiverClass || "",
           selector: frame.selector || frame.printString || "",
+          source: frame.source || "",
+          sourceOffset: Number(frame.sourceOffset || 0),
+          stepPoint: Number(frame.stepPoint || 0),
+          variables: Array.isArray(frame.variables) ? frame.variables : [],
           step: "",
           line: "",
         }));
@@ -2607,6 +2728,10 @@ function explorerHtml(): string {
           text: frame.printString || line,
           receiver: match ? match[1].trim() : frame.receiverClass || "",
           selector: frame.selector || (match ? match[2].trim() : line),
+          source: frame.source || "",
+          sourceOffset: Number(frame.sourceOffset || 0),
+          stepPoint: Number(frame.stepPoint || 0),
+          variables: Array.isArray(frame.variables) ? frame.variables : [],
           step: match ? match[3] : "",
           line: match ? match[4] : "",
         };
@@ -2623,15 +2748,46 @@ function explorerHtml(): string {
             frame.receiverOop ? "receiver oop: " + frame.receiverOop : "",
             frame.receiver ? "receiver: " + frame.receiver : "",
             frame.selector ? "selector: " + frame.selector : "",
+            frame.sourceOffset ? "source offset: " + frame.sourceOffset : "",
+            frame.stepPoint ? "step point: " + frame.stepPoint : "",
             frame.step ? "step: " + frame.step : "",
             frame.line ? "line: " + frame.line : "",
           ].filter(Boolean).join("\\n") + "\\n\\n"
         : "";
-      const sourceText = String(source || "")
+      const activeLine = frame && Number(frame.line) > 0 ? Number(frame.line) : 0;
+      const sourceText = String(frame?.source || source || "")
         .split("\\n")
-        .map((line, index) => (index === 0 ? ">> " : "   ") + line)
+        .map((line, index) => {
+          const lineNumber = index + 1;
+          const active = activeLine > 0 ? lineNumber === activeLine : index === 0;
+          return (active ? ">> " : "   ") + line;
+        })
         .join("\\n");
       out("debugSourcePreview", frameHeader + sourceText);
+    }
+    function renderDebugFrameDetails(frame) {
+      if (!frame) {
+        out("debugFrameOutput", "");
+        table("debugVariablesTable", [], []);
+        return;
+      }
+      out("debugFrameOutput", [
+        "frame: " + frame.index,
+        "context oop: " + (frame.contextOop || ""),
+        "receiver oop: " + (frame.receiverOop || ""),
+        "receiver class: " + (frame.receiverClass || frame.receiver || ""),
+        "selector: " + (frame.selector || ""),
+        "source offset: " + (frame.sourceOffset || ""),
+        "step point: " + (frame.stepPoint || ""),
+        "reported line: " + (frame.line || ""),
+        "print: " + (frame.text || ""),
+      ].filter(Boolean).join("\\n"));
+      table("debugVariablesTable", frame.variables || [], [
+        { label: "Name", render: (row) => escapeHtml(row.name) },
+        { label: "OOP", render: (row) => row.oop ? inspectLink(row.oop) : "" },
+        { label: "Class", render: (row) => escapeHtml(row.className || "") },
+        { label: "Value", render: (row) => escapeHtml(row.value || "") },
+      ]);
     }
     function renderDebugStack(rows) {
       const element = document.getElementById("debugStackTable");
@@ -2668,6 +2824,7 @@ function explorerHtml(): string {
       state.selectedDebugFrame = frame.index;
       renderDebugStack(state.debugFrames);
       renderDebugSourcePreview(state.lastDebug?.source || document.getElementById("debugSource").value, frame);
+      renderDebugFrameDetails(frame);
       if (focusRow) {
         const row = document.querySelector("#debugStackTable [data-debug-frame-index=\\"" + frame.index + "\\"]");
         if (row) row.focus();
@@ -2683,6 +2840,7 @@ function explorerHtml(): string {
       out("debugStackOutput", "");
       out("debugOutput", "");
       renderDebugStack([]);
+      renderDebugFrameDetails(null);
       table("debugObjectsTable", [], []);
       table("debugArgsTable", [], []);
     }
@@ -2869,6 +3027,7 @@ function explorerHtml(): string {
     document.getElementById("debugTrim").addEventListener("click", () => unsupportedDebugAction("Trim"));
     document.getElementById("debugTerminate").addEventListener("click", () => clearDebugReport("Terminated local debug report. No GemStone process is retained by the current stateless debugger."));
     document.getElementById("debugInspectFrame").addEventListener("click", () => inspectDebugTarget("frame"));
+    document.getElementById("debugInspectReceiver").addEventListener("click", () => inspectDebugTarget("receiver"));
     document.getElementById("debugInspectContext").addEventListener("click", () => inspectDebugTarget("context"));
     document.getElementById("debugInspectException").addEventListener("click", () => inspectDebugTarget("exception"));
     document.getElementById("debugStackTable").addEventListener("click", (event) => {

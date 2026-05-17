@@ -1593,6 +1593,15 @@ function explorerHtml(): string {
       grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
       gap: 14px;
     }
+    .debugger-stack {
+      grid-column: 1 / -1;
+    }
+    .debug-toolbar-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
     .source-preview {
       min-height: 96px;
       border-left: 3px solid #0f766e;
@@ -1741,8 +1750,20 @@ function explorerHtml(): string {
         <div class="toolbar">
           <label>Return <select id="debugReturn"><option>inspect</option><option>value</option><option>oop</option></select></label>
           <button class="action" id="debugRun">Debug</button>
-          <button class="action secondary" id="debugInspectContext">Inspect Context</button>
-          <button class="action secondary" id="debugInspectException">Inspect Exception</button>
+          <span class="debug-toolbar-group" aria-label="Debugger execution controls">
+            <button class="action secondary" id="debugRestart">Restart</button>
+            <button class="action secondary" id="debugProceed">Proceed</button>
+            <button class="action secondary" id="debugStep">Step</button>
+            <button class="action secondary" id="debugStepInto">Into</button>
+            <button class="action secondary" id="debugStepOver">Over</button>
+            <button class="action secondary" id="debugStepReturn">Return</button>
+            <button class="action secondary" id="debugTrim">Trim</button>
+            <button class="action secondary" id="debugTerminate">Terminate</button>
+          </span>
+          <span class="debug-toolbar-group" aria-label="Debugger inspect controls">
+            <button class="action secondary" id="debugInspectContext">Inspect Context</button>
+            <button class="action secondary" id="debugInspectException">Inspect Exception</button>
+          </span>
         </div>
         <div class="debugger-workbench">
           <textarea class="debugger-source" id="debugSource">1/0</textarea>
@@ -1752,7 +1773,8 @@ function explorerHtml(): string {
           </div>
         </div>
         <div class="debugger-grid">
-          <div class="surface"><h2>Stack</h2><pre id="debugStackOutput"></pre></div>
+          <div class="surface debugger-stack"><h2>Context Stack</h2><div id="debugStackTable"></div></div>
+          <div class="surface"><h2>Raw Stack</h2><pre id="debugStackOutput"></pre></div>
           <div class="surface"><h2>Objects</h2><div id="debugObjectsTable"></div></div>
           <div class="surface"><h2>Arguments</h2><div id="debugArgsTable"></div></div>
           <div class="surface"><h2>Raw Report</h2><pre id="debugOutput"></pre></div>
@@ -2396,6 +2418,7 @@ function explorerHtml(): string {
           inspection ? "result: " + inspection.printString : "",
         ].filter(Boolean).join("\\n"));
         out("debugStackOutput", "");
+        table("debugStackTable", [], []);
         table("debugObjectsTable", result.resultOop ? [{ role: "result", oop: result.resultOop, inspection }] : [], [
           { label: "Role", render: (row) => escapeHtml(row.role) },
           { label: "OOP", render: (row) => inspectLink(row.oop) },
@@ -2418,6 +2441,14 @@ function explorerHtml(): string {
         "exception oop: " + (problem.exceptionOop || ""),
       ].join("\\n"));
       out("debugStackOutput", problem.stack || "");
+      table("debugStackTable", parseContextStack(problem.stack), [
+        { label: "#", render: (row) => escapeHtml(row.index) },
+        { label: "Receiver / Class", render: (row) => escapeHtml(row.receiver) },
+        { label: "Selector", render: (row) => escapeHtml(row.selector) },
+        { label: "Step", render: (row) => escapeHtml(row.step) },
+        { label: "Line", render: (row) => escapeHtml(row.line) },
+        { label: "Frame", render: (row) => escapeHtml(row.text) },
+      ]);
       const inspections = problem.inspections || {};
       const objectRows = ["context", "exception"].map((role) => {
         const entry = inspections[role] || {};
@@ -2452,6 +2483,38 @@ function explorerHtml(): string {
       document.getElementById("inspectOop").value = value;
       focusWindow("inspect");
       await runInspect();
+    }
+    function parseContextStack(stack) {
+      const lines = String(stack || "")
+        .split("\\n")
+        .map((line) => line.trim())
+        .filter((line) => line && line !== ")" && !line.startsWith("GsProcess("));
+      return lines.map((line, index) => {
+        const match = line.match(/^(.*?)\\s*>>\\s*(.*?)\\s*@([0-9]+)\\s+line\\s+([0-9]+)/);
+        return {
+          index,
+          text: line,
+          receiver: match ? match[1].trim() : "",
+          selector: match ? match[2].trim() : line,
+          step: match ? match[3] : "",
+          line: match ? match[4] : "",
+        };
+      });
+    }
+    function clearDebugReport(message) {
+      state.lastDebug = null;
+      out("debugSummaryOutput", message || "");
+      out("debugSourcePreview", "");
+      out("debugStackOutput", "");
+      out("debugOutput", "");
+      table("debugStackTable", [], []);
+      table("debugObjectsTable", [], []);
+      table("debugArgsTable", [], []);
+    }
+    function unsupportedDebugAction(action) {
+      const message = action + " needs a persistent GemStone debug process. The current JS explorer captures a halted report, aborts the session, and logs out after each debug run.";
+      out("debugSummaryOutput", message);
+      setStatus(false, message);
     }
     async function searchClasses() {
       const prefix = document.getElementById("classPrefix").value;
@@ -2622,6 +2685,14 @@ function explorerHtml(): string {
     });
     document.getElementById("evalRun").addEventListener("click", runEval);
     document.getElementById("debugRun").addEventListener("click", runDebug);
+    document.getElementById("debugRestart").addEventListener("click", runDebug);
+    document.getElementById("debugProceed").addEventListener("click", () => unsupportedDebugAction("Proceed"));
+    document.getElementById("debugStep").addEventListener("click", () => unsupportedDebugAction("Step"));
+    document.getElementById("debugStepInto").addEventListener("click", () => unsupportedDebugAction("Step Into"));
+    document.getElementById("debugStepOver").addEventListener("click", () => unsupportedDebugAction("Step Over"));
+    document.getElementById("debugStepReturn").addEventListener("click", () => unsupportedDebugAction("Step Return"));
+    document.getElementById("debugTrim").addEventListener("click", () => unsupportedDebugAction("Trim"));
+    document.getElementById("debugTerminate").addEventListener("click", () => clearDebugReport("Terminated local debug report. No GemStone process is retained by the current stateless debugger."));
     document.getElementById("debugInspectContext").addEventListener("click", () => inspectDebugTarget("context"));
     document.getElementById("debugInspectException").addEventListener("click", () => inspectDebugTarget("exception"));
     document.getElementById("classBrowserLoad").addEventListener("click", loadClassBrowserDictionaries);

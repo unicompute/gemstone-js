@@ -23,6 +23,6 @@ jobs:
       - run: node scripts/write-checksums.mjs .tgz
       - run: node scripts/verify-checksums.mjs SHA256SUMS.txt
       - run: npm run ci-artifact:review -- --dir .
-      - run: npm publish --access public --tag alpha --provenance
+      - run: npm publish gemstone-js-*.tgz --access public --tag alpha --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

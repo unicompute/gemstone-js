@@ -113,12 +113,32 @@ async function route(request: IncomingMessage, response: ServerResponse): Promis
     writeJson(response, 200, await safeJson(() => rootsEndpoint(url)));
     return;
   }
+  if (request.method === "GET" && url.pathname === "/api/symbol-list/users") {
+    writeJson(response, 200, await safeJson(() => symbolListUsersEndpoint()));
+    return;
+  }
+  if (request.method === "GET" && url.pathname === "/api/symbol-list/dictionaries") {
+    writeJson(response, 200, await safeJson(() => symbolListDictionariesEndpoint(url)));
+    return;
+  }
+  if (request.method === "GET" && url.pathname === "/api/symbol-list/entries") {
+    writeJson(response, 200, await safeJson(() => symbolListEntriesEndpoint(url)));
+    return;
+  }
+  if (request.method === "GET" && url.pathname === "/api/symbol-list/preview") {
+    writeJson(response, 200, await safeJson(() => symbolListPreviewEndpoint(url)));
+    return;
+  }
   if (request.method === "GET" && url.pathname === "/api/classes") {
     writeJson(response, 200, await safeJson(() => classesEndpoint(url)));
     return;
   }
   if (request.method === "GET" && url.pathname === "/api/class") {
     writeJson(response, 200, await safeJson(() => classEndpoint(url)));
+    return;
+  }
+  if (request.method === "GET" && url.pathname === "/api/method-source") {
+    writeJson(response, 200, await safeJson(() => methodSourceEndpoint(url)));
     return;
   }
   if (request.method === "POST" && url.pathname === "/api/eval") {
@@ -201,6 +221,118 @@ async function rootsEndpoint(url: URL) {
   });
 }
 
+async function symbolListUsersEndpoint() {
+  return withSession(async (session) => {
+    const result = await session.eval(`
+      | allUsers text |
+      ${allUsersSource()}
+      text := String streamContents: [:stream |
+        allUsers isNil ifFalse: [
+          allUsers do: [:user | | uid |
+            uid := ([user userId] on: Error do: [:ex | user printString]) asString.
+            stream nextPutAll: uid; lf]]].
+      text
+    `);
+    return {
+      users: splitLines(result),
+    };
+  });
+}
+
+async function symbolListDictionariesEndpoint(url: URL) {
+  const user = requiredQuery(url, "user");
+  return withSession(async (session) => {
+    const escapedUser = escapeSmalltalkStringLiteral(user);
+    const result = await session.eval(`
+      | allUsers userProfile text |
+      ${allUsersSource()}
+      userProfile := ${allUsersDetectUserSource(escapedUser)}.
+      text := String streamContents: [:stream |
+        userProfile isNil ifFalse: [
+          userProfile symbolList do: [:dict | | name |
+            name := ([dict name] on: Error do: [:ex | dict printString]) asString.
+            stream nextPutAll: name; lf]]].
+      text
+    `);
+    return {
+      user,
+      dictionaries: splitLines(result),
+    };
+  });
+}
+
+async function symbolListEntriesEndpoint(url: URL) {
+  const user = requiredQuery(url, "user");
+  const dictionary = requiredQuery(url, "dictionary");
+  const filter = rootFilterFromUrl(url);
+  const limit = limitFromUrl(url);
+  return withSession(async (session) => {
+    const escapedUser = escapeSmalltalkStringLiteral(user);
+    const escapedDictionary = escapeSmalltalkStringLiteral(dictionary);
+    const escapedFilter = escapeSmalltalkStringLiteral(filter);
+    const result = await session.eval(`
+      | allUsers userProfile dict filter limit count text |
+      ${allUsersSource()}
+      userProfile := ${allUsersDetectUserSource(escapedUser)}.
+      filter := '${escapedFilter}' asLowercase.
+      limit := ${limit + 1}.
+      count := 0.
+      text := String streamContents: [:stream |
+        userProfile isNil ifFalse: [
+          dict := userProfile symbolList detect: [:each |
+            ([each name] on: Error do: [:ex | each printString]) asString = '${escapedDictionary}'] ifNone: [nil].
+          dict isNil ifFalse: [
+            dict keysDo: [:key | | keyString matches |
+              count < limit ifTrue: [
+                keyString := key asString.
+                matches := filter size = 0 or: [
+                  (keyString asLowercase findString: filter startingAt: 1) > 0].
+                matches ifTrue: [
+                  count := count + 1.
+                  stream nextPutAll: keyString; lf]]]]]].
+      text
+    `);
+    const entries = splitLines(result);
+    return {
+      user,
+      dictionary,
+      filter,
+      limit,
+      truncated: entries.length > limit,
+      entries: entries.slice(0, limit),
+    };
+  });
+}
+
+async function symbolListPreviewEndpoint(url: URL) {
+  const user = requiredQuery(url, "user");
+  const dictionary = requiredQuery(url, "dictionary");
+  const key = requiredQuery(url, "key");
+  return withSession(async (session) => {
+    const escapedUser = escapeSmalltalkStringLiteral(user);
+    const escapedDictionary = escapeSmalltalkStringLiteral(dictionary);
+    const escapedKey = escapeSmalltalkStringLiteral(key);
+    const value = await session.execute(`
+      | allUsers userProfile dict |
+      ${allUsersSource()}
+      userProfile := ${allUsersDetectUserSource(escapedUser)}.
+      userProfile isNil ifTrue: [nil] ifFalse: [
+        dict := userProfile symbolList detect: [:each |
+          ([each name] on: Error do: [:ex | each printString]) asString = '${escapedDictionary}'] ifNone: [nil].
+        dict isNil ifTrue: [nil] ifFalse: [
+          dict at: '${escapedKey}' ifAbsent: [
+            dict at: '${escapedKey}' asSymbol ifAbsent: [nil]]]]
+    `);
+    return {
+      user,
+      dictionary,
+      key,
+      oop: value.toString(),
+      inspection: await session.inspect(value),
+    };
+  });
+}
+
 async function classesEndpoint(url: URL) {
   const limit = limitFromUrl(url);
   const prefix = (url.searchParams.get("prefix") ?? "").trim();
@@ -228,6 +360,38 @@ async function classEndpoint(url: URL) {
       methodLimit,
       methodsTruncated: methods.length > methodLimit,
       methods: methods.slice(0, methodLimit),
+    };
+  });
+}
+
+async function methodSourceEndpoint(url: URL) {
+  const name = validateGlobalName(requiredQuery(url, "class"));
+  const side = requiredQuery(url, "side");
+  const selector = requiredQuery(url, "selector");
+  if (!["instance", "class"].includes(side)) {
+    throw new Error("side must be instance or class.");
+  }
+  if (selector.length > 200) {
+    throw new Error("selector must be 200 characters or fewer.");
+  }
+  return withSession(async (session) => {
+    const behaviorSource = side === "class" ? `${name} class` : name;
+    const escapedSelector = escapeSmalltalkStringLiteral(selector);
+    const source = await session.eval(`
+      | behavior method |
+      behavior := ${behaviorSource}.
+      method := ([behavior compiledMethodAt: '${escapedSelector}' asSymbol ifAbsent: [nil]] on: Error do: [:ex | nil]).
+      method isNil ifTrue: [
+        method := ([behavior lookupSelector: '${escapedSelector}' asSymbol] on: Error do: [:ex | nil])].
+      method isNil
+        ifTrue: ['']
+        ifFalse: [[method sourceString] on: Error do: [:ex | '']]
+    `);
+    return {
+      class: name,
+      side,
+      selector,
+      source: typeof source === "string" ? source : String(source ?? ""),
     };
   });
 }
@@ -426,6 +590,69 @@ async function boundedRootItemsOop(session: Session, rootName: string, maxItems:
   return parseKeyOopRows(await session.eval(source), root.rootName);
 }
 
+function splitLines(value: unknown): string[] {
+  return typeof value === "string"
+    ? value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean)
+    : [];
+}
+
+function allUsersSource(): string {
+  return `
+    allUsers := nil.
+    allUsers isNil ifTrue: [
+      ${loadUserCollectionSource("System myUserProfile symbolList objectNamed: #AllUsers")}
+    ].
+    allUsers isNil ifTrue: [
+      ${loadUserCollectionSource("Globals at: #AllUsers ifAbsent: [nil]")}
+    ].
+    allUsers isNil ifTrue: [
+      ${loadUserCollectionSource("UserGlobals at: #AllUsers ifAbsent: [nil]")}
+    ].
+    allUsers isNil ifTrue: [
+      ${loadUserCollectionSource("System myUserProfile")}
+    ].
+  `;
+}
+
+function loadUserCollectionSource(sourceExpression: string): string {
+  return `
+    allUsers := [${sourceExpression}] on: Error do: [:ex | nil].
+    ((allUsers notNil) and: [(allUsers respondsTo: #userId) and: [allUsers respondsTo: #symbolList]]) ifTrue: [
+      allUsers := Array with: allUsers
+    ].
+    (${validUserCollectionSource("allUsers")}) ifFalse: [
+      allUsers := nil
+    ].
+  `;
+}
+
+function validUserCollectionSource(variableName: string): string {
+  return `
+    ((${variableName} notNil) and: [
+      (( ${variableName} respondsTo: #userId) and: [${variableName} respondsTo: #symbolList])
+        ifTrue: [true]
+        ifFalse: [
+          | foundValidUser |
+          foundValidUser := false.
+          [${variableName} do: [:each |
+            ((each respondsTo: #userId) and: [each respondsTo: #symbolList]) ifTrue: [
+              foundValidUser := true]]
+          ] on: Error do: [:ex | foundValidUser := false].
+          foundValidUser
+        ]
+    ])
+  `;
+}
+
+function allUsersDetectUserSource(escapedUser: string): string {
+  return `
+    allUsers isNil ifTrue: [nil] ifFalse: [
+      allUsers detect: [:each |
+        (([each userId] on: Error do: [:ex | each printString]) asString) = '${escapedUser}']
+        ifNone: [nil]]
+  `;
+}
+
 function parseKeyOopRows(value: unknown, context: string): Array<[string, ReturnType<typeof oop>]> {
   if (typeof value !== "string") return [];
   return value
@@ -464,8 +691,7 @@ async function classNames(session: Session, prefix: string, limit: number): Prom
 }
 
 async function classMethods(session: Session, name: string, limit: number): Promise<Array<{ side: string; selector: string }>> {
-  const className = /^[A-Za-z_][A-Za-z0-9_]*$/.test(name) ? name : "";
-  if (!className) throw new Error("Class name must be a GemStone global-style identifier.");
+  const className = validateGlobalName(name);
   const source = `
     | cls limit count |
     cls := ${className}.
@@ -495,6 +721,13 @@ async function classMethods(session: Session, name: string, limit: number): Prom
       return { side, selector };
     })
     .filter((entry) => entry.side && entry.selector);
+}
+
+function validateGlobalName(name: string): string {
+  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) {
+    throw new Error("Name must be a GemStone global-style identifier.");
+  }
+  return name;
 }
 
 async function safeJson(callback: () => Promise<unknown>): Promise<JsonResponse> {
@@ -792,13 +1025,46 @@ function explorerHtml(): string {
     .status.error { background: var(--danger); }
     main {
       position: relative;
-      height: calc(100vh - 54px);
+      height: calc(100vh - 94px);
       overflow: auto;
       background:
         linear-gradient(var(--line) 1px, transparent 1px),
         linear-gradient(90deg, var(--line) 1px, transparent 1px);
       background-color: var(--bg);
       background-size: 24px 24px;
+    }
+    .taskbar {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      min-height: 40px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 8px;
+      border-top: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.94);
+      backdrop-filter: blur(8px);
+      z-index: 1200;
+      overflow-x: auto;
+    }
+    .taskbar button {
+      border: 1px solid var(--line);
+      background: white;
+      color: var(--text);
+      border-radius: 6px;
+      padding: 6px 9px;
+      min-height: 30px;
+      font: inherit;
+      font-size: 12px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .taskbar button.active {
+      border-color: #8fc8c0;
+      background: #e8f3f1;
+      font-weight: 700;
     }
     .tool-window {
       position: absolute;
@@ -932,6 +1198,32 @@ function explorerHtml(): string {
       letter-spacing: 0;
       background: #fbfcfe;
     }
+    .tabs {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin: 0 0 10px;
+      overflow-x: auto;
+    }
+    .tab {
+      border: 1px solid var(--line);
+      background: white;
+      color: var(--text);
+      border-radius: 6px;
+      padding: 7px 10px;
+      min-height: 32px;
+      font: inherit;
+      font-size: 12px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .tab.active {
+      border-color: #0b5f59;
+      background: #e8f3f1;
+      color: #0b5f59;
+      font-weight: 700;
+    }
+    .inspect-panel.hidden { display: none; }
     table {
       width: 100%;
       border-collapse: collapse;
@@ -973,6 +1265,20 @@ function explorerHtml(): string {
       grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
       gap: 14px;
     }
+    .class-browser-grid {
+      display: grid;
+      grid-template-columns: minmax(210px, 0.7fr) minmax(240px, 0.8fr) minmax(300px, 1.1fr);
+      gap: 14px;
+      align-items: start;
+    }
+    .class-source { grid-column: 1 / -1; }
+    .class-source pre { min-height: 310px; }
+    .symbol-grid {
+      display: grid;
+      grid-template-columns: minmax(150px, 0.55fr) minmax(170px, 0.65fr) minmax(190px, 0.8fr) minmax(280px, 1fr);
+      gap: 14px;
+      align-items: start;
+    }
     .rowline {
       display: flex;
       align-items: center;
@@ -993,9 +1299,13 @@ function explorerHtml(): string {
       }
       main {
         height: auto;
-        min-height: calc(100vh - 92px);
+        min-height: calc(100vh - 132px);
         overflow: visible;
         padding: 10px;
+      }
+      .taskbar {
+        position: sticky;
+        min-height: 42px;
       }
       .tool-window {
         position: static;
@@ -1007,7 +1317,7 @@ function explorerHtml(): string {
       .tool-window.hidden {
         display: none;
       }
-      .grid, .split { grid-template-columns: 1fr; }
+      .grid, .split, .class-browser-grid, .symbol-grid { grid-template-columns: 1fr; }
       .window-titlebar { cursor: default; }
     }
   </style>
@@ -1020,9 +1330,11 @@ function explorerHtml(): string {
       <button type="button" role="menuitem" data-window-open="debugger">Debugger</button>
       <button type="button" role="menuitem" data-window-open="globals">Globals</button>
       <button type="button" role="menuitem" data-window-open="roots">Roots</button>
+      <button type="button" role="menuitem" data-window-open="symbols">Symbol List</button>
       <button type="button" role="menuitem" data-window-open="workspace">Workspace</button>
       <button type="button" role="menuitem" data-window-open="classes">Classes</button>
       <button type="button" role="menuitem" data-window-open="codegen">Codegen</button>
+      <button type="button" role="menuitem" data-window-open="statusLog">Status Log</button>
       <button type="button" role="menuitem" id="openAllWindows">All</button>
       <button type="button" role="menuitem" id="resetWindows">Reset</button>
     </div>
@@ -1040,7 +1352,16 @@ function explorerHtml(): string {
           <label>OOP <input id="inspectOop" placeholder="123456789"></label>
           <button class="action" id="inspectRun">Inspect</button>
         </div>
-        <div class="surface"><h2>Object</h2><pre id="inspectOutput"></pre></div>
+        <div class="tabs" id="inspectTabs" role="tablist" aria-label="Object inspector tabs">
+          <button type="button" class="tab active" data-inspect-tab="summary">Summary</button>
+          <button type="button" class="tab" data-inspect-tab="slots">Slots</button>
+          <button type="button" class="tab" data-inspect-tab="indexed">Indexed</button>
+          <button type="button" class="tab" data-inspect-tab="raw">Raw</button>
+        </div>
+        <div class="surface inspect-panel" data-inspect-panel="summary"><h2>Summary</h2><pre id="inspectSummaryOutput"></pre></div>
+        <div class="surface inspect-panel hidden" data-inspect-panel="slots"><h2>Slots</h2><div id="inspectSlotsTable"></div></div>
+        <div class="surface inspect-panel hidden" data-inspect-panel="indexed"><h2>Indexed Fields</h2><div id="inspectIndexedTable"></div></div>
+        <div class="surface inspect-panel hidden" data-inspect-panel="raw"><h2>Raw JSON</h2><pre id="inspectRawOutput"></pre></div>
         </div>
       </section>
       <section id="debugger" class="tool-window" data-window="debugger" data-default-left="456" data-default-top="16" style="--x: 456px; --y: 16px; --w: 620px;">
@@ -1085,6 +1406,22 @@ function explorerHtml(): string {
         </div>
         </div>
       </section>
+      <section id="symbols" class="tool-window hidden" data-window="symbols" data-default-left="120" data-default-top="250" style="--x: 120px; --y: 250px; --w: 980px;">
+        <div class="window-titlebar" data-drag-handle><h2>Symbol List Browser</h2><button class="window-button" type="button" data-window-close="symbols" aria-label="Close symbol list browser">x</button></div>
+        <div class="window-body">
+        <div class="toolbar">
+          <button class="action" id="symbolsLoadUsers">Load Users</button>
+          <label>Filter Entries <input id="symbolsFilter" placeholder="Object"></label>
+          <label>Limit <input id="symbolsLimit" type="number" min="0" max="200" value="50"></label>
+        </div>
+        <div class="symbol-grid">
+          <div class="surface"><h2>Users</h2><div id="symbolUsersTable"></div></div>
+          <div class="surface"><h2>Dictionaries</h2><div id="symbolDictionariesTable"></div></div>
+          <div class="surface"><h2>Entries</h2><div id="symbolEntriesTable"></div></div>
+          <div class="surface"><h2>Value Preview</h2><pre id="symbolPreviewOutput"></pre></div>
+        </div>
+        </div>
+      </section>
       <section id="workspace" class="tool-window hidden" data-window="workspace" data-default-left="456" data-default-top="200" style="--x: 456px; --y: 200px; --w: 620px;">
         <div class="window-titlebar" data-drag-handle><h2>Workspace</h2><button class="window-button" type="button" data-window-close="workspace" aria-label="Close workspace">x</button></div>
         <div class="window-body">
@@ -1110,9 +1447,11 @@ function explorerHtml(): string {
           <label>Methods <input id="classMethodLimit" type="number" min="0" max="1000" value="300"></label>
           <button class="action secondary" id="classDescribe">Describe</button>
         </div>
-        <div class="grid">
+        <div class="class-browser-grid">
           <div class="surface"><h2>Classes</h2><div id="classesTable"></div></div>
           <div class="surface"><h2>Description</h2><pre id="classOutput"></pre></div>
+          <div class="surface"><h2>Methods</h2><div id="classMethodsTable"></div></div>
+          <div class="surface class-source"><h2>Source</h2><pre id="classSourceOutput"></pre></div>
         </div>
         </div>
       </section>
@@ -1128,26 +1467,63 @@ function explorerHtml(): string {
         </div>
         </div>
       </section>
+      <section id="statusLog" class="tool-window hidden" data-window="statusLog" data-default-left="780" data-default-top="120" style="--x: 780px; --y: 120px; --w: 560px;">
+        <div class="window-titlebar" data-drag-handle><h2>Status Log</h2><button class="window-button" type="button" data-window-close="statusLog" aria-label="Close status log">x</button></div>
+        <div class="window-body">
+        <div class="toolbar">
+          <button class="action secondary" id="statusLogClear">Clear</button>
+        </div>
+        <div class="surface"><h2>Recent Activity</h2><pre id="statusLogOutput"></pre></div>
+        </div>
+      </section>
   </main>
+  <div class="taskbar" id="taskbar" aria-label="Open windows"></div>
   <script>
-    const state = { roots: [] };
+    const state = {
+      roots: [],
+      statusHistory: [],
+      lastInspection: null,
+      inspectTab: "summary",
+      symbolUser: "",
+      symbolDictionary: "",
+    };
     const out = (id, value) => {
-      document.getElementById(id).textContent = typeof value === "string" ? value : JSON.stringify(value, null, 2);
+      const element = document.getElementById(id);
+      if (!element) return;
+      element.textContent = typeof value === "string" ? value : JSON.stringify(value, null, 2);
     };
     const api = async (path, options = {}) => {
-      const response = await fetch(path, {
-        ...options,
-        headers: { "content-type": "application/json", ...(options.headers || {}) },
-      });
-      const body = await response.json();
-      if (!response.ok || body.error) throw Object.assign(new Error(body.error || response.statusText), { body });
-      return body;
+      const startedAt = performance.now();
+      try {
+        const response = await fetch(path, {
+          ...options,
+          headers: { "content-type": "application/json", ...(options.headers || {}) },
+        });
+        const body = await response.json();
+        if (!response.ok || body.error) throw Object.assign(new Error(body.error || response.statusText), { body });
+        recordStatus({ ok: true, path, elapsedMs: Math.round(performance.now() - startedAt) });
+        return body;
+      } catch (error) {
+        recordStatus({
+          ok: false,
+          path,
+          elapsedMs: Math.round(performance.now() - startedAt),
+          message: error && error.message ? error.message : String(error),
+        });
+        throw error;
+      }
     };
     const setStatus = (ok, text) => {
       document.getElementById("statusLight").className = "status " + (ok ? "ok" : "error");
       document.getElementById("statusText").textContent = text;
     };
     const table = (target, rows, columns) => {
+      const element = document.getElementById(target);
+      if (!element) return;
+      if (!rows || rows.length === 0) {
+        element.innerHTML = "<div style=\\"padding:12px;color:var(--muted)\\">No rows</div>";
+        return;
+      }
       const html = [
         "<table><thead><tr>",
         ...columns.map((column) => "<th>" + column.label + "</th>"),
@@ -1155,7 +1531,7 @@ function explorerHtml(): string {
         ...rows.map((row) => "<tr>" + columns.map((column) => "<td>" + column.render(row) + "</td>").join("") + "</tr>"),
         "</tbody></table>",
       ].join("");
-      document.getElementById(target).innerHTML = html;
+      element.innerHTML = html;
     };
     const escapeHtml = (value) => String(value)
       .replace(/&/g, "&amp;")
@@ -1165,8 +1541,22 @@ function explorerHtml(): string {
     const inspectLink = (oop) => "<button data-oop=\\"" + escapeHtml(oop) + "\\">" + escapeHtml(oop) + "</button>";
 
     const desktop = document.getElementById("desktop");
+    const taskbar = document.getElementById("taskbar");
+    const layoutStorageKey = "gemstone-js-explorer-layout-v2";
     const defaultVisibleWindows = new Set(["inspect", "debugger", "globals", "roots"]);
+    const windowLabels = {
+      inspect: "Inspect",
+      debugger: "Debugger",
+      globals: "Globals",
+      roots: "Roots",
+      symbols: "Symbol List",
+      workspace: "Workspace",
+      classes: "Classes",
+      codegen: "Codegen",
+      statusLog: "Status Log",
+    };
     let nextWindowZ = 20;
+    let layoutReady = false;
     const toolWindow = (name) => document.querySelector(".tool-window[data-window='" + name + "']");
     const focusWindow = (name) => {
       const win = toolWindow(name);
@@ -1175,16 +1565,23 @@ function explorerHtml(): string {
       document.querySelectorAll(".tool-window").forEach((item) => item.dataset.active = "false");
       win.dataset.active = "true";
       win.style.zIndex = String(++nextWindowZ);
+      afterWindowMutation();
     };
     const closeWindow = (name) => {
       const win = toolWindow(name);
-      if (win) win.classList.add("hidden");
+      if (!win) return;
+      win.classList.add("hidden");
+      win.dataset.active = "false";
+      afterWindowMutation();
     };
     const resetWindows = () => {
+      try { localStorage.removeItem(layoutStorageKey); } catch (_error) {}
       document.querySelectorAll(".tool-window").forEach((win) => {
         const name = win.dataset.window;
         win.style.left = (win.dataset.defaultLeft || "16") + "px";
         win.style.top = (win.dataset.defaultTop || "16") + "px";
+        win.style.removeProperty("width");
+        win.style.removeProperty("height");
         win.style.removeProperty("z-index");
         win.dataset.active = "false";
         win.classList.toggle("hidden", !defaultVisibleWindows.has(name));
@@ -1195,6 +1592,74 @@ function explorerHtml(): string {
     const openAllWindows = () => {
       document.querySelectorAll(".tool-window").forEach((win) => focusWindow(win.dataset.window));
     };
+    const afterWindowMutation = () => {
+      renderTaskbar();
+      saveWindowLayout();
+    };
+    const renderTaskbar = () => {
+      const visible = Array.from(document.querySelectorAll(".tool-window"))
+        .filter((win) => !win.classList.contains("hidden"))
+        .sort((left, right) => Number(left.style.zIndex || 0) - Number(right.style.zIndex || 0));
+      if (!visible.length) {
+        taskbar.innerHTML = "<span style=\\"color:var(--muted);padding:0 8px\\">No open windows</span>";
+        return;
+      }
+      taskbar.innerHTML = visible.map((win) => {
+        const name = win.dataset.window;
+        const active = win.dataset.active === "true" ? " active" : "";
+        return "<button type=\\"button\\" class=\\"taskbar-button" + active + "\\" data-taskbar-window=\\"" + escapeHtml(name) + "\\">" + escapeHtml(windowLabels[name] || name) + "</button>";
+      }).join("");
+    };
+    const saveWindowLayout = () => {
+      if (!layoutReady) return;
+      const windows = {};
+      document.querySelectorAll(".tool-window").forEach((win) => {
+        const name = win.dataset.window;
+        if (!name) return;
+        windows[name] = {
+          open: !win.classList.contains("hidden"),
+          active: win.dataset.active === "true",
+          left: Math.round(win.offsetLeft),
+          top: Math.round(win.offsetTop),
+          width: Math.round(win.offsetWidth),
+          height: Math.round(win.offsetHeight),
+          zIndex: Number(win.style.zIndex || 0),
+        };
+      });
+      try {
+        localStorage.setItem(layoutStorageKey, JSON.stringify({ windows, nextWindowZ }));
+      } catch (_error) {}
+    };
+    const restoreWindowLayout = () => {
+      let saved = null;
+      try { saved = JSON.parse(localStorage.getItem(layoutStorageKey) || "null"); } catch (_error) {}
+      if (!saved || !saved.windows || typeof saved.windows !== "object") return false;
+      let hasActive = false;
+      let highestZ = 20;
+      document.querySelectorAll(".tool-window").forEach((win) => {
+        const name = win.dataset.window;
+        const entry = saved.windows[name];
+        if (!entry) return;
+        if (Number.isFinite(entry.left)) win.style.left = Math.max(0, Math.round(entry.left)) + "px";
+        if (Number.isFinite(entry.top)) win.style.top = Math.max(0, Math.round(entry.top)) + "px";
+        if (Number.isFinite(entry.width)) win.style.width = Math.max(320, Math.round(entry.width)) + "px";
+        if (Number.isFinite(entry.height)) win.style.height = Math.max(180, Math.round(entry.height)) + "px";
+        win.classList.toggle("hidden", !entry.open);
+        win.dataset.active = entry.active && entry.open ? "true" : "false";
+        if (entry.active && entry.open) hasActive = true;
+        if (Number.isFinite(entry.zIndex) && entry.zIndex > 0) {
+          win.style.zIndex = String(Math.round(entry.zIndex));
+          highestZ = Math.max(highestZ, Number(entry.zIndex));
+        }
+      });
+      if (!hasActive) {
+        const firstOpen = document.querySelector(".tool-window:not(.hidden)");
+        if (firstOpen) firstOpen.dataset.active = "true";
+      }
+      nextWindowZ = Math.max(highestZ, Number(saved.nextWindowZ || 20));
+      renderTaskbar();
+      return true;
+    };
     const setupFloatingWindows = () => {
       document.querySelectorAll("[data-window-open]").forEach((button) => {
         button.addEventListener("click", () => focusWindow(button.dataset.windowOpen));
@@ -1204,8 +1669,13 @@ function explorerHtml(): string {
       });
       document.getElementById("openAllWindows").addEventListener("click", openAllWindows);
       document.getElementById("resetWindows").addEventListener("click", resetWindows);
+      taskbar.addEventListener("click", (event) => {
+        const target = event.target;
+        if (target instanceof HTMLElement && target.dataset.taskbarWindow) focusWindow(target.dataset.taskbarWindow);
+      });
       document.querySelectorAll(".tool-window").forEach((win) => {
         win.addEventListener("pointerdown", () => focusWindow(win.dataset.window));
+        win.addEventListener("pointerup", () => saveWindowLayout());
         const handle = win.querySelector("[data-drag-handle]");
         handle.addEventListener("pointerdown", (event) => {
           if (event.button !== 0 || event.target.closest("button") || window.matchMedia("(max-width: 820px)").matches) return;
@@ -1228,6 +1698,7 @@ function explorerHtml(): string {
             handle.removeEventListener("pointermove", move);
             handle.removeEventListener("pointerup", done);
             handle.removeEventListener("lostpointercapture", done);
+            afterWindowMutation();
           };
           handle.setPointerCapture(pointerId);
           handle.addEventListener("pointermove", move);
@@ -1235,13 +1706,23 @@ function explorerHtml(): string {
           handle.addEventListener("lostpointercapture", done);
         });
       });
-      resetWindows();
+      layoutReady = true;
+      if (!restoreWindowLayout()) resetWindows();
     };
     document.body.addEventListener("click", async (event) => {
       const target = event.target;
       if (!(target instanceof HTMLElement)) return;
       const selectedOop = target.dataset.oop;
       const selectedClass = target.dataset.className;
+      const selectedMethod = target.dataset.methodSelector;
+      const selectedUser = target.dataset.symbolUser;
+      const selectedDictionary = target.dataset.symbolDictionary;
+      const selectedEntry = target.dataset.symbolEntry;
+      const inspectTab = target.dataset.inspectTab;
+      if (inspectTab) {
+        selectInspectTab(inspectTab);
+        return;
+      }
       if (selectedOop) {
         document.getElementById("inspectOop").value = selectedOop;
         focusWindow("inspect");
@@ -1252,6 +1733,18 @@ function explorerHtml(): string {
         focusWindow("classes");
         await describeClass();
       }
+      if (selectedMethod) {
+        await loadMethodSource(target.dataset.methodSide, selectedMethod);
+      }
+      if (selectedUser) {
+        await loadSymbolDictionaries(selectedUser);
+      }
+      if (selectedDictionary) {
+        await loadSymbolEntries(selectedDictionary);
+      }
+      if (selectedEntry) {
+        await previewSymbolEntry(selectedEntry);
+      }
     });
 
     async function loadConfig() {
@@ -1259,8 +1752,72 @@ function explorerHtml(): string {
       state.roots = config.roots;
       document.getElementById("rootName").innerHTML = config.roots.map((name) => "<option>" + escapeHtml(name) + "</option>").join("");
     }
+    function recordStatus(entry) {
+      state.statusHistory.unshift({
+        time: new Date().toISOString(),
+        ok: !!entry.ok,
+        path: entry.path || "",
+        elapsedMs: entry.elapsedMs || 0,
+        message: entry.message || "",
+      });
+      state.statusHistory = state.statusHistory.slice(0, 120);
+      renderStatusLog();
+    }
+    function renderStatusLog() {
+      if (!document.getElementById("statusLogOutput")) return;
+      const lines = state.statusHistory.map((entry) => {
+        return entry.time + " " + (entry.ok ? "OK " : "ERR") + " " + entry.path + " " + entry.elapsedMs + "ms" + (entry.message ? " " + entry.message : "");
+      });
+      out("statusLogOutput", lines.join("\\n") || "No recent activity.");
+    }
+    function selectInspectTab(name) {
+      state.inspectTab = name;
+      document.querySelectorAll("[data-inspect-tab]").forEach((tab) => {
+        tab.classList.toggle("active", tab.dataset.inspectTab === name);
+      });
+      document.querySelectorAll("[data-inspect-panel]").forEach((panel) => {
+        panel.classList.toggle("hidden", panel.dataset.inspectPanel !== name);
+      });
+    }
+    function clearInspect() {
+      out("inspectSummaryOutput", "");
+      table("inspectSlotsTable", [], []);
+      table("inspectIndexedTable", [], []);
+      out("inspectRawOutput", "");
+    }
+    function inspectionOop(value) {
+      return value && (value.oopString || value.oop) ? String(value.oopString || value.oop) : "";
+    }
+    function renderInspection(value) {
+      const inspection = value && value.inspection && value.inspection.printString ? value.inspection : value;
+      state.lastInspection = inspection;
+      const hierarchy = Array.isArray(inspection.classHierarchy) ? inspection.classHierarchy.join(" > ") : "";
+      const summary = [
+        "oop: " + inspectionOop(inspection),
+        "class: " + (inspection.class || ""),
+        "class oop: " + (inspection.classOop || ""),
+        "printString: " + (inspection.printString || ""),
+        "size: " + (inspection.size === undefined ? "" : inspection.size),
+        "byte size: " + (inspection.byteSize === undefined ? "" : inspection.byteSize),
+        "hierarchy: " + hierarchy,
+      ].join("\\n");
+      out("inspectSummaryOutput", summary);
+      table("inspectSlotsTable", Array.isArray(inspection.slots) ? inspection.slots : [], [
+        { label: "Slot", render: (row) => escapeHtml(row.name || "") },
+        { label: "Class", render: (row) => escapeHtml(row.class || "") },
+        { label: "OOP", render: (row) => inspectionOop(row) ? inspectLink(inspectionOop(row)) : "" },
+        { label: "Value", render: (row) => escapeHtml(row.value || "") },
+      ]);
+      table("inspectIndexedTable", Array.isArray(inspection.indexedFields) ? inspection.indexedFields : [], [
+        { label: "Index", render: (row) => escapeHtml(row.index) },
+        { label: "Class", render: (row) => escapeHtml(row.class || "") },
+        { label: "OOP", render: (row) => inspectionOop(row) ? inspectLink(inspectionOop(row)) : "" },
+        { label: "Value", render: (row) => escapeHtml(row.value || "") },
+      ]);
+      out("inspectRawOutput", inspection);
+      selectInspectTab(state.inspectTab || "summary");
+    }
     async function refreshStatus() {
-      out("inspectOutput", "");
       try {
         const status = await api("/api/status");
         setStatus(true, status.stone ? "Connected: " + status.stone : "Connected");
@@ -1270,9 +1827,11 @@ function explorerHtml(): string {
     }
     async function runInspect() {
       try {
-        out("inspectOutput", await api("/api/inspect?oop=" + encodeURIComponent(document.getElementById("inspectOop").value)));
+        renderInspection(await api("/api/inspect?oop=" + encodeURIComponent(document.getElementById("inspectOop").value)));
       } catch (error) {
-        out("inspectOutput", error.body || error.message);
+        clearInspect();
+        out("inspectRawOutput", error.body || error.message);
+        selectInspectTab("raw");
       }
     }
     async function loadGlobals() {
@@ -1302,6 +1861,56 @@ function explorerHtml(): string {
         out("rootsOutput", result);
       } catch (error) {
         out("rootsOutput", error.body || error.message);
+      }
+    }
+    async function loadSymbolUsers() {
+      try {
+        const result = await api("/api/symbol-list/users");
+        table("symbolUsersTable", result.users.map((name) => ({ name })), [
+          { label: "User", render: (row) => "<button data-symbol-user=\\"" + escapeHtml(row.name) + "\\">" + escapeHtml(row.name) + "</button>" },
+        ]);
+        out("symbolPreviewOutput", result);
+        if (result.users.length) await loadSymbolDictionaries(result.users[0]);
+      } catch (error) {
+        out("symbolPreviewOutput", error.body || error.message);
+      }
+    }
+    async function loadSymbolDictionaries(user) {
+      state.symbolUser = user;
+      state.symbolDictionary = "";
+      try {
+        const result = await api("/api/symbol-list/dictionaries?user=" + encodeURIComponent(user));
+        table("symbolDictionariesTable", result.dictionaries.map((name) => ({ name })), [
+          { label: "Dictionary", render: (row) => "<button data-symbol-dictionary=\\"" + escapeHtml(row.name) + "\\">" + escapeHtml(row.name) + "</button>" },
+        ]);
+        table("symbolEntriesTable", [], []);
+        out("symbolPreviewOutput", result);
+        if (result.dictionaries.length) await loadSymbolEntries(result.dictionaries[0]);
+      } catch (error) {
+        out("symbolPreviewOutput", error.body || error.message);
+      }
+    }
+    async function loadSymbolEntries(dictionary) {
+      state.symbolDictionary = dictionary;
+      const limit = document.getElementById("symbolsLimit").value;
+      const filter = document.getElementById("symbolsFilter").value;
+      try {
+        const result = await api("/api/symbol-list/entries?user=" + encodeURIComponent(state.symbolUser) + "&dictionary=" + encodeURIComponent(dictionary) + "&limit=" + encodeURIComponent(limit) + "&filter=" + encodeURIComponent(filter));
+        table("symbolEntriesTable", result.entries.map((name) => ({ name })), [
+          { label: "Entry", render: (row) => "<button data-symbol-entry=\\"" + escapeHtml(row.name) + "\\">" + escapeHtml(row.name) + "</button>" },
+        ]);
+        out("symbolPreviewOutput", result);
+      } catch (error) {
+        out("symbolPreviewOutput", error.body || error.message);
+      }
+    }
+    async function previewSymbolEntry(key) {
+      try {
+        const result = await api("/api/symbol-list/preview?user=" + encodeURIComponent(state.symbolUser) + "&dictionary=" + encodeURIComponent(state.symbolDictionary) + "&key=" + encodeURIComponent(key));
+        out("symbolPreviewOutput", result);
+        if (result.inspection) renderInspection(result.inspection);
+      } catch (error) {
+        out("symbolPreviewOutput", error.body || error.message);
       }
     }
     async function runEval() {
@@ -1349,9 +1958,24 @@ function explorerHtml(): string {
       try {
         const name = document.getElementById("className").value;
         const methodLimit = document.getElementById("classMethodLimit").value;
-        out("classOutput", await api("/api/class?name=" + encodeURIComponent(name) + "&methodLimit=" + encodeURIComponent(methodLimit)));
+        const result = await api("/api/class?name=" + encodeURIComponent(name) + "&methodLimit=" + encodeURIComponent(methodLimit));
+        out("classOutput", result.description);
+        table("classMethodsTable", result.methods, [
+          { label: "Side", render: (row) => escapeHtml(row.side) },
+          { label: "Selector", render: (row) => "<button data-method-side=\\"" + escapeHtml(row.side) + "\\" data-method-selector=\\"" + escapeHtml(row.selector) + "\\">" + escapeHtml(row.selector) + "</button>" },
+        ]);
+        out("classSourceOutput", result.methodsTruncated ? "Select a method. Method list is truncated by the current limit." : "Select a method.");
       } catch (error) {
         out("classOutput", error.body || error.message);
+      }
+    }
+    async function loadMethodSource(side, selector) {
+      try {
+        const name = document.getElementById("className").value;
+        const result = await api("/api/method-source?class=" + encodeURIComponent(name) + "&side=" + encodeURIComponent(side || "instance") + "&selector=" + encodeURIComponent(selector));
+        out("classSourceOutput", result.source || "(source unavailable)");
+      } catch (error) {
+        out("classSourceOutput", error.body || error.message);
       }
     }
     async function previewCodegen() {
@@ -1370,6 +1994,14 @@ function explorerHtml(): string {
     document.getElementById("inspectRun").addEventListener("click", runInspect);
     document.getElementById("globalsRun").addEventListener("click", loadGlobals);
     document.getElementById("rootsRun").addEventListener("click", loadRoots);
+    document.getElementById("symbolsLoadUsers").addEventListener("click", loadSymbolUsers);
+    document.getElementById("symbolsFilter").addEventListener("change", () => {
+      if (state.symbolDictionary) void loadSymbolEntries(state.symbolDictionary);
+    });
+    document.getElementById("statusLogClear").addEventListener("click", () => {
+      state.statusHistory = [];
+      renderStatusLog();
+    });
     document.getElementById("evalRun").addEventListener("click", runEval);
     document.getElementById("debugRun").addEventListener("click", runDebug);
     document.getElementById("classesRun").addEventListener("click", searchClasses);

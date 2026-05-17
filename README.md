@@ -174,12 +174,16 @@ native package; the TypeScript package can be tested locally with a mock runtime
   Runnable adapter examples live in `examples/web-express.ts`,
   `examples/web-fastify.ts`, `examples/web-fetch.ts`, and
   `examples/web-hono.ts`, with route-handler exports in
-  `examples/web-route-handler.ts`; see `docs/framework-adapters.md`.
+  `examples/web-route-handler.ts`; the dependency-free
+  `examples/explorer.ts` browser example adds status, OOP inspection,
+  roots/globals, workspace eval, class browsing, and codegen preview. See
+  `docs/framework-adapters.md` and `docs/examples-guide.md`.
 - `gemstone-js-examples` lists packaged examples, filters them by kind, prints
   JSON, guided plans, and runnable command lists for tooling, and can show an
   example file directly from the installed npm package. The packaged catalog
   includes quickstart, data helpers, query helpers, bulk selector sends,
-  migrations, ObjectLog, codegen, and web adapter examples; see
+  migrations, ObjectLog, codegen, web adapter examples, and the local explorer;
+  see
   `docs/examples-guide.md`.
 - `gemstone-js-compare` prints the local JS/Python, Rust/Python, and combined
   ecosystem comparison, including scorecards, gap rows, next batches, batch

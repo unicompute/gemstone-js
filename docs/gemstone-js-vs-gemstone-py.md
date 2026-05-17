@@ -58,13 +58,15 @@ the current full and beta batch totals.
   reports, checksums, release artifact checks, and installed package probes
 - bulk selector sends for raw OOPs, marshalled JS values, mixed calls, and
   object-returning retained handles
+- a small dependency-free browser explorer for status, OOP inspection,
+  roots/globals, workspace eval, class browsing, and codegen preview
 
 `gemstone-py` remains ahead where project maturity matters:
 
 - broader real application examples
 - Python async and sync surfaces
 - framework coverage, especially Django and larger Flask/webstack examples
-- visual explorer and VS Code workflows
+- more mature visual explorer and VS Code workflows
 - release history and native wheel confidence
 - broader live GemStone test coverage across application shapes
 
@@ -74,7 +76,7 @@ The comparison CLI reports **6 batches**, roughly **42-72 hours**, for fuller
 JS/Python product parity:
 
 1. Native publish confidence
-2. Visual tooling
+2. Visual tooling polish
 3. Installed examples
 4. Live CI
 5. Documentation and release polish

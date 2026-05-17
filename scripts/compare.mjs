@@ -15,7 +15,7 @@ const PROJECTS = {
     pyUseWhen: [
       "You are building Python applications, notebooks, scripts, or web services.",
       "You want the broadest current examples across FastAPI, Litestar, Django, async, docs, and packaging.",
-      "You need the mature Python database explorer and PyPI/TestPyPI release path today.",
+      "You need the mature Python database explorer, VS Code workbench, and PyPI/TestPyPI release path today.",
     ],
     projectUseWhen: [
       "You are building Node, TypeScript, or JavaScript services that should keep GemStone access in the JS runtime.",
@@ -25,12 +25,12 @@ const PROJECTS = {
     pyStrengths: [
       "Mature Python package and optional native acceleration install path.",
       "Broader web framework examples and async workflow coverage.",
-      "Richer database explorer and public docs/release surfaces.",
+      "Richer database explorer, VS Code workbench, and public docs/release surfaces.",
     ],
     projectStrengths: [
       "Async-first API shape that fits Node services naturally.",
       "Manifest/decorator codegen with TypeScript type signatures and schema checks.",
-      "npm-oriented doctor, examples, migrations, inspect, benchmarks, and package smoke tooling.",
+      "npm-oriented doctor, examples, migrations, inspect, explorer, benchmarks, and package smoke tooling.",
     ],
     rows: [
       row("Best fit", "Python applications, scripts, notebooks, data tooling, FastAPI/Litestar/Django services, and Python-first teams", "TypeScript/JavaScript services, CLIs, Node-based tooling, web adapters, and teams already using npm workflows", "Choose gemstone-py for Python products; choose gemstone-js for async TypeScript applications that need direct GemStone access"),
@@ -41,12 +41,12 @@ const PROJECTS = {
     ],
     gaps: [
       gap("P1", "Published native confidence", "gemstone-py has a working package/release lane and optional native acceleration path.", "gemstone-js is alpha and depends on optional @gemstone-js/native plus Deno/Bun FFI starter paths that need broader live proof.", "Publish and verify gemstone-js plus @gemstone-js/native across supported Node platforms, then run npm verify and live smoke tests from a clean install.", "cd /Users/tariq/src/gemstone-js && npm run verify && GS_RUN_LIVE=1 npm run test:live"),
-      gap("P1", "Visual tooling", "gemstone-py has python-gemstone-database-explorer and a more mature VS Code workbench flow.", "gemstone-js has inspect/doctor/examples CLIs but no equivalent visual database explorer or VS Code workbench yet.", "Build a gemstone-js explorer/workbench layer or reuse the Rust/Python explorer concepts for TypeScript codegen and inspection workflows.", "npm run inspect; npm run examples; browser smoke for the future explorer"),
+      gap("P1", "Visual tooling", "gemstone-py has python-gemstone-database-explorer and a more mature VS Code workbench flow.", "gemstone-js has a small packaged browser explorer example plus inspect/doctor/examples CLIs, but not a full VS Code workbench yet.", "Productize the gemstone-js explorer/workbench layer and reuse the Rust/Python explorer concepts for TypeScript codegen and inspection workflows.", "node --experimental-strip-types examples/explorer.ts; npm run examples:check"),
       gap("P2", "Live coverage", "gemstone-py has broader live GemStone testing across sync, async, framework, lifetime, and native behavior.", "gemstone-js has a live test entry point, but more runtime/platform combinations and framework-adapter live flows are needed.", "Add scheduled/manual live CI for login, eval, performWith, pools, request scopes, migrations, query helpers, and all web adapters.", "GS_RUN_LIVE=1 npm run test:live"),
     ],
     batches: [
       batch(1, "Native publish confidence", 6, 10, "Publish and verify gemstone-js plus @gemstone-js/native from a clean install across supported Node platforms.", "cd /Users/tariq/src/gemstone-js && npm run verify && GS_RUN_LIVE=1 npm run test:live"),
-      batch(2, "Visual tooling", 10, 18, "Add explorer/workbench flows for inspect, browse, TypeScript codegen, and persistent roots.", "npm run inspect; npm run examples; browser smoke for the future explorer"),
+      batch(2, "Visual tooling polish", 10, 18, "Productize explorer/workbench flows for inspect, browse, TypeScript codegen, and persistent roots.", "node --experimental-strip-types examples/explorer.ts; npm run examples:check"),
       batch(3, "Installed examples", 5, 8, "Add clean-install examples for quickstart, web adapters, migrations, codegen, and persistence helpers.", "npm run examples:check; gemstone-js-examples --json"),
       batch(4, "Live CI", 8, 14, "Cover Node, Deno, Bun, framework adapters, pools, transactions, migrations, and query helpers against a real stone.", "GS_RUN_LIVE=1 npm run test:live"),
       batch(5, "Documentation and release polish", 5, 8, "Add article-style docs, release checklist coverage, checksums, and npm post-publish verification.", "npm run pack:check; docs link check when available"),

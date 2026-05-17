@@ -104,6 +104,13 @@ export const exampleCatalog = [
     command: "node --experimental-strip-types examples/web-fetch.ts",
   },
   {
+    name: "explorer",
+    path: "examples/explorer.ts",
+    kind: "web",
+    description: "Dependency-free browser explorer for doctor/status, OOP inspection, roots/globals, workspace eval, class browsing, and codegen preview.",
+    command: "node --experimental-strip-types examples/explorer.ts",
+  },
+  {
     name: "web-route-handler",
     path: "examples/web-route-handler.ts",
     kind: "web",
@@ -147,8 +154,8 @@ export const examplePlans = [
   {
     name: "web-service",
     title: "Web Service",
-    description: "Start with Fetch, then compare Express, Fastify, Hono, and route-handler shapes.",
-    examples: ["web-fetch", "web-route-handler", "web-express", "web-fastify", "web-hono"],
+    description: "Start with Fetch and the local explorer, then compare Express, Fastify, Hono, and route-handler shapes.",
+    examples: ["web-fetch", "explorer", "web-route-handler", "web-express", "web-fastify", "web-hono"],
   },
   {
     name: "ops-release",

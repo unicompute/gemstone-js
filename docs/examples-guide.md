@@ -51,7 +51,8 @@ Current plans:
 - `data-persistence`: roots, dictionaries, query helpers, bulk selector sends,
   GStore, and migrations.
 - `typed-codegen`: manifests, decorated source, and generated wrappers.
-- `web-service`: Fetch, route-handler, Express, Fastify, and Hono shapes.
+- `web-service`: Fetch, local explorer, route-handler, Express, Fastify, and
+  Hono shapes.
 - `ops-release`: migration, ObjectLog, and codegen checks used before release.
 
 ## Environment
@@ -111,6 +112,14 @@ The dependency-free Fetch example is the smallest web service shape:
 
 ```sh
 node --experimental-strip-types examples/web-fetch.ts
+```
+
+The dependency-free browser explorer is a small local workbench for status,
+doctor output, OOP inspection, roots/globals, workspace eval, class browsing,
+and generated-wrapper preview:
+
+```sh
+node --experimental-strip-types examples/explorer.ts
 ```
 
 Framework examples show the same request/session lifecycle through common Node

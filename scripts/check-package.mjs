@@ -233,6 +233,7 @@ const required = [
   "examples/bulk-perform.ts",
   "examples/codegen.generated.ts",
   "examples/codegen.manifest.json",
+  "examples/explorer.ts",
   "examples/gstore.ts",
   "examples/migrations.ts",
   "examples/object-log.ts",

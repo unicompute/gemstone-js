@@ -64,8 +64,9 @@ artifact verification, and the native session-thread spike.
 - Packaged examples are discoverable through `gemstone-js-examples`, mirroring
   gemstone-py's installed example catalog pattern in JavaScript form. The
   catalog now includes quickstart, data helper, query, migration, ObjectLog,
-  codegen, and web adapter examples, with `--kind`, `--commands`, and guided
-  `--plan` views for tooling and focused browsing.
+  codegen, web adapter examples, and a dependency-free browser explorer, with
+  `--kind`, `--commands`, and guided `--plan` views for tooling and focused
+  browsing.
 - Raw execute/eval, value marshalling, typed object handles, and managed
   export-set handles.
 - Batched raw selector sends through `bulkPerformOop()` and mixed-call batches
@@ -141,7 +142,8 @@ artifact verification, and the native session-thread spike.
 
 ## Still Python-Only
 
-- The `gemstone-py` VS Code workbench and its codegen explorer. A JavaScript
+- The `gemstone-py` VS Code workbench and mature codegen explorer. The
+  JavaScript package now has a small browser explorer example, but a VS Code
   extension should wait until the package API and native session-thread model
   settle further.
 - Python's dual sync/async public API. JavaScript is intentionally async-first,

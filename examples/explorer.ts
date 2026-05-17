@@ -141,6 +141,34 @@ async function route(request: IncomingMessage, response: ServerResponse): Promis
     writeJson(response, 200, await safeJson(() => methodSourceEndpoint(url)));
     return;
   }
+  if (request.method === "GET" && url.pathname === "/api/class-browser/dictionaries") {
+    writeJson(response, 200, await safeJson(() => classBrowserDictionariesEndpoint()));
+    return;
+  }
+  if (request.method === "GET" && url.pathname === "/api/class-browser/classes") {
+    writeJson(response, 200, await safeJson(() => classBrowserClassesEndpoint(url)));
+    return;
+  }
+  if (request.method === "GET" && url.pathname === "/api/class-browser/categories") {
+    writeJson(response, 200, await safeJson(() => classBrowserCategoriesEndpoint(url)));
+    return;
+  }
+  if (request.method === "GET" && url.pathname === "/api/class-browser/methods") {
+    writeJson(response, 200, await safeJson(() => classBrowserMethodsEndpoint(url)));
+    return;
+  }
+  if (request.method === "GET" && url.pathname === "/api/class-browser/source") {
+    writeJson(response, 200, await safeJson(() => classBrowserSourceEndpoint(url)));
+    return;
+  }
+  if (request.method === "GET" && url.pathname === "/api/class-browser/inspect-target") {
+    writeJson(response, 200, await safeJson(() => classBrowserInspectTargetEndpoint(url)));
+    return;
+  }
+  if (request.method === "GET" && url.pathname === "/api/class-browser/file-out") {
+    writeJson(response, 200, await safeJson(() => classBrowserFileOutEndpoint(url)));
+    return;
+  }
   if (request.method === "POST" && url.pathname === "/api/eval") {
     writeJson(response, 200, await safeJson(() => evalEndpoint(request)));
     return;
@@ -391,6 +419,187 @@ async function methodSourceEndpoint(url: URL) {
       class: name,
       side,
       selector,
+      source: typeof source === "string" ? source : String(source ?? ""),
+    };
+  });
+}
+
+async function classBrowserDictionariesEndpoint() {
+  return withSession(async (session) => {
+    const result = await session.eval(`
+      | stream |
+      stream := WriteStream on: String new.
+      System myUserProfile symbolList do: [:dict |
+        stream nextPutAll: (([dict name] on: Error do: [:ex | dict printString]) asString); lf].
+      stream contents
+    `);
+    return {
+      dictionaries: splitLines(result),
+    };
+  });
+}
+
+async function classBrowserClassesEndpoint(url: URL) {
+  const dictionary = requiredQuery(url, "dictionary");
+  return withSession(async (session) => {
+    const result = await session.eval(`
+      | dict stream classNames |
+      dict := ${classBrowserDictionaryExpression(dictionary)}.
+      stream := WriteStream on: String new.
+      dict isNil ifFalse: [
+        classNames := dict keys select: [:key | [(dict at: key) isBehavior] on: Error do: [:ex | false]].
+        classNames asSortedCollection do: [:name | stream nextPutAll: name asString; lf]].
+      stream contents
+    `);
+    return {
+      dictionary,
+      classes: splitLines(result),
+    };
+  });
+}
+
+async function classBrowserCategoriesEndpoint(url: URL) {
+  const dictionary = requiredQuery(url, "dictionary");
+  const className = requiredQuery(url, "class");
+  const meta = booleanFromUrl(url, "meta");
+  return withSession(async (session) => {
+    const result = await session.eval(`
+      | cls stream |
+      cls := ${classBrowserBehaviorExpression(className, dictionary, meta)}.
+      stream := WriteStream on: String new.
+      cls isNil ifFalse: [
+        [cls categoryNames asSortedCollection do: [:category | stream nextPutAll: category asString; lf]]
+          on: Error do: [:ex | ]].
+      stream contents
+    `);
+    return {
+      dictionary,
+      class: className,
+      meta,
+      categories: ["-- all --", ...splitLines(result)],
+    };
+  });
+}
+
+async function classBrowserMethodsEndpoint(url: URL) {
+  const dictionary = requiredQuery(url, "dictionary");
+  const className = requiredQuery(url, "class");
+  const protocol = url.searchParams.get("protocol")?.trim() || "-- all --";
+  const meta = booleanFromUrl(url, "meta");
+  return withSession(async (session) => {
+    const escapedProtocol = escapeSmalltalkStringLiteral(protocol);
+    const result = await session.eval(`
+      | cls stream selectors |
+      cls := ${classBrowserBehaviorExpression(className, dictionary, meta)}.
+      stream := WriteStream on: String new.
+      cls isNil ifFalse: [
+        selectors := '${escapedProtocol}' = '-- all --'
+          ifTrue: [[cls selectors] on: Error do: [:ex | #()]]
+          ifFalse: [[cls selectorsIn: '${escapedProtocol}' asSymbol] on: Error do: [:ex | #()]].
+        selectors ifNil: [selectors := #()].
+        selectors asSortedCollection do: [:selector | stream nextPutAll: selector asString; lf]].
+      stream contents
+    `);
+    return {
+      dictionary,
+      class: className,
+      protocol,
+      meta,
+      methods: splitLines(result),
+    };
+  });
+}
+
+async function classBrowserSourceEndpoint(url: URL) {
+  const dictionary = requiredQuery(url, "dictionary");
+  const className = requiredQuery(url, "class");
+  const selector = url.searchParams.get("selector")?.trim() || "";
+  const meta = booleanFromUrl(url, "meta");
+  if (selector.length > 200) {
+    throw new Error("selector must be 200 characters or fewer.");
+  }
+  return withSession(async (session) => {
+    const escapedSelector = escapeSmalltalkStringLiteral(selector);
+    const source = await session.eval(`
+      | cls method |
+      cls := ${classBrowserBehaviorExpression(className, dictionary, meta)}.
+      cls isNil ifTrue: [''] ifFalse: [
+        '${escapedSelector}' isEmpty
+          ifTrue: [
+            (cls respondsTo: #definition)
+              ifTrue: [[cls definition asString] on: Error do: [:ex | cls printString]]
+              ifFalse: [cls printString]]
+          ifFalse: [
+            method := [cls compiledMethodAt: '${escapedSelector}' asSymbol ifAbsent: [nil]] on: Error do: [:ex | nil].
+            method isNil ifTrue: [''] ifFalse: [[method sourceString] on: Error do: [:ex | '']]]]
+    `);
+    return {
+      dictionary,
+      class: className,
+      selector,
+      meta,
+      source: typeof source === "string" ? source : String(source ?? ""),
+    };
+  });
+}
+
+async function classBrowserInspectTargetEndpoint(url: URL) {
+  const mode = url.searchParams.get("mode")?.trim() || "";
+  const dictionary = url.searchParams.get("dictionary")?.trim() || "";
+  const className = url.searchParams.get("class")?.trim() || "";
+  const selector = url.searchParams.get("selector")?.trim() || "";
+  const meta = booleanFromUrl(url, "meta");
+  const validModes = new Set(["dictionary", "class", "instances", "method"]);
+  if (!validModes.has(mode)) throw new Error("unsupported inspect target.");
+  if (mode === "dictionary" && !dictionary) throw new Error("missing dictionary.");
+  if (["class", "instances", "method"].includes(mode) && !className) throw new Error("missing class.");
+  if (mode === "method" && !selector) throw new Error("missing selector.");
+
+  const expression = classBrowserInspectExpression(mode, dictionary, className, selector, meta);
+  return withSession(async (session) => {
+    const value = await session.execute(expression);
+    return {
+      mode,
+      dictionary,
+      class: className,
+      selector,
+      meta,
+      oop: value.toString(),
+      inspection: await session.inspect(value),
+    };
+  });
+}
+
+async function classBrowserFileOutEndpoint(url: URL) {
+  const mode = url.searchParams.get("mode")?.trim() || "class";
+  const dictionary = url.searchParams.get("dictionary")?.trim() || "";
+  const className = url.searchParams.get("class")?.trim() || "";
+  const selector = url.searchParams.get("selector")?.trim() || "";
+  const meta = booleanFromUrl(url, "meta");
+  const validModes = new Set(["class", "class-methods", "dictionary", "dictionary-methods", "method"]);
+  if (!validModes.has(mode)) throw new Error("unsupported file-out mode.");
+  if (["class", "class-methods", "method"].includes(mode) && !className) throw new Error("missing class.");
+  if (mode.startsWith("dictionary") && !dictionary) throw new Error("missing dictionary.");
+  if (mode === "method" && !selector) throw new Error("missing selector.");
+
+  const metaSuffix = meta && mode.startsWith("class") ? "-class" : "";
+  const filename = {
+    "class": `${className}${metaSuffix}.st`,
+    "class-methods": `${className}${metaSuffix}-methods.st`,
+    "dictionary": `${dictionary}.st`,
+    "dictionary-methods": `${dictionary}-methods.st`,
+    "method": `${className}${metaSuffix}-${selector.replace(/[^A-Za-z0-9_:-]+/g, "_")}.st`,
+  }[mode];
+
+  return withSession(async (session) => {
+    const source = await session.eval(classBrowserFileOutSource(mode, dictionary, className, selector, meta));
+    return {
+      mode,
+      dictionary,
+      class: className,
+      selector,
+      meta,
+      filename,
       source: typeof source === "string" ? source : String(source ?? ""),
     };
   });
@@ -650,6 +859,105 @@ function allUsersDetectUserSource(escapedUser: string): string {
       allUsers detect: [:each |
         (([each userId] on: Error do: [:ex | each printString]) asString) = '${escapedUser}']
         ifNone: [nil]]
+  `;
+}
+
+function booleanFromUrl(url: URL, name: string): boolean {
+  const value = url.searchParams.get(name);
+  return ["1", "true", "yes", "on"].includes(String(value ?? "").toLowerCase());
+}
+
+function classBrowserDictionaryExpression(dictionary: string): string {
+  const escapedDictionary = escapeSmalltalkStringLiteral(dictionary);
+  return `(System myUserProfile symbolList detect: [:dict |
+    (([dict name] on: Error do: [:ex | dict printString]) asString) = '${escapedDictionary}']
+    ifNone: [nil])`;
+}
+
+function classBrowserBehaviorExpression(className: string, dictionary: string, meta: boolean): string {
+  const escapedClass = escapeSmalltalkStringLiteral(validateGlobalName(className));
+  const metaSuffix = meta ? " class" : "";
+  return `[ | dict cls |
+    dict := ${classBrowserDictionaryExpression(dictionary)}.
+    cls := dict isNil ifTrue: [nil] ifFalse: [dict at: '${escapedClass}' asSymbol ifAbsent: [nil]].
+    cls isNil ifTrue: [nil] ifFalse: [cls${metaSuffix}]
+  ] value`;
+}
+
+function classBrowserInspectExpression(
+  mode: string,
+  dictionary: string,
+  className: string,
+  selector: string,
+  meta: boolean,
+): string {
+  if (mode === "dictionary") {
+    return classBrowserDictionaryExpression(dictionary);
+  }
+  if (mode === "class") {
+    return classBrowserBehaviorExpression(className, dictionary, meta);
+  }
+  if (mode === "instances") {
+    return `[ | cls |
+      cls := ${classBrowserBehaviorExpression(className, dictionary, false)}.
+      cls isNil ifTrue: [nil] ifFalse: [cls allInstances]
+    ] value`;
+  }
+  const escapedSelector = escapeSmalltalkStringLiteral(selector);
+  return `[ | cls |
+    cls := ${classBrowserBehaviorExpression(className, dictionary, meta)}.
+    cls isNil ifTrue: [nil] ifFalse: [
+      [cls compiledMethodAt: '${escapedSelector}' asSymbol ifAbsent: [nil]] on: Error do: [:ex | nil]]
+  ] value`;
+}
+
+function classBrowserFileOutSource(
+  mode: string,
+  dictionary: string,
+  className: string,
+  selector: string,
+  meta: boolean,
+): string {
+  const dictionaryExpression = classBrowserDictionaryExpression(dictionary);
+  const behaviorExpression = classBrowserBehaviorExpression(className || "Object", dictionary, meta);
+  const escapedSelector = escapeSmalltalkStringLiteral(selector);
+  if (mode === "dictionary" || mode === "dictionary-methods") {
+    const includeDefinitions = mode === "dictionary";
+    return `
+      | dict stream classes |
+      dict := ${dictionaryExpression}.
+      stream := WriteStream on: String new.
+      dict isNil ifFalse: [
+        classes := dict keys select: [:key | [(dict at: key) isBehavior] on: Error do: [:ex | false]].
+        classes asSortedCollection do: [:name | | cls |
+          cls := dict at: name.
+          ${includeDefinitions ? "(cls respondsTo: #definition) ifTrue: [stream nextPutAll: cls definition asString; lf; lf]." : ""}
+          cls selectors asSortedCollection do: [:sel | | src |
+            src := [(cls compiledMethodAt: sel) sourceString] on: Error do: [:ex | ''].
+            src isEmpty ifFalse: [stream nextPutAll: src; lf; lf]]]].
+      stream contents
+    `;
+  }
+  if (mode === "method") {
+    return `
+      | cls method |
+      cls := ${behaviorExpression}.
+      cls isNil ifTrue: [''] ifFalse: [
+        method := [cls compiledMethodAt: '${escapedSelector}' asSymbol ifAbsent: [nil]] on: Error do: [:ex | nil].
+        method isNil ifTrue: [''] ifFalse: [[method sourceString] on: Error do: [:ex | '']]]
+    `;
+  }
+  const includeDefinition = mode === "class";
+  return `
+    | cls stream |
+    cls := ${behaviorExpression}.
+    stream := WriteStream on: String new.
+    cls isNil ifFalse: [
+      ${includeDefinition ? "(cls respondsTo: #definition) ifTrue: [stream nextPutAll: cls definition asString; lf; lf]." : ""}
+      cls selectors asSortedCollection do: [:sel | | src |
+        src := [(cls compiledMethodAt: sel) sourceString] on: Error do: [:ex | ''].
+        src isEmpty ifFalse: [stream nextPutAll: src; lf; lf]]].
+    stream contents
   `;
 }
 
@@ -1265,6 +1573,30 @@ function explorerHtml(): string {
       grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
       gap: 14px;
     }
+    .debugger-workbench {
+      display: grid;
+      grid-template-columns: minmax(300px, 0.55fr) minmax(360px, 0.45fr);
+      gap: 14px;
+      align-items: stretch;
+    }
+    .debugger-side {
+      display: grid;
+      gap: 14px;
+      align-content: start;
+    }
+    .debugger-source {
+      min-height: 260px;
+      height: 100%;
+    }
+    .debugger-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 14px;
+    }
+    .source-preview {
+      min-height: 96px;
+      border-left: 3px solid #0f766e;
+    }
     .class-browser-grid {
       display: grid;
       grid-template-columns: minmax(210px, 0.7fr) minmax(240px, 0.8fr) minmax(300px, 1.1fr);
@@ -1273,6 +1605,45 @@ function explorerHtml(): string {
     }
     .class-source { grid-column: 1 / -1; }
     .class-source pre { min-height: 310px; }
+    .browser-panes {
+      display: grid;
+      grid-template-columns: minmax(150px, 0.65fr) minmax(190px, 0.9fr) minmax(170px, 0.8fr) minmax(210px, 1fr);
+      gap: 10px;
+      align-items: stretch;
+      margin-bottom: 14px;
+    }
+    .browser-list {
+      max-height: 250px;
+      overflow: auto;
+      padding: 6px;
+    }
+    .browser-item {
+      display: block;
+      width: 100%;
+      border: 0;
+      border-radius: 5px;
+      background: transparent;
+      color: var(--text);
+      padding: 6px 7px;
+      text-align: left;
+      font: inherit;
+      font-size: 12px;
+      cursor: pointer;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .browser-item:hover,
+    .browser-item.active {
+      background: #e8f3f1;
+      color: #0b5f59;
+    }
+    .class-detail-grid {
+      display: grid;
+      grid-template-columns: minmax(260px, 0.35fr) minmax(0, 0.65fr);
+      gap: 14px;
+      align-items: start;
+    }
     .symbol-grid {
       display: grid;
       grid-template-columns: minmax(150px, 0.55fr) minmax(170px, 0.65fr) minmax(190px, 0.8fr) minmax(280px, 1fr);
@@ -1317,7 +1688,7 @@ function explorerHtml(): string {
       .tool-window.hidden {
         display: none;
       }
-      .grid, .split, .class-browser-grid, .symbol-grid { grid-template-columns: 1fr; }
+      .grid, .split, .debugger-workbench, .debugger-grid, .class-browser-grid, .browser-panes, .class-detail-grid, .symbol-grid { grid-template-columns: 1fr; }
       .window-titlebar { cursor: default; }
     }
   </style>
@@ -1364,16 +1735,27 @@ function explorerHtml(): string {
         <div class="surface inspect-panel hidden" data-inspect-panel="raw"><h2>Raw JSON</h2><pre id="inspectRawOutput"></pre></div>
         </div>
       </section>
-      <section id="debugger" class="tool-window" data-window="debugger" data-default-left="456" data-default-top="16" style="--x: 456px; --y: 16px; --w: 620px;">
+      <section id="debugger" class="tool-window" data-window="debugger" data-default-left="456" data-default-top="16" style="--x: 456px; --y: 16px; --w: 900px;">
         <div class="window-titlebar" data-drag-handle><h2>Debugger</h2><button class="window-button" type="button" data-window-close="debugger" aria-label="Close debugger">x</button></div>
         <div class="window-body">
         <div class="toolbar">
           <label>Return <select id="debugReturn"><option>inspect</option><option>value</option><option>oop</option></select></label>
           <button class="action" id="debugRun">Debug</button>
+          <button class="action secondary" id="debugInspectContext">Inspect Context</button>
+          <button class="action secondary" id="debugInspectException">Inspect Exception</button>
         </div>
-        <div class="split">
-          <textarea id="debugSource">1/0</textarea>
-          <div class="surface"><h2>Debug Report</h2><pre id="debugOutput"></pre></div>
+        <div class="debugger-workbench">
+          <textarea class="debugger-source" id="debugSource">1/0</textarea>
+          <div class="debugger-side">
+            <div class="surface"><h2>Summary</h2><pre id="debugSummaryOutput"></pre></div>
+            <div class="surface"><h2>Source</h2><pre class="source-preview" id="debugSourcePreview"></pre></div>
+          </div>
+        </div>
+        <div class="debugger-grid">
+          <div class="surface"><h2>Stack</h2><pre id="debugStackOutput"></pre></div>
+          <div class="surface"><h2>Objects</h2><div id="debugObjectsTable"></div></div>
+          <div class="surface"><h2>Arguments</h2><div id="debugArgsTable"></div></div>
+          <div class="surface"><h2>Raw Report</h2><pre id="debugOutput"></pre></div>
         </div>
         </div>
       </section>
@@ -1436,21 +1818,32 @@ function explorerHtml(): string {
         </div>
         </div>
       </section>
-      <section id="classes" class="tool-window hidden" data-window="classes" data-default-left="240" data-default-top="170" style="--x: 240px; --y: 170px; --w: 760px;">
-        <div class="window-titlebar" data-drag-handle><h2>Classes</h2><button class="window-button" type="button" data-window-close="classes" aria-label="Close classes">x</button></div>
+      <section id="classes" class="tool-window hidden" data-window="classes" data-default-left="240" data-default-top="170" style="--x: 240px; --y: 170px; --w: 1120px;">
+        <div class="window-titlebar" data-drag-handle><h2>Class Browser</h2><button class="window-button" type="button" data-window-close="classes" aria-label="Close classes">x</button></div>
         <div class="window-body">
         <div class="toolbar">
+          <button class="action" id="classBrowserLoad">Load Browser</button>
+          <label class="rowline"><input id="classMeta" type="checkbox"> Class side</label>
           <label>Prefix <input id="classPrefix" value="Object"></label>
           <label>Limit <input id="classesLimit" type="number" min="0" max="200" value="50"></label>
           <button class="action" id="classesRun">Search</button>
           <label>Class <input id="className" value="Object"></label>
           <label>Methods <input id="classMethodLimit" type="number" min="0" max="1000" value="300"></label>
           <button class="action secondary" id="classDescribe">Describe</button>
+          <button class="action secondary" id="classInspectClass">Inspect Class</button>
+          <button class="action secondary" id="classInspectMethod">Inspect Method</button>
+          <button class="action secondary" id="classInspectInstances">Instances</button>
+          <label>File Out <select id="classFileOutMode"><option value="method">Method</option><option value="class">Class</option><option value="class-methods">Class Methods</option><option value="dictionary">Dictionary</option><option value="dictionary-methods">Dictionary Methods</option></select></label>
+          <button class="action secondary" id="classFileOut">Preview</button>
         </div>
-        <div class="class-browser-grid">
-          <div class="surface"><h2>Classes</h2><div id="classesTable"></div></div>
-          <div class="surface"><h2>Description</h2><pre id="classOutput"></pre></div>
-          <div class="surface"><h2>Methods</h2><div id="classMethodsTable"></div></div>
+        <div class="browser-panes">
+          <div class="surface"><h2>Dictionaries</h2><div class="browser-list" id="classDictionariesTable"></div></div>
+          <div class="surface"><h2>Classes</h2><div class="browser-list" id="classesTable"></div></div>
+          <div class="surface"><h2>Categories</h2><div class="browser-list" id="classCategoriesTable"></div></div>
+          <div class="surface"><h2>Methods</h2><div class="browser-list" id="classMethodsTable"></div></div>
+        </div>
+        <div class="class-detail-grid">
+          <div class="surface"><h2>Description / File Out</h2><pre id="classOutput"></pre></div>
           <div class="surface class-source"><h2>Source</h2><pre id="classSourceOutput"></pre></div>
         </div>
         </div>
@@ -1486,6 +1879,14 @@ function explorerHtml(): string {
       inspectTab: "summary",
       symbolUser: "",
       symbolDictionary: "",
+      lastDebug: null,
+      classBrowser: {
+        dictionary: "",
+        className: "Object",
+        category: "-- all --",
+        method: "",
+        meta: false,
+      },
     };
     const out = (id, value) => {
       const element = document.getElementById(id);
@@ -1539,6 +1940,18 @@ function explorerHtml(): string {
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;");
     const inspectLink = (oop) => "<button data-oop=\\"" + escapeHtml(oop) + "\\">" + escapeHtml(oop) + "</button>";
+    const renderBrowserList = (target, items, active, dataName) => {
+      const element = document.getElementById(target);
+      if (!element) return;
+      if (!items || !items.length) {
+        element.innerHTML = "<div style=\\"padding:8px;color:var(--muted)\\">(empty)</div>";
+        return;
+      }
+      element.innerHTML = items.map((item) => {
+        const activeClass = item === active ? " active" : "";
+        return "<button type=\\"button\\" class=\\"browser-item" + activeClass + "\\" " + dataName + "=\\"" + escapeHtml(item) + "\\" title=\\"" + escapeHtml(item) + "\\">" + escapeHtml(item) + "</button>";
+      }).join("");
+    };
 
     const desktop = document.getElementById("desktop");
     const taskbar = document.getElementById("taskbar");
@@ -1662,7 +2075,12 @@ function explorerHtml(): string {
     };
     const setupFloatingWindows = () => {
       document.querySelectorAll("[data-window-open]").forEach((button) => {
-        button.addEventListener("click", () => focusWindow(button.dataset.windowOpen));
+        button.addEventListener("click", () => {
+          focusWindow(button.dataset.windowOpen);
+          if (button.dataset.windowOpen === "classes" && !state.classBrowser.dictionary) {
+            void loadClassBrowserDictionaries();
+          }
+        });
       });
       document.querySelectorAll("[data-window-close]").forEach((button) => {
         button.addEventListener("click", () => closeWindow(button.dataset.windowClose));
@@ -1718,9 +2136,29 @@ function explorerHtml(): string {
       const selectedUser = target.dataset.symbolUser;
       const selectedDictionary = target.dataset.symbolDictionary;
       const selectedEntry = target.dataset.symbolEntry;
+      const classBrowserDictionary = target.dataset.classBrowserDictionary;
+      const classBrowserClass = target.dataset.classBrowserClass;
+      const classBrowserCategory = target.dataset.classBrowserCategory;
+      const classBrowserMethod = target.dataset.classBrowserMethod;
       const inspectTab = target.dataset.inspectTab;
       if (inspectTab) {
         selectInspectTab(inspectTab);
+        return;
+      }
+      if (classBrowserDictionary) {
+        await selectClassBrowserDictionary(classBrowserDictionary);
+        return;
+      }
+      if (classBrowserClass) {
+        await selectClassBrowserClass(classBrowserClass);
+        return;
+      }
+      if (classBrowserCategory) {
+        await selectClassBrowserCategory(classBrowserCategory);
+        return;
+      }
+      if (classBrowserMethod) {
+        await selectClassBrowserMethod(classBrowserMethod);
         return;
       }
       if (selectedOop) {
@@ -1937,10 +2375,83 @@ function explorerHtml(): string {
             returnKind: document.getElementById("debugReturn").value,
           }),
         });
-        out("debugOutput", result);
+        renderDebugReport(result);
       } catch (error) {
         out("debugOutput", error.body || error.message);
       }
+    }
+    function renderDebugReport(result) {
+      state.lastDebug = result;
+      out("debugOutput", result);
+      const source = result.source || document.getElementById("debugSource").value;
+      out("debugSourcePreview", String(source || "").split("\\n").map((line, index) => (index === 0 ? ">> " : "   ") + line).join("\\n"));
+      if (result.ok) {
+        const inspection = result.result && result.result.printString ? result.result : null;
+        out("debugSummaryOutput", [
+          "status: ok",
+          "elapsed: " + result.elapsedMs + "ms",
+          "return: " + result.returnKind,
+          "result oop: " + (result.resultOop || ""),
+          inspection ? "result class: " + inspection.class : "",
+          inspection ? "result: " + inspection.printString : "",
+        ].filter(Boolean).join("\\n"));
+        out("debugStackOutput", "");
+        table("debugObjectsTable", result.resultOop ? [{ role: "result", oop: result.resultOop, inspection }] : [], [
+          { label: "Role", render: (row) => escapeHtml(row.role) },
+          { label: "OOP", render: (row) => inspectLink(row.oop) },
+          { label: "Class", render: (row) => escapeHtml(row.inspection?.class || "") },
+          { label: "Print", render: (row) => escapeHtml(row.inspection?.printString || "") },
+        ]);
+        table("debugArgsTable", [], []);
+        return;
+      }
+      const problem = result.problem || {};
+      out("debugSummaryOutput", [
+        "status: halted",
+        "elapsed: " + result.elapsedMs + "ms",
+        "name: " + (problem.name || ""),
+        "message: " + (problem.message || ""),
+        "number: " + (problem.number === undefined ? "" : problem.number),
+        "fatal: " + (problem.fatal === undefined ? "" : problem.fatal),
+        "reason: " + (problem.reason || ""),
+        "context oop: " + (problem.contextOop || ""),
+        "exception oop: " + (problem.exceptionOop || ""),
+      ].join("\\n"));
+      out("debugStackOutput", problem.stack || "");
+      const inspections = problem.inspections || {};
+      const objectRows = ["context", "exception"].map((role) => {
+        const entry = inspections[role] || {};
+        return {
+          role,
+          oop: entry.oop || (role === "context" ? problem.contextOop : problem.exceptionOop) || "",
+          inspection: entry.inspection || null,
+        };
+      }).filter((row) => row.oop);
+      table("debugObjectsTable", objectRows, [
+        { label: "Role", render: (row) => escapeHtml(row.role) },
+        { label: "OOP", render: (row) => inspectLink(row.oop) },
+        { label: "Class", render: (row) => escapeHtml(row.inspection?.class || "") },
+        { label: "Print", render: (row) => escapeHtml(row.inspection?.printString || "") },
+      ]);
+      const argRows = Array.isArray(inspections.args) ? inspections.args.map((entry, index) => ({
+        index,
+        oop: entry.oop || "",
+        inspection: entry.inspection || null,
+      })) : [];
+      table("debugArgsTable", argRows, [
+        { label: "#", render: (row) => escapeHtml(row.index) },
+        { label: "OOP", render: (row) => row.oop ? inspectLink(row.oop) : "" },
+        { label: "Class", render: (row) => escapeHtml(row.inspection?.class || "") },
+        { label: "Print", render: (row) => escapeHtml(row.inspection?.printString || "") },
+      ]);
+    }
+    async function inspectDebugTarget(kind) {
+      const problem = state.lastDebug?.problem || {};
+      const value = kind === "context" ? problem.contextOop : problem.exceptionOop;
+      if (!value) return;
+      document.getElementById("inspectOop").value = value;
+      focusWindow("inspect");
+      await runInspect();
     }
     async function searchClasses() {
       const prefix = document.getElementById("classPrefix").value;
@@ -1978,6 +2489,113 @@ function explorerHtml(): string {
         out("classSourceOutput", error.body || error.message);
       }
     }
+    async function loadClassBrowserDictionaries() {
+      try {
+        const result = await api("/api/class-browser/dictionaries");
+        state.classBrowser.dictionaries = result.dictionaries;
+        renderBrowserList("classDictionariesTable", result.dictionaries, state.classBrowser.dictionary, "data-class-browser-dictionary");
+        const preferred = state.classBrowser.dictionary || (result.dictionaries.includes("Globals") ? "Globals" : result.dictionaries[0]);
+        if (preferred) await selectClassBrowserDictionary(preferred);
+      } catch (error) {
+        out("classOutput", error.body || error.message);
+      }
+    }
+    async function selectClassBrowserDictionary(dictionary) {
+      state.classBrowser.dictionary = dictionary;
+      state.classBrowser.className = "";
+      state.classBrowser.category = "-- all --";
+      state.classBrowser.method = "";
+      renderBrowserList("classDictionariesTable", state.classBrowser.dictionaries || [dictionary], dictionary, "data-class-browser-dictionary");
+      table("classMethodsTable", [], []);
+      out("classSourceOutput", "");
+      try {
+        const result = await api("/api/class-browser/classes?dictionary=" + encodeURIComponent(dictionary));
+        state.classBrowser.classes = result.classes;
+        const preferred = result.classes.includes(document.getElementById("className").value)
+          ? document.getElementById("className").value
+          : (result.classes.includes("Object") ? "Object" : result.classes[0]);
+        renderBrowserList("classesTable", result.classes, preferred || "", "data-class-browser-class");
+        if (preferred) await selectClassBrowserClass(preferred);
+      } catch (error) {
+        out("classOutput", error.body || error.message);
+      }
+    }
+    async function selectClassBrowserClass(className) {
+      state.classBrowser.className = className;
+      state.classBrowser.category = "-- all --";
+      state.classBrowser.method = "";
+      document.getElementById("className").value = className;
+      renderBrowserList("classesTable", state.classBrowser.classes || [className], className, "data-class-browser-class");
+      try {
+        const methodLimit = document.getElementById("classMethodLimit").value;
+        const description = await api("/api/class?name=" + encodeURIComponent(className) + "&methodLimit=" + encodeURIComponent(methodLimit)).catch(() => null);
+        if (description) out("classOutput", description.description);
+        await loadClassBrowserCategories();
+        await loadClassBrowserSource("");
+      } catch (error) {
+        out("classOutput", error.body || error.message);
+      }
+    }
+    async function loadClassBrowserCategories() {
+      const browser = state.classBrowser;
+      if (!browser.dictionary || !browser.className) return;
+      browser.meta = document.getElementById("classMeta").checked;
+      const result = await api("/api/class-browser/categories?dictionary=" + encodeURIComponent(browser.dictionary) + "&class=" + encodeURIComponent(browser.className) + "&meta=" + (browser.meta ? "1" : "0"));
+      browser.categories = result.categories;
+      const preferred = result.categories.includes(browser.category) ? browser.category : "-- all --";
+      renderBrowserList("classCategoriesTable", result.categories, preferred, "data-class-browser-category");
+      await selectClassBrowserCategory(preferred);
+    }
+    async function selectClassBrowserCategory(category) {
+      state.classBrowser.category = category || "-- all --";
+      state.classBrowser.method = "";
+      renderBrowserList("classCategoriesTable", state.classBrowser.categories || [state.classBrowser.category], state.classBrowser.category, "data-class-browser-category");
+      await loadClassBrowserMethods();
+    }
+    async function loadClassBrowserMethods() {
+      const browser = state.classBrowser;
+      if (!browser.dictionary || !browser.className) return;
+      const result = await api("/api/class-browser/methods?dictionary=" + encodeURIComponent(browser.dictionary) + "&class=" + encodeURIComponent(browser.className) + "&protocol=" + encodeURIComponent(browser.category || "-- all --") + "&meta=" + (browser.meta ? "1" : "0"));
+      browser.methods = result.methods;
+      renderBrowserList("classMethodsTable", result.methods, browser.method, "data-class-browser-method");
+    }
+    async function selectClassBrowserMethod(selector) {
+      state.classBrowser.method = selector;
+      renderBrowserList("classMethodsTable", state.classBrowser.methods || [selector], selector, "data-class-browser-method");
+      await loadClassBrowserSource(selector);
+    }
+    async function loadClassBrowserSource(selector) {
+      const browser = state.classBrowser;
+      if (!browser.dictionary || !browser.className) return;
+      try {
+        const result = await api("/api/class-browser/source?dictionary=" + encodeURIComponent(browser.dictionary) + "&class=" + encodeURIComponent(browser.className) + "&selector=" + encodeURIComponent(selector || "") + "&meta=" + (browser.meta ? "1" : "0"));
+        out("classSourceOutput", result.source || (selector ? "(source unavailable)" : "(definition unavailable)"));
+      } catch (error) {
+        out("classSourceOutput", error.body || error.message);
+      }
+    }
+    async function inspectClassBrowserTarget(mode) {
+      const browser = state.classBrowser;
+      if (mode === "method" && !browser.method) return;
+      try {
+        const result = await api("/api/class-browser/inspect-target?mode=" + encodeURIComponent(mode) + "&dictionary=" + encodeURIComponent(browser.dictionary) + "&class=" + encodeURIComponent(browser.className) + "&selector=" + encodeURIComponent(browser.method) + "&meta=" + (browser.meta ? "1" : "0"));
+        document.getElementById("inspectOop").value = result.oop;
+        renderInspection(result.inspection);
+        focusWindow("inspect");
+      } catch (error) {
+        out("classOutput", error.body || error.message);
+      }
+    }
+    async function fileOutClassBrowser() {
+      const browser = state.classBrowser;
+      const mode = document.getElementById("classFileOutMode").value;
+      try {
+        const result = await api("/api/class-browser/file-out?mode=" + encodeURIComponent(mode) + "&dictionary=" + encodeURIComponent(browser.dictionary) + "&class=" + encodeURIComponent(browser.className) + "&selector=" + encodeURIComponent(browser.method) + "&meta=" + (browser.meta ? "1" : "0"));
+        out("classOutput", "filename: " + result.filename + "\\n\\n" + result.source);
+      } catch (error) {
+        out("classOutput", error.body || error.message);
+      }
+    }
     async function previewCodegen() {
       try {
         const result = await api("/api/codegen/preview", {
@@ -2004,6 +2622,16 @@ function explorerHtml(): string {
     });
     document.getElementById("evalRun").addEventListener("click", runEval);
     document.getElementById("debugRun").addEventListener("click", runDebug);
+    document.getElementById("debugInspectContext").addEventListener("click", () => inspectDebugTarget("context"));
+    document.getElementById("debugInspectException").addEventListener("click", () => inspectDebugTarget("exception"));
+    document.getElementById("classBrowserLoad").addEventListener("click", loadClassBrowserDictionaries);
+    document.getElementById("classMeta").addEventListener("change", () => {
+      if (state.classBrowser.className) void loadClassBrowserCategories();
+    });
+    document.getElementById("classInspectClass").addEventListener("click", () => inspectClassBrowserTarget("class"));
+    document.getElementById("classInspectMethod").addEventListener("click", () => inspectClassBrowserTarget("method"));
+    document.getElementById("classInspectInstances").addEventListener("click", () => inspectClassBrowserTarget("instances"));
+    document.getElementById("classFileOut").addEventListener("click", fileOutClassBrowser);
     document.getElementById("classesRun").addEventListener("click", searchClasses);
     document.getElementById("classDescribe").addEventListener("click", describeClass);
     document.getElementById("codegenRun").addEventListener("click", previewCodegen);

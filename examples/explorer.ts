@@ -7,6 +7,7 @@ import {
   decodeEscapedField,
   escapeSmalltalkStringLiteral,
   escapedFieldEncoderSource,
+  objectForOopSource,
   oop,
   renderGeneratedModule,
   type RenderGeneratedModuleOptions,
@@ -27,6 +28,15 @@ interface ExplorerErrorBody {
   error: string;
   code?: string;
   details?: unknown;
+}
+
+interface DebugContextFrame {
+  index: number;
+  contextOop: string;
+  receiverOop: string;
+  receiverClass: string;
+  selector: string;
+  printString: string;
 }
 
 const ROOT_NAMES = ["UserGlobals", "Globals", "Published", "SessionMethods"];
@@ -709,6 +719,7 @@ async function debugProblemPayload(session: Session, error: unknown) {
   const record = typeof error === "object" && error !== null ? error as Record<string, unknown> : {};
   const info = error instanceof GemStoneError ? error.info : record.info as Record<string, unknown> | undefined;
   const inspections = await debugInspections(session, info);
+  const frames = typeof info?.context === "bigint" ? await debugContextFrames(session, info.context).catch(() => []) : [];
   return {
     name: error instanceof Error ? error.name : "Error",
     message: error instanceof Error ? error.message : String(error),
@@ -721,6 +732,7 @@ async function debugProblemPayload(session: Session, error: unknown) {
     exceptionOop: oopStringField(info?.exceptionObj),
     argOops: Array.isArray(info?.args) ? info.args.map(oopStringField).filter(Boolean) : undefined,
     stack: debugStack(inspections),
+    frames,
     inspections,
   };
 }
@@ -748,6 +760,65 @@ function debugStack(inspections: Record<string, unknown>): string | undefined {
   return typeof context?.inspection?.printString === "string"
     ? context.inspection.printString
     : undefined;
+}
+
+async function debugContextFrames(session: Session, contextOop: ReturnType<typeof oop>): Promise<DebugContextFrame[]> {
+  const source = `
+    | obj ctx index limit encode |
+    obj := ${objectForOopSource(contextOop)}.
+    ctx := [obj topContext] on: Error do: [:ex | nil].
+    ctx isNil ifTrue: [
+      ctx := [obj suspendedContext] on: Error do: [:ex | nil]].
+    ctx isNil ifTrue: [
+      ctx := obj].
+    index := 0.
+    limit := 80.
+    ${escapedFieldEncoderSource("encode")}
+    String streamContents: [:stream |
+      [ctx notNil and: [index < limit]] whileTrue: [
+        | receiver receiverOop receiverClass selector text nextCtx |
+        receiver := [ctx receiver] on: Error do: [:ex | nil].
+        receiverOop := receiver isNil ifTrue: [''] ifFalse: [[receiver asOop asString] on: Error do: [:ex | '']].
+        receiverClass := receiver isNil ifTrue: [''] ifFalse: [[receiver class name asString] on: Error do: [:ex | receiver class printString]].
+        selector := [[ctx selector asString] on: Error do: [:ex | '']] on: Error do: [:ex | ''].
+        text := [ctx printString] on: Error do: [:ex | ''].
+        stream
+          nextPutAll: index asString;
+          nextPut: $|;
+          nextPutAll: ctx asOop asString;
+          nextPut: $|;
+          nextPutAll: receiverOop;
+          nextPut: $|;
+          nextPutAll: (encode value: receiverClass);
+          nextPut: $|;
+          nextPutAll: (encode value: selector);
+          nextPut: $|;
+          nextPutAll: (encode value: text);
+          lf.
+        nextCtx := [ctx sender] on: Error do: [:ex | nil].
+        ctx := nextCtx.
+        index := index + 1]]
+  `;
+  return parseDebugContextFrames(await session.eval(source));
+}
+
+function parseDebugContextFrames(value: unknown): DebugContextFrame[] {
+  if (typeof value !== "string") return [];
+  return value
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .map((line) => {
+      const [index, contextOop, receiverOop, receiverClass, selector, printString] = line.split("|");
+      return {
+        index: Number(index),
+        contextOop: contextOop ?? "",
+        receiverOop: receiverOop ?? "",
+        receiverClass: decodeEscapedField(receiverClass ?? ""),
+        selector: decodeEscapedField(selector ?? ""),
+        printString: decodeEscapedField(printString ?? ""),
+      };
+    })
+    .filter((row) => Number.isFinite(row.index) && row.contextOop);
 }
 
 async function inspectForDebugger(session: Session, value: ReturnType<typeof oop>) {
@@ -1781,6 +1852,7 @@ function explorerHtml(): string {
             <button class="action secondary" id="debugTerminate">Terminate</button>
           </span>
           <span class="debug-toolbar-group" aria-label="Debugger inspect controls">
+            <button class="action secondary" id="debugInspectFrame">Inspect Frame</button>
             <button class="action secondary" id="debugInspectContext">Inspect Context</button>
             <button class="action secondary" id="debugInspectException">Inspect Exception</button>
           </span>
@@ -2465,7 +2537,7 @@ function explorerHtml(): string {
         "exception oop: " + (problem.exceptionOop || ""),
       ].join("\\n"));
       out("debugStackOutput", problem.stack || "");
-      state.debugFrames = parseContextStack(problem.stack);
+      state.debugFrames = parseContextStack(problem.stack, problem.frames);
       state.selectedDebugFrame = state.debugFrames.length ? state.debugFrames[0].index : null;
       renderDebugStack(state.debugFrames);
       renderDebugSourcePreview(source, selectedDebugFrame());
@@ -2498,24 +2570,43 @@ function explorerHtml(): string {
     }
     async function inspectDebugTarget(kind) {
       const problem = state.lastDebug?.problem || {};
-      const value = kind === "context" ? problem.contextOop : problem.exceptionOop;
+      const value = kind === "frame" ? selectedDebugFrame()?.contextOop : kind === "context" ? problem.contextOop : problem.exceptionOop;
       if (!value) return;
       document.getElementById("inspectOop").value = value;
       focusWindow("inspect");
       await runInspect();
     }
-    function parseContextStack(stack) {
+    function parseContextStack(stack, frames) {
+      const frameRows = Array.isArray(frames) ? frames : [];
+      const frameMap = new Map(frameRows.map((frame) => [Number(frame.index), frame]));
       const lines = String(stack || "")
         .split("\\n")
         .map((line) => line.trim())
         .filter((line) => line && line !== ")" && !line.startsWith("GsProcess("));
+      if (!lines.length && frameRows.length) {
+        return frameRows.map((frame) => ({
+          index: Number(frame.index),
+          contextOop: frame.contextOop || "",
+          receiverOop: frame.receiverOop || "",
+          receiverClass: frame.receiverClass || "",
+          text: frame.printString || "",
+          receiver: frame.receiverClass || "",
+          selector: frame.selector || frame.printString || "",
+          step: "",
+          line: "",
+        }));
+      }
       return lines.map((line, index) => {
+        const frame = frameMap.get(index) || {};
         const match = line.match(/^(.*?)\\s*>>\\s*(.*?)\\s*@([0-9]+)\\s+line\\s+([0-9]+)/);
         return {
           index,
-          text: line,
-          receiver: match ? match[1].trim() : "",
-          selector: match ? match[2].trim() : line,
+          contextOop: frame.contextOop || "",
+          receiverOop: frame.receiverOop || "",
+          receiverClass: frame.receiverClass || "",
+          text: frame.printString || line,
+          receiver: match ? match[1].trim() : frame.receiverClass || "",
+          selector: frame.selector || (match ? match[2].trim() : line),
           step: match ? match[3] : "",
           line: match ? match[4] : "",
         };
@@ -2528,6 +2619,8 @@ function explorerHtml(): string {
       const frameHeader = frame
         ? [
             "frame #" + frame.index,
+            frame.contextOop ? "context oop: " + frame.contextOop : "",
+            frame.receiverOop ? "receiver oop: " + frame.receiverOop : "",
             frame.receiver ? "receiver: " + frame.receiver : "",
             frame.selector ? "selector: " + frame.selector : "",
             frame.step ? "step: " + frame.step : "",
@@ -2549,13 +2642,14 @@ function explorerHtml(): string {
       }
       element.innerHTML = [
         "<table><thead><tr>",
-        "<th>#</th><th>Receiver / Class</th><th>Selector</th><th>Step</th><th>Line</th><th>Frame</th>",
+        "<th>#</th><th>Context OOP</th><th>Receiver / Class</th><th>Selector</th><th>Step</th><th>Line</th><th>Frame</th>",
         "</tr></thead><tbody>",
         ...rows.map((row) => {
           const active = row.index === state.selectedDebugFrame ? " active" : "";
           return [
             "<tr class=\\"debug-stack-row" + active + "\\" data-debug-frame-index=\\"" + escapeHtml(row.index) + "\\" tabindex=\\"0\\" aria-selected=\\"" + (active ? "true" : "false") + "\\">",
             "<td class=\\"debug-stack-index\\">" + escapeHtml(row.index) + "</td>",
+            "<td>" + (row.contextOop ? inspectLink(row.contextOop) : "") + "</td>",
             "<td>" + escapeHtml(row.receiver) + "</td>",
             "<td>" + escapeHtml(row.selector) + "</td>",
             "<td>" + escapeHtml(row.step) + "</td>",
@@ -2774,6 +2868,7 @@ function explorerHtml(): string {
     document.getElementById("debugStepReturn").addEventListener("click", () => unsupportedDebugAction("Step Return"));
     document.getElementById("debugTrim").addEventListener("click", () => unsupportedDebugAction("Trim"));
     document.getElementById("debugTerminate").addEventListener("click", () => clearDebugReport("Terminated local debug report. No GemStone process is retained by the current stateless debugger."));
+    document.getElementById("debugInspectFrame").addEventListener("click", () => inspectDebugTarget("frame"));
     document.getElementById("debugInspectContext").addEventListener("click", () => inspectDebugTarget("context"));
     document.getElementById("debugInspectException").addEventListener("click", () => inspectDebugTarget("exception"));
     document.getElementById("debugStackTable").addEventListener("click", (event) => {

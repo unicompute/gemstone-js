@@ -1411,26 +1411,37 @@ function explorerHtml(): string {
   <title>GemStone Explorer</title>
   <style>
     :root {
-      color-scheme: light;
-      --bg: #f7f8fa;
-      --panel: #ffffff;
-      --line: #d9dee7;
-      --text: #17202a;
-      --muted: #657283;
-      --accent: #0f766e;
-      --accent-2: #1d4ed8;
-      --danger: #b42318;
-      --code: #0f172a;
-      --code-bg: #eef2f7;
+      color-scheme: dark;
+      --bg: #11111b;
+      --panel: #1e1e2e;
+      --panel-2: #181825;
+      --panel-3: #24273a;
+      --line: #313244;
+      --line-strong: #45475a;
+      --text: #cdd6f4;
+      --bright: #eef6ff;
+      --muted: #a6adc8;
+      --faint: #6c7086;
+      --accent: #cba6f7;
+      --accent-2: #89b4fa;
+      --focus: #89dceb;
+      --ok: #a6e3a1;
+      --warning: #f9e2af;
+      --danger: #f38ba8;
+      --code: #cdd6f4;
+      --code-bg: #11111b;
     }
-    * { box-sizing: border-box; }
+    * {
+      box-sizing: border-box;
+      scrollbar-color: var(--line-strong) var(--panel-2);
+    }
     body {
       margin: 0;
       background: var(--bg);
       color: var(--text);
       font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      font-size: 14px;
-      line-height: 1.45;
+      font-size: 13px;
+      line-height: 1.4;
       height: 100vh;
       overflow: hidden;
     }
@@ -1438,19 +1449,20 @@ function explorerHtml(): string {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 14px;
-      min-height: 54px;
-      padding: 8px 14px;
+      gap: 10px;
+      min-height: 42px;
+      padding: 5px 10px;
       border-bottom: 1px solid var(--line);
-      background: var(--panel);
+      background: var(--panel-2);
       position: relative;
       top: 0;
       z-index: 1000;
     }
     h1 {
       margin: 0;
-      font-size: 18px;
-      font-weight: 700;
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--accent);
       letter-spacing: 0;
       white-space: nowrap;
     }
@@ -1461,23 +1473,25 @@ function explorerHtml(): string {
       flex: 1 1 auto;
       min-width: 0;
       overflow-x: auto;
-      padding: 2px;
+      padding: 0;
     }
     .menubar button {
       border: 1px solid transparent;
       background: transparent;
-      color: var(--text);
-      border-radius: 6px;
-      padding: 7px 9px;
-      min-height: 32px;
+      color: var(--muted);
+      border-radius: 3px;
+      padding: 4px 8px;
+      min-height: 26px;
       font: inherit;
+      font-size: 11px;
       cursor: pointer;
       white-space: nowrap;
     }
     .menubar button:hover,
     .menubar button:focus-visible {
-      background: #e8f3f1;
-      border-color: #b7ddd7;
+      background: var(--line);
+      border-color: var(--line-strong);
+      color: var(--bright);
       outline: none;
     }
     header .meta {
@@ -1485,6 +1499,7 @@ function explorerHtml(): string {
       align-items: center;
       gap: 10px;
       color: var(--muted);
+      font-size: 11px;
       flex-wrap: wrap;
       justify-content: flex-end;
     }
@@ -1493,52 +1508,59 @@ function explorerHtml(): string {
       width: 8px;
       height: 8px;
       border-radius: 50%;
-      background: #9aa4b2;
+      background: var(--faint);
       display: inline-block;
     }
-    .status.ok { background: var(--accent); }
+    .status.ok { background: var(--ok); }
     .status.error { background: var(--danger); }
     main {
       position: relative;
-      height: calc(100vh - 94px);
+      height: calc(100vh - 74px);
       overflow: auto;
-      background:
-        linear-gradient(var(--line) 1px, transparent 1px),
-        linear-gradient(90deg, var(--line) 1px, transparent 1px);
       background-color: var(--bg);
-      background-size: 24px 24px;
     }
     .taskbar {
       position: fixed;
       left: 0;
       right: 0;
       bottom: 0;
-      min-height: 40px;
+      min-height: 32px;
       display: flex;
       align-items: center;
-      gap: 6px;
-      padding: 5px 8px;
+      gap: 4px;
+      padding: 4px 8px;
       border-top: 1px solid var(--line);
-      background: rgba(255, 255, 255, 0.94);
-      backdrop-filter: blur(8px);
+      background: var(--panel-2);
       z-index: 1200;
       overflow-x: auto;
     }
+    .taskbar::before {
+      content: "GemStone";
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 800;
+      margin-right: 6px;
+      white-space: nowrap;
+    }
     .taskbar button {
-      border: 1px solid var(--line);
-      background: white;
+      border: 1px solid var(--line-strong);
+      background: var(--line);
       color: var(--text);
-      border-radius: 6px;
-      padding: 6px 9px;
-      min-height: 30px;
+      border-radius: 3px;
+      padding: 3px 10px;
+      min-height: 24px;
       font: inherit;
-      font-size: 12px;
+      font-size: 11px;
       cursor: pointer;
       white-space: nowrap;
     }
+    .taskbar button:hover {
+      background: var(--line-strong);
+    }
     .taskbar button.active {
-      border-color: #8fc8c0;
-      background: #e8f3f1;
+      border-color: var(--accent);
+      background: var(--line-strong);
+      color: var(--accent);
       font-weight: 700;
     }
     .tool-window {
@@ -1553,26 +1575,38 @@ function explorerHtml(): string {
       display: flex;
       flex-direction: column;
       background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      box-shadow: 0 18px 45px rgba(23, 32, 42, 0.16);
+      border: 1px solid var(--line-strong);
+      border-radius: 6px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
       resize: both;
       overflow: hidden;
     }
     .tool-window.hidden { display: none; }
+    .tool-window::after {
+      content: "";
+      position: absolute;
+      right: 3px;
+      bottom: 3px;
+      width: 7px;
+      height: 7px;
+      border-right: 2px solid var(--line-strong);
+      border-bottom: 2px solid var(--line-strong);
+      pointer-events: none;
+    }
     .tool-window[data-active="true"] {
-      border-color: #8fc8c0;
-      box-shadow: 0 22px 54px rgba(23, 32, 42, 0.22);
+      border-color: var(--accent);
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.68);
     }
     .window-titlebar {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 10px;
-      min-height: 38px;
-      padding: 7px 8px 7px 12px;
+      min-height: 28px;
+      height: 28px;
+      padding: 0 6px 0 8px;
       border-bottom: 1px solid var(--line);
-      background: #fbfcfe;
+      background: var(--panel-2);
       cursor: move;
       user-select: none;
       touch-action: none;
@@ -1583,50 +1617,66 @@ function explorerHtml(): string {
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-      font-size: 13px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--muted);
       letter-spacing: 0;
     }
     .window-button {
-      width: 28px;
-      min-width: 28px;
-      height: 26px;
-      border: 1px solid var(--line);
-      border-radius: 6px;
-      background: white;
-      color: var(--text);
+      width: 16px;
+      min-width: 16px;
+      height: 16px;
+      border: 0;
+      border-radius: 50%;
+      background: var(--danger);
+      color: var(--panel);
       font: inherit;
+      font-size: 9px;
+      font-weight: 800;
       cursor: pointer;
       line-height: 1;
     }
+    .window-button:hover { background: #eba0ac; }
     .window-body {
       min-height: 0;
       overflow: auto;
-      padding: 12px;
+      padding: 10px;
       flex: 1 1 auto;
+      background: var(--panel);
     }
     .toolbar {
       display: flex;
       align-items: end;
-      gap: 10px;
+      gap: 6px;
       flex-wrap: wrap;
-      margin-bottom: 14px;
+      margin: -10px -10px 10px;
+      padding: 6px 8px;
+      border-bottom: 1px solid var(--line);
+      background: var(--panel-2);
     }
     label {
       display: grid;
-      gap: 4px;
-      color: var(--muted);
-      font-size: 12px;
+      gap: 3px;
+      color: var(--faint);
+      font-size: 9px;
       font-weight: 700;
       text-transform: uppercase;
+      letter-spacing: .05em;
     }
     input, select, textarea {
       border: 1px solid var(--line);
-      border-radius: 6px;
-      padding: 8px 9px;
+      border-radius: 4px;
+      padding: 4px 7px;
       font: inherit;
       color: var(--text);
-      background: var(--panel);
-      min-height: 36px;
+      background: var(--code-bg);
+      min-height: 28px;
+      outline: none;
+    }
+    input::placeholder, textarea::placeholder { color: var(--faint); }
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--focus);
+      box-shadow: 0 0 0 1px rgba(137, 220, 235, 0.18);
     }
     input[type="checkbox"] { min-height: 0; }
     textarea {
@@ -1637,85 +1687,99 @@ function explorerHtml(): string {
       line-height: 1.5;
     }
     button.action {
-      border: 1px solid #0b5f59;
+      border: 1px solid transparent;
       background: var(--accent);
-      color: white;
-      border-radius: 6px;
-      padding: 8px 12px;
-      min-height: 36px;
+      color: var(--panel);
+      border-radius: 3px;
+      padding: 4px 10px;
+      min-height: 28px;
       font: inherit;
+      font-size: 11px;
       font-weight: 700;
       cursor: pointer;
     }
+    button.action:hover { background: #b4befe; }
     button.secondary {
-      border-color: var(--line);
-      background: white;
+      border-color: var(--line-strong);
+      background: transparent;
       color: var(--text);
+    }
+    button.secondary:hover {
+      background: var(--line);
     }
     .grid {
       display: grid;
       grid-template-columns: minmax(260px, 0.4fr) minmax(0, 0.6fr);
-      gap: 14px;
+      gap: 10px;
       align-items: start;
     }
     .surface {
-      background: var(--panel);
+      background: var(--panel-2);
       border: 1px solid var(--line);
-      border-radius: 8px;
+      border-radius: 5px;
       min-height: 120px;
       overflow: hidden;
     }
     .surface h2 {
       margin: 0;
-      padding: 10px 12px;
+      padding: 5px 8px;
       border-bottom: 1px solid var(--line);
-      font-size: 13px;
-      letter-spacing: 0;
-      background: #fbfcfe;
+      font-size: 9px;
+      color: var(--faint);
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      background: var(--panel);
     }
     .tabs {
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 0;
       margin: 0 0 10px;
       overflow-x: auto;
+      background: var(--panel-2);
+      border: 1px solid var(--line);
+      border-radius: 5px;
     }
     .tab {
-      border: 1px solid var(--line);
-      background: white;
-      color: var(--text);
-      border-radius: 6px;
-      padding: 7px 10px;
-      min-height: 32px;
+      border: 0;
+      border-bottom: 2px solid transparent;
+      background: transparent;
+      color: var(--faint);
+      border-radius: 0;
+      padding: 5px 10px;
+      min-height: 26px;
       font: inherit;
-      font-size: 12px;
+      font-size: 10px;
       cursor: pointer;
       white-space: nowrap;
     }
+    .tab:hover { color: var(--muted); }
     .tab.active {
-      border-color: #0b5f59;
-      background: #e8f3f1;
-      color: #0b5f59;
+      border-bottom-color: var(--focus);
+      background: transparent;
+      color: var(--focus);
       font-weight: 700;
     }
     .inspect-panel.hidden { display: none; }
     table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 13px;
+      font-size: 11px;
     }
     th, td {
       text-align: left;
       border-bottom: 1px solid var(--line);
-      padding: 8px 10px;
+      padding: 3px 6px;
       vertical-align: top;
     }
     th {
-      color: var(--muted);
-      font-size: 12px;
+      color: var(--faint);
+      font-size: 9px;
       text-transform: uppercase;
-      background: #fbfcfe;
+      letter-spacing: .04em;
+      background: var(--panel-2);
     }
+    tr:hover td { background: var(--panel); }
     td button {
       border: 0;
       background: transparent;
@@ -1726,7 +1790,7 @@ function explorerHtml(): string {
     }
     pre {
       margin: 0;
-      padding: 12px;
+      padding: 10px 12px;
       white-space: pre-wrap;
       overflow: auto;
       color: var(--code);
@@ -1738,17 +1802,17 @@ function explorerHtml(): string {
     .split {
       display: grid;
       grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-      gap: 14px;
+      gap: 10px;
     }
     .debugger-workbench {
       display: grid;
       grid-template-columns: minmax(300px, 0.55fr) minmax(360px, 0.45fr);
-      gap: 14px;
+      gap: 10px;
       align-items: stretch;
     }
     .debugger-side {
       display: grid;
-      gap: 14px;
+      gap: 10px;
       align-content: start;
     }
     .debugger-source {
@@ -1758,11 +1822,11 @@ function explorerHtml(): string {
     .debugger-grid {
       display: grid;
       grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-      gap: 14px;
+      gap: 10px;
     }
     .debugger-stack-pane {
       min-height: 170px;
-      margin-bottom: 14px;
+      margin-bottom: 10px;
     }
     .debugger-stack-pane #debugStackTable {
       max-height: 230px;
@@ -1773,11 +1837,11 @@ function explorerHtml(): string {
     }
     .debug-stack-row:hover td,
     .debug-stack-row.active td {
-      background: #e8f3f1;
-      color: #0b5f59;
+      background: var(--line);
+      color: var(--accent);
     }
     .debug-stack-row:focus {
-      outline: 2px solid #0f766e;
+      outline: 2px solid var(--focus);
       outline-offset: -2px;
     }
     .debug-stack-index {
@@ -1786,20 +1850,20 @@ function explorerHtml(): string {
     .frame-detail-grid {
       display: grid;
       grid-template-columns: minmax(220px, 0.3fr) minmax(280px, 0.45fr) minmax(220px, 0.25fr);
-      gap: 14px;
+      gap: 10px;
       align-items: start;
-      margin-top: 14px;
+      margin-top: 10px;
     }
     .debug-variable-row {
       cursor: pointer;
     }
     .debug-variable-row:hover td,
     .debug-variable-row.active td {
-      background: #eef2ff;
-      color: #3730a3;
+      background: var(--line);
+      color: var(--focus);
     }
     .debug-variable-row:focus {
-      outline: 2px solid #4f46e5;
+      outline: 2px solid var(--focus);
       outline-offset: -2px;
     }
     .debug-toolbar-group {
@@ -1810,7 +1874,7 @@ function explorerHtml(): string {
     }
     .source-preview {
       min-height: 96px;
-      border-left: 3px solid #0f766e;
+      border-left: 3px solid var(--focus);
     }
     .debug-source-view {
       margin: 0;
@@ -1826,9 +1890,9 @@ function explorerHtml(): string {
     .debug-source-meta {
       padding: 0 12px 10px;
       margin-bottom: 6px;
-      border-bottom: 1px solid #cbd5e1;
+      border-bottom: 1px solid var(--line);
       white-space: pre-wrap;
-      color: #334155;
+      color: var(--muted);
     }
     .debug-source-line {
       display: grid;
@@ -1837,12 +1901,12 @@ function explorerHtml(): string {
       padding: 0 12px 0 0;
     }
     .debug-source-line.active {
-      background: #ccfbf1;
-      color: #134e4a;
+      background: rgba(137, 220, 235, 0.16);
+      color: var(--focus);
     }
     .debug-source-marker,
     .debug-source-lno {
-      color: #64748b;
+      color: var(--faint);
       text-align: right;
       user-select: none;
     }
@@ -1860,14 +1924,14 @@ function explorerHtml(): string {
     .debug-inline-cursor {
       display: inline-block;
       width: 0;
-      border-left: 2px solid #0f766e;
+      border-left: 2px solid var(--focus);
       height: 1.1em;
       transform: translateY(2px);
     }
     .class-browser-grid {
       display: grid;
       grid-template-columns: minmax(210px, 0.7fr) minmax(240px, 0.8fr) minmax(300px, 1.1fr);
-      gap: 14px;
+      gap: 10px;
       align-items: start;
     }
     .class-source { grid-column: 1 / -1; }
@@ -1875,26 +1939,40 @@ function explorerHtml(): string {
     .browser-panes {
       display: grid;
       grid-template-columns: minmax(150px, 0.65fr) minmax(190px, 0.9fr) minmax(170px, 0.8fr) minmax(210px, 1fr);
-      gap: 10px;
+      gap: 0;
       align-items: stretch;
-      margin-bottom: 14px;
+      margin-bottom: 10px;
+      border: 1px solid var(--line);
+      border-radius: 5px;
+      background: var(--code-bg);
+      overflow: hidden;
+    }
+    .browser-panes .surface {
+      border: 0;
+      border-right: 1px solid var(--line);
+      border-radius: 0;
+    }
+    .browser-panes .surface:last-child {
+      border-right: 0;
     }
     .browser-list {
       max-height: 250px;
       overflow: auto;
-      padding: 6px;
+      padding: 0;
+      background: var(--code-bg);
     }
     .browser-item {
       display: block;
       width: 100%;
       border: 0;
-      border-radius: 5px;
+      border-left: 3px solid transparent;
+      border-radius: 0;
       background: transparent;
       color: var(--text);
-      padding: 6px 7px;
+      padding: 4px 8px;
       text-align: left;
       font: inherit;
-      font-size: 12px;
+      font-size: 11px;
       cursor: pointer;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -1902,26 +1980,39 @@ function explorerHtml(): string {
     }
     .browser-item:hover,
     .browser-item.active {
-      background: #e8f3f1;
-      color: #0b5f59;
+      background: var(--line);
+      color: var(--accent);
+      border-left-color: var(--accent);
     }
     .class-detail-grid {
       display: grid;
       grid-template-columns: minmax(260px, 0.35fr) minmax(0, 0.65fr);
-      gap: 14px;
+      gap: 10px;
       align-items: start;
     }
     .symbol-grid {
       display: grid;
       grid-template-columns: minmax(150px, 0.55fr) minmax(170px, 0.65fr) minmax(190px, 0.8fr) minmax(280px, 1fr);
-      gap: 14px;
+      gap: 0;
       align-items: start;
+      border: 1px solid var(--line);
+      border-radius: 5px;
+      background: var(--code-bg);
+      overflow: hidden;
+    }
+    .symbol-grid .surface {
+      border: 0;
+      border-right: 1px solid var(--line);
+      border-radius: 0;
+    }
+    .symbol-grid .surface:last-child {
+      border-right: 0;
     }
     .rowline {
       display: flex;
       align-items: center;
       gap: 8px;
-      min-height: 36px;
+      min-height: 28px;
     }
     .error-text { color: var(--danger); }
     @media (max-width: 820px) {

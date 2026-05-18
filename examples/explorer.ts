@@ -1997,9 +1997,12 @@ function explorerHtml(): string {
     }
     .class-detail-grid {
       display: grid;
-      grid-template-columns: minmax(260px, 0.35fr) minmax(0, 0.65fr);
+      grid-template-columns: minmax(0, 1fr);
       gap: 10px;
       align-items: start;
+    }
+    .class-preview-window pre {
+      min-height: 360px;
     }
     .symbol-grid {
       display: grid;
@@ -2209,7 +2212,7 @@ function explorerHtml(): string {
           <button class="action secondary" id="classInspectClass">Inspect Class</button>
           <button class="action secondary" id="classInspectMethod">Inspect Method</button>
           <button class="action secondary" id="classInspectInstances">Instances</button>
-          <label>File Out <select id="classFileOutMode"><option value="method">Method</option><option value="class">Class</option><option value="class-methods">Class Methods</option><option value="dictionary">Dictionary</option><option value="dictionary-methods">Dictionary Methods</option></select></label>
+          <label>File Out <select id="classFileOutMode"><option value="class">Class</option><option value="method">Method</option><option value="class-methods">Class Methods</option><option value="dictionary">Dictionary</option><option value="dictionary-methods">Dictionary Methods</option></select></label>
           <button class="action secondary" id="classFileOut">Preview</button>
         </div>
         <div class="browser-panes">
@@ -2219,9 +2222,14 @@ function explorerHtml(): string {
           <div class="surface"><h2>Methods</h2><div class="pane-filter-wrap"><input class="pane-filter" id="classMethodFilter" placeholder="Filter methods"></div><div class="browser-list" id="classMethodsTable"></div></div>
         </div>
         <div class="class-detail-grid">
-          <div class="surface"><h2>Description / File Out</h2><pre id="classOutput"></pre></div>
           <div class="surface class-source"><h2>Source</h2><pre id="classSourceOutput"></pre></div>
         </div>
+        </div>
+      </section>
+      <section id="classPreview" class="tool-window hidden class-preview-window" data-window="classPreview" data-popup-only="true" data-default-left="380" data-default-top="220" style="--x: 380px; --y: 220px; --w: 760px;">
+        <div class="window-titlebar" data-drag-handle><h2>Description / File Out</h2><button class="window-button" type="button" data-window-close="classPreview" aria-label="Close description and file out">x</button></div>
+        <div class="window-body">
+        <div class="surface"><h2>Description / File Out</h2><pre id="classOutput"></pre></div>
         </div>
       </section>
       <section id="codegen" class="tool-window hidden" data-window="codegen" data-default-left="320" data-default-top="250" style="--x: 320px; --y: 250px; --w: 760px;">
@@ -2382,6 +2390,7 @@ function explorerHtml(): string {
       symbols: "Symbol List",
       workspace: "Workspace",
       classes: "Classes",
+      classPreview: "Description / File Out",
       codegen: "Codegen",
       statusLog: "Status Log",
     };
@@ -2421,7 +2430,7 @@ function explorerHtml(): string {
       focusWindow("inspect");
     };
     const openAllWindows = () => {
-      document.querySelectorAll(".tool-window").forEach((win) => focusWindow(win.dataset.window));
+      document.querySelectorAll(".tool-window:not([data-popup-only='true'])").forEach((win) => focusWindow(win.dataset.window));
     };
     const afterWindowMutation = () => {
       renderTaskbar();
@@ -2471,13 +2480,14 @@ function explorerHtml(): string {
         const name = win.dataset.window;
         const entry = saved.windows[name];
         if (!entry) return;
+        const popupOnly = win.dataset.popupOnly === "true";
         if (Number.isFinite(entry.left)) win.style.left = Math.max(0, Math.round(entry.left)) + "px";
         if (Number.isFinite(entry.top)) win.style.top = Math.max(0, Math.round(entry.top)) + "px";
         if (Number.isFinite(entry.width)) win.style.width = Math.max(320, Math.round(entry.width)) + "px";
         if (Number.isFinite(entry.height)) win.style.height = Math.max(180, Math.round(entry.height)) + "px";
-        win.classList.toggle("hidden", !entry.open);
-        win.dataset.active = entry.active && entry.open ? "true" : "false";
-        if (entry.active && entry.open) hasActive = true;
+        win.classList.toggle("hidden", popupOnly ? true : !entry.open);
+        win.dataset.active = !popupOnly && entry.active && entry.open ? "true" : "false";
+        if (!popupOnly && entry.active && entry.open) hasActive = true;
         if (Number.isFinite(entry.zIndex) && entry.zIndex > 0) {
           win.style.zIndex = String(Math.round(entry.zIndex));
           highestZ = Math.max(highestZ, Number(entry.zIndex));
@@ -3197,11 +3207,16 @@ function explorerHtml(): string {
       out("debugSummaryOutput", message);
       setStatus(false, message);
     }
-    async function describeClass() {
+    function showClassPreviewOutput(value) {
+      out("classOutput", value);
+      focusWindow("classPreview");
+    }
+    async function describeClass(showPreview = false) {
       try {
         const name = document.getElementById("className").value;
         const result = await api("/api/class?name=" + encodeURIComponent(name));
         out("classOutput", result.description);
+        if (showPreview) focusWindow("classPreview");
         table("classMethodsTable", result.methods, [
           { label: "Side", render: (row) => escapeHtml(row.side) },
           { label: "Selector", render: (row) => "<button data-method-side=\\"" + escapeHtml(row.side) + "\\" data-method-selector=\\"" + escapeHtml(row.selector) + "\\">" + escapeHtml(row.selector) + "</button>" },
@@ -3209,6 +3224,7 @@ function explorerHtml(): string {
         out("classSourceOutput", result.methodsTruncated ? "Select a method. Method list is truncated by the default safety limit." : "Select a method.");
       } catch (error) {
         out("classOutput", error.body || error.message);
+        if (showPreview) focusWindow("classPreview");
       }
     }
     async function loadMethodSource(side, selector) {
@@ -3232,7 +3248,7 @@ function explorerHtml(): string {
         const preferred = state.classBrowser.dictionary || (result.dictionaries.includes("Globals") ? "Globals" : result.dictionaries[0]);
         if (preferred) await selectClassBrowserDictionary(preferred);
       } catch (error) {
-        out("classOutput", error.body || error.message);
+        out("classSourceOutput", error.body || error.message);
       }
     }
     async function selectClassBrowserDictionary(dictionary) {
@@ -3257,7 +3273,7 @@ function explorerHtml(): string {
         renderClassBrowserClasses(preferred || "");
         if (preferred) await selectClassBrowserClass(preferred);
       } catch (error) {
-        out("classOutput", error.body || error.message);
+        out("classSourceOutput", error.body || error.message);
       }
     }
     async function selectClassBrowserClass(className) {
@@ -3269,12 +3285,10 @@ function explorerHtml(): string {
       loading("classCategoriesTable");
       loading("classMethodsTable");
       try {
-        const description = await api("/api/class?name=" + encodeURIComponent(className)).catch(() => null);
-        if (description) out("classOutput", description.description);
         await loadClassBrowserCategories();
         await loadClassBrowserSource("");
       } catch (error) {
-        out("classOutput", error.body || error.message);
+        out("classSourceOutput", error.body || error.message);
       }
     }
     async function loadClassBrowserCategories() {
@@ -3339,17 +3353,18 @@ function explorerHtml(): string {
         renderInspection(result.inspection);
         focusWindow("inspect");
       } catch (error) {
-        out("classOutput", error.body || error.message);
+        out("classSourceOutput", error.body || error.message);
       }
     }
     async function fileOutClassBrowser() {
       const browser = state.classBrowser;
       const mode = document.getElementById("classFileOutMode").value;
+      showClassPreviewOutput("Loading...");
       try {
         const result = await api("/api/class-browser/file-out?mode=" + encodeURIComponent(mode) + "&dictionary=" + encodeURIComponent(browser.dictionary) + "&class=" + encodeURIComponent(browser.className) + "&selector=" + encodeURIComponent(browser.method) + "&meta=" + (browser.meta ? "1" : "0"));
-        out("classOutput", "filename: " + result.filename + "\\n\\n" + result.source);
+        showClassPreviewOutput("filename: " + result.filename + "\\n\\n" + result.source);
       } catch (error) {
-        out("classOutput", error.body || error.message);
+        showClassPreviewOutput(error.body || error.message);
       }
     }
     async function previewCodegen() {
@@ -3467,12 +3482,12 @@ function explorerHtml(): string {
     document.getElementById("classMeta").addEventListener("change", () => {
       if (state.classBrowser.className) void loadClassBrowserCategories();
     });
-    document.getElementById("className").addEventListener("change", describeClass);
+    document.getElementById("className").addEventListener("change", () => describeClass(false));
     document.getElementById("classInspectClass").addEventListener("click", () => inspectClassBrowserTarget("class"));
     document.getElementById("classInspectMethod").addEventListener("click", () => inspectClassBrowserTarget("method"));
     document.getElementById("classInspectInstances").addEventListener("click", () => inspectClassBrowserTarget("instances"));
     document.getElementById("classFileOut").addEventListener("click", fileOutClassBrowser);
-    document.getElementById("classDescribe").addEventListener("click", describeClass);
+    document.getElementById("classDescribe").addEventListener("click", () => describeClass(true));
     document.getElementById("codegenRun").addEventListener("click", previewCodegen);
 
     setupFloatingWindows();

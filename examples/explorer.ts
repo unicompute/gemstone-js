@@ -3516,16 +3516,27 @@ function explorerHtml(): string {
       state.classBrowser.sourceDirty = source ? source.value !== state.classBrowser.sourceOriginal : false;
       syncClassSourceControls();
     }
+    function confirmDiscardClassSourceChanges() {
+      if (!state.classBrowser.sourceDirty) return true;
+      const label = classSourceModeLabel();
+      const confirmed = window.confirm("Discard unsaved source changes for " + label + "?");
+      if (!confirmed) {
+        setClassSourceStatus("Unsaved source changes kept", "error");
+      }
+      return confirmed;
+    }
     function revertClassSource() {
       out("classSourceOutput", state.classBrowser.sourceOriginal);
       state.classBrowser.sourceDirty = false;
       syncClassSourceControls("Reverted");
     }
     async function refreshClassSource() {
+      if (!confirmDiscardClassSourceChanges()) return;
       const selector = state.classBrowser.sourceMode === "method" ? state.classBrowser.method : "";
       await loadClassBrowserSource(selector || "");
     }
     function newClassBrowserMethod() {
+      if (!confirmDiscardClassSourceChanges()) return;
       if (!state.classBrowser.className) {
         setClassSourceStatus("Select a class first", "error");
         return;
@@ -3621,7 +3632,8 @@ function explorerHtml(): string {
         out("classSourceOutput", error.body || error.message);
       }
     }
-    async function selectClassBrowserDictionary(dictionary) {
+    async function selectClassBrowserDictionary(dictionary, options = {}) {
+      if (options.confirm !== false && !confirmDiscardClassSourceChanges()) return;
       state.classBrowser.dictionary = dictionary;
       state.classBrowser.className = "";
       state.classBrowser.category = "-- all --";
@@ -3641,12 +3653,13 @@ function explorerHtml(): string {
           ? document.getElementById("className").value
           : (result.classes.includes("Object") ? "Object" : result.classes[0]);
         renderClassBrowserClasses(preferred || "");
-        if (preferred) await selectClassBrowserClass(preferred);
+        if (preferred) await selectClassBrowserClass(preferred, { confirm: false });
       } catch (error) {
         out("classSourceOutput", error.body || error.message);
       }
     }
-    async function selectClassBrowserClass(className) {
+    async function selectClassBrowserClass(className, options = {}) {
+      if (options.confirm !== false && className !== state.classBrowser.className && !confirmDiscardClassSourceChanges()) return;
       state.classBrowser.className = className;
       state.classBrowser.category = "-- all --";
       state.classBrowser.method = "";
@@ -3671,13 +3684,16 @@ function explorerHtml(): string {
       browser.categories = result.categories;
       const preferred = result.categories.includes(browser.category) ? browser.category : "-- all --";
       renderClassBrowserCategories(preferred);
-      await selectClassBrowserCategory(preferred);
+      await selectClassBrowserCategory(preferred, { confirm: false });
     }
-    async function selectClassBrowserCategory(category) {
+    async function selectClassBrowserCategory(category, options = {}) {
+      const changed = category !== state.classBrowser.category;
+      if (options.confirm !== false && changed && !confirmDiscardClassSourceChanges()) return;
       state.classBrowser.category = category || "-- all --";
       state.classBrowser.method = "";
       renderClassBrowserCategories(state.classBrowser.category);
       await loadClassBrowserMethods();
+      if (changed) await loadClassBrowserSource("");
     }
     async function loadClassBrowserMethods() {
       const browser = state.classBrowser;
@@ -3687,7 +3703,8 @@ function explorerHtml(): string {
       browser.methods = result.methods;
       renderClassBrowserMethods(browser.method);
     }
-    async function selectClassBrowserMethod(selector) {
+    async function selectClassBrowserMethod(selector, options = {}) {
+      if (options.confirm !== false && selector !== state.classBrowser.method && !confirmDiscardClassSourceChanges()) return;
       state.classBrowser.method = selector;
       renderClassBrowserMethods(selector);
       await loadClassBrowserSource(selector);
@@ -3911,8 +3928,17 @@ function explorerHtml(): string {
         selectDebugVariable(indexes[Math.max(0, current - 1)], true);
       }
     });
-    document.getElementById("classMeta").addEventListener("change", () => {
-      if (state.classBrowser.className) void loadClassBrowserCategories();
+    document.getElementById("classMeta").addEventListener("change", (event) => {
+      const input = event.target;
+      if (state.classBrowser.sourceDirty && !confirmDiscardClassSourceChanges()) {
+        input.checked = state.classBrowser.meta;
+        return;
+      }
+      state.classBrowser.meta = input.checked;
+      state.classBrowser.method = "";
+      if (state.classBrowser.className) {
+        void loadClassBrowserCategories().then(() => loadClassBrowserSource(""));
+      }
     });
     document.getElementById("className").addEventListener("change", () => describeClass(false));
     document.getElementById("classSourceOutput").addEventListener("input", markClassSourceDirty);
@@ -3921,7 +3947,12 @@ function explorerHtml(): string {
     document.getElementById("classSourceRefresh").addEventListener("click", refreshClassSource);
     document.getElementById("classNewMethod").addEventListener("click", newClassBrowserMethod);
     document.getElementById("classRemoveMethod").addEventListener("click", removeClassBrowserMethod);
-    document.getElementById("classBrowseClass").addEventListener("click", () => loadClassBrowserSource(""));
+    document.getElementById("classBrowseClass").addEventListener("click", () => {
+      if (!confirmDiscardClassSourceChanges()) return;
+      state.classBrowser.method = "";
+      renderClassBrowserMethods("");
+      void loadClassBrowserSource("");
+    });
     const classAutoCommit = document.getElementById("classAutoCommit");
     try {
       const storedAutoCommit = localStorage.getItem("gemstone-js-class-browser-auto-commit-v1");

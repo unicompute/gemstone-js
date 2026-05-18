@@ -194,6 +194,10 @@ async function route(request: IncomingMessage, response: ServerResponse): Promis
     writeJson(response, 200, await safeJson(() => classBrowserCompileEndpoint(request)));
     return;
   }
+  if (request.method === "POST" && url.pathname === "/api/class-browser/remove-method") {
+    writeJson(response, 200, await safeJson(() => classBrowserRemoveMethodEndpoint(request)));
+    return;
+  }
   if (request.method === "POST" && url.pathname === "/api/eval") {
     writeJson(response, 200, await safeJson(() => evalEndpoint(request)));
     return;
@@ -633,7 +637,7 @@ async function classBrowserFileOutEndpoint(url: URL) {
 async function classBrowserCompileEndpoint(request: IncomingMessage) {
   const body = await readJsonBody(request);
   const dictionary = requiredBodyString(body, "dictionary");
-  const className = validateGlobalName(requiredBodyString(body, "class"));
+  const className = validateGlobalName(requiredBodyStringAlias(body, "class", "className"));
   const category = (optionalBodyString(body, "category")?.trim() || "as yet unclassified");
   const selector = optionalBodyString(body, "selector")?.trim() || "";
   const source = requiredBodyString(body, "source").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
@@ -660,7 +664,7 @@ async function classBrowserCompileEndpoint(request: IncomingMessage) {
         methodSource := '${escapedSource}'.
         oldSel := ${oldSelectorExpression}.
         compileResult := [cls compileMethod: methodSource category: '${escapedCategory}' asSymbol]
-          on: Error do: [:ex | 'ERROR|' , (encode value: ex messageText)].
+          on: Error do: [:ex | 'ERROR|' , (encode value: (([ex messageText] on: Error do: [:ignored | nil]) ifNil: [ex printString]))].
         ((compileResult isString) and: [compileResult beginsWith: 'ERROR|']) ifTrue: [
           compileResult
         ] ifFalse: [
@@ -727,6 +731,61 @@ async function classBrowserCompileEndpoint(request: IncomingMessage) {
     selector: selector || null,
     previousSelector: selector || null,
     category,
+    committed: commit,
+  };
+}
+
+async function classBrowserRemoveMethodEndpoint(request: IncomingMessage) {
+  const body = await readJsonBody(request);
+  const dictionary = requiredBodyString(body, "dictionary");
+  const className = validateGlobalName(requiredBodyStringAlias(body, "class", "className"));
+  const selector = requiredBodyString(body, "selector").trim();
+  const meta = optionalBodyBoolean(body, "meta") ?? false;
+  const commit = optionalBodyBoolean(body, "commit") ?? false;
+  if (selector.length > 200) {
+    throw new Error("selector must be 200 characters or fewer.");
+  }
+
+  const escapedSelector = escapeSmalltalkStringLiteral(selector);
+  const payload = await withSession(async (session) => {
+    const result = await session.eval(`
+      | cls opResult encode |
+      ${escapedFieldEncoderSource("encode")}
+      cls := ${classBrowserBehaviorExpression(className, dictionary, meta)}.
+      cls isNil ifTrue: [
+        'ERROR|' , (encode value: 'class not found')
+      ] ifFalse: [
+        (([cls includesSelector: '${escapedSelector}' asSymbol] on: Error do: [:ex | false]) not) ifTrue: [
+          'ERROR|' , (encode value: 'method not found')
+        ] ifFalse: [
+          opResult := [cls removeSelector: '${escapedSelector}' asSymbol. true]
+            on: Error do: [:ex | 'ERROR|' , (encode value: (([ex messageText] on: Error do: [:ignored | nil]) ifNil: [ex printString]))].
+          ((opResult isString) and: [opResult beginsWith: 'ERROR|']) ifTrue: [
+            opResult
+          ] ifFalse: [
+            'OK|' , (encode value: '${escapedSelector}')
+          ]
+        ]
+      ]
+    `);
+    if (commit) await session.commit();
+    else await session.abort().catch(() => undefined);
+    return typeof result === "string" ? result : String(result ?? "");
+  });
+
+  if (payload.startsWith("ERROR|")) {
+    return {
+      success: false,
+      exception: decodeEscapedField(payload.slice("ERROR|".length)) || "Method removal failed",
+      committed: false,
+    };
+  }
+
+  const removedSelector = payload.startsWith("OK|") ? decodeEscapedField(payload.slice("OK|".length)) : selector;
+  return {
+    success: true,
+    result: commit ? `Removed ${removedSelector}` : `Remove check passed for ${removedSelector}; changes aborted because Auto Commit is off`,
+    selector: removedSelector,
     committed: commit,
   };
 }
@@ -1394,6 +1453,14 @@ async function readJsonBody(request: IncomingMessage): Promise<Record<string, un
 
 function requiredBodyString(body: Record<string, unknown>, name: string): string {
   const value = body[name];
+  if (typeof value !== "string" || !value.trim()) {
+    throw new Error(`Request field ${name} must be a non-empty string.`);
+  }
+  return value;
+}
+
+function requiredBodyStringAlias(body: Record<string, unknown>, name: string, alias: string): string {
+  const value = body[name] ?? body[alias];
   if (typeof value !== "string" || !value.trim()) {
     throw new Error(`Request field ${name} must be a non-empty string.`);
   }
@@ -2369,6 +2436,7 @@ function explorerHtml(): string {
               <button class="action secondary" id="classSourceRevert">Revert</button>
               <button class="action secondary" id="classSourceRefresh">Refresh</button>
               <button class="action secondary" id="classNewMethod">New Method</button>
+              <button class="action secondary" id="classRemoveMethod">Remove Method</button>
               <button class="action secondary" id="classBrowseClass">Browse Class</button>
               <label class="rowline"><input id="classAutoCommit" type="checkbox" checked> Auto Commit</label>
             </div>
@@ -3398,10 +3466,12 @@ function explorerHtml(): string {
       const revert = document.getElementById("classSourceRevert");
       const refresh = document.getElementById("classSourceRefresh");
       const browseClass = document.getElementById("classBrowseClass");
+      const removeMethod = document.getElementById("classRemoveMethod");
       if (submit) submit.disabled = !editable;
       if (revert) revert.disabled = !browser.sourceDirty;
       if (refresh) refresh.disabled = !browser.className;
       if (browseClass) browseClass.disabled = !browser.className;
+      if (removeMethod) removeMethod.disabled = !browser.className || !browser.method;
       out("classSourceNote", classSourceModeLabel());
       if (message) {
         setClassSourceStatus(message);
@@ -3448,6 +3518,43 @@ function explorerHtml(): string {
       if (source) {
         source.focus();
         source.setSelectionRange(0, "newMethod".length);
+      }
+    }
+    async function removeClassBrowserMethod() {
+      const browser = state.classBrowser;
+      if (!browser.className || !browser.method) {
+        setClassSourceStatus("Select a method first", "error");
+        return;
+      }
+      const target = browser.meta ? browser.className + " class" : browser.className;
+      if (!window.confirm("Remove " + browser.method + " from " + target + "?")) return;
+      const autoCommit = !!document.getElementById("classAutoCommit")?.checked;
+      setClassSourceStatus("Removing method...");
+      try {
+        const result = await api("/api/class-browser/remove-method", {
+          method: "POST",
+          body: JSON.stringify({
+            dictionary: browser.dictionary,
+            class: browser.className,
+            selector: browser.method,
+            meta: browser.meta,
+            commit: autoCommit,
+          }),
+        });
+        if (!result.success) throw new Error(result.exception || "Method removal failed");
+        const statusText = result.result || "Removed " + browser.method;
+        if (!result.committed) {
+          setClassSourceStatus(statusText, "ok");
+          return;
+        }
+        browser.method = "";
+        await loadClassBrowserCategories();
+        await loadClassBrowserSource("");
+        setClassSourceStatus(statusText, "ok");
+        setStatus(true, statusText);
+      } catch (error) {
+        setClassSourceStatus(error.body?.error || error.body?.exception || error.message, "error");
+        setStatus(false, error.body?.error || error.body?.exception || error.message);
       }
     }
     function showClassPreviewOutput(value) {
@@ -3793,6 +3900,7 @@ function explorerHtml(): string {
     document.getElementById("classSourceRevert").addEventListener("click", revertClassSource);
     document.getElementById("classSourceRefresh").addEventListener("click", refreshClassSource);
     document.getElementById("classNewMethod").addEventListener("click", newClassBrowserMethod);
+    document.getElementById("classRemoveMethod").addEventListener("click", removeClassBrowserMethod);
     document.getElementById("classBrowseClass").addEventListener("click", () => loadClassBrowserSource(""));
     const classAutoCommit = document.getElementById("classAutoCommit");
     try {

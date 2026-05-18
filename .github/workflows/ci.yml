@@ -17,8 +17,8 @@ jobs:
       matrix:
         node: [24]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node }}
       - run: npm install --omit=optional
@@ -27,7 +27,7 @@ jobs:
       - run: node scripts/write-checksums.mjs .tgz
       - run: node scripts/verify-checksums.mjs SHA256SUMS.txt
       - run: npm run ci-artifact:review -- --dir .
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: gemstone-js-package-node-${{ matrix.node }}
           path: |

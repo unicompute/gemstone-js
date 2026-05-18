@@ -350,7 +350,9 @@ assertSnippets(
     "node scripts/verify-checksums.mjs SHA256SUMS.txt",
     "npm run ci-artifact:review -- --dir .",
     "SHA256SUMS.txt",
-    "actions/upload-artifact@v4",
+    "actions/checkout@v6",
+    "actions/setup-node@v6",
+    "actions/upload-artifact@v7",
   ],
 );
 assertSnippets(
@@ -363,6 +365,8 @@ assertSnippets(
     "node scripts/write-checksums.mjs .tgz",
     "node scripts/verify-checksums.mjs SHA256SUMS.txt",
     "npm run ci-artifact:review -- --dir .",
+    "actions/checkout@v6",
+    "actions/setup-node@v6",
     "npm publish gemstone-js-*.tgz --access public --tag alpha --provenance",
   ],
 );

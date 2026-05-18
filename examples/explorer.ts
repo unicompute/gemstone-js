@@ -2052,8 +2052,6 @@ function explorerHtml(): string {
         <div class="window-body">
         <div class="toolbar">
           <label>Filter <input id="globalsFilter" placeholder="election"></label>
-          <label>Limit <input id="globalsLimit" type="number" min="0" max="200" value="50"></label>
-          <button class="action" id="globalsRun">Load</button>
         </div>
         <div class="grid">
           <div class="surface"><h2>UserGlobals</h2><div id="globalsTable"></div></div>
@@ -2067,8 +2065,6 @@ function explorerHtml(): string {
         <div class="toolbar">
           <label>Root <select id="rootName"></select></label>
           <label>Filter <input id="rootsFilter" placeholder="election"></label>
-          <label>Limit <input id="rootsLimit" type="number" min="0" max="200" value="50"></label>
-          <button class="action" id="rootsRun">Load</button>
         </div>
         <div class="grid">
           <div class="surface"><h2>Entries</h2><div id="rootsTable"></div></div>
@@ -2080,9 +2076,7 @@ function explorerHtml(): string {
         <div class="window-titlebar" data-drag-handle><h2>Symbol List Browser</h2><button class="window-button" type="button" data-window-close="symbols" aria-label="Close symbol list browser">x</button></div>
         <div class="window-body">
         <div class="toolbar">
-          <button class="action" id="symbolsLoadUsers">Load Users</button>
           <label>Filter Entries <input id="symbolsFilter" placeholder="Object"></label>
-          <label>Limit <input id="symbolsLimit" type="number" min="0" max="200" value="50"></label>
         </div>
         <div class="symbol-grid">
           <div class="surface"><h2>Users</h2><div id="symbolUsersTable"></div></div>
@@ -2110,13 +2104,8 @@ function explorerHtml(): string {
         <div class="window-titlebar" data-drag-handle><h2>Class Browser</h2><button class="window-button" type="button" data-window-close="classes" aria-label="Close classes">x</button></div>
         <div class="window-body">
         <div class="toolbar">
-          <button class="action" id="classBrowserLoad">Load Browser</button>
           <label class="rowline"><input id="classMeta" type="checkbox"> Class side</label>
-          <label>Prefix <input id="classPrefix" value="Object"></label>
-          <label>Limit <input id="classesLimit" type="number" min="0" max="200" value="50"></label>
-          <button class="action" id="classesRun">Search</button>
           <label>Class <input id="className" value="Object"></label>
-          <label>Methods <input id="classMethodLimit" type="number" min="0" max="1000" value="300"></label>
           <button class="action secondary" id="classDescribe">Describe</button>
           <button class="action secondary" id="classInspectClass">Inspect Class</button>
           <button class="action secondary" id="classInspectMethod">Inspect Method</button>
@@ -2163,6 +2152,7 @@ function explorerHtml(): string {
     const state = {
       roots: [],
       statusHistory: [],
+      loadTokens: {},
       lastInspection: null,
       inspectTab: "summary",
       symbolUser: "",
@@ -2225,6 +2215,23 @@ function explorerHtml(): string {
       ].join("");
       element.innerHTML = html;
     };
+    const loading = (target, text = "Loading...") => {
+      const element = document.getElementById(target);
+      if (!element) return;
+      element.innerHTML = "<div style=\\"padding:12px;color:var(--muted)\\">" + escapeHtml(text) + "</div>";
+    };
+    const debounce = (fn, delay = 250) => {
+      let timer = 0;
+      return (...args) => {
+        window.clearTimeout(timer);
+        timer = window.setTimeout(() => { void fn(...args); }, delay);
+      };
+    };
+    const nextLoadToken = (name) => {
+      state.loadTokens[name] = Number(state.loadTokens[name] || 0) + 1;
+      return state.loadTokens[name];
+    };
+    const isCurrentLoadToken = (name, token) => state.loadTokens[name] === token;
     const escapeHtml = (value) => String(value)
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
@@ -2262,6 +2269,7 @@ function explorerHtml(): string {
     let nextWindowZ = 20;
     let layoutReady = false;
     const toolWindow = (name) => document.querySelector(".tool-window[data-window='" + name + "']");
+    const isWindowOpen = (name) => !toolWindow(name)?.classList.contains("hidden");
     const focusWindow = (name) => {
       const win = toolWindow(name);
       if (!win) return;
@@ -2368,9 +2376,7 @@ function explorerHtml(): string {
       document.querySelectorAll("[data-window-open]").forEach((button) => {
         button.addEventListener("click", () => {
           focusWindow(button.dataset.windowOpen);
-          if (button.dataset.windowOpen === "classes" && !state.classBrowser.dictionary) {
-            void loadClassBrowserDictionaries();
-          }
+          void loadWindowData(button.dataset.windowOpen);
         });
       });
       document.querySelectorAll("[data-window-close]").forEach((button) => {
@@ -2481,6 +2487,25 @@ function explorerHtml(): string {
       state.roots = config.roots;
       document.getElementById("rootName").innerHTML = config.roots.map((name) => "<option>" + escapeHtml(name) + "</option>").join("");
     }
+    async function loadWindowData(name) {
+      if (name === "globals") {
+        await loadGlobals();
+      } else if (name === "roots") {
+        await loadRoots();
+      } else if (name === "symbols" && !state.symbolUser) {
+        await loadSymbolUsers();
+      } else if (name === "classes" && !state.classBrowser.dictionary) {
+        await loadClassBrowserDictionaries();
+      }
+    }
+    async function loadInitialData() {
+      await Promise.all([
+        isWindowOpen("globals") ? loadGlobals() : Promise.resolve(),
+        isWindowOpen("roots") ? loadRoots() : Promise.resolve(),
+        isWindowOpen("symbols") && !state.symbolUser ? loadSymbolUsers() : Promise.resolve(),
+        isWindowOpen("classes") && !state.classBrowser.dictionary ? loadClassBrowserDictionaries() : Promise.resolve(),
+      ]);
+    }
     function recordStatus(entry) {
       state.statusHistory.unshift({
         time: new Date().toISOString(),
@@ -2564,51 +2589,68 @@ function explorerHtml(): string {
       }
     }
     async function loadGlobals() {
-      const limit = document.getElementById("globalsLimit").value;
+      const token = nextLoadToken("globals");
       const filter = document.getElementById("globalsFilter").value;
+      loading("globalsTable");
       try {
-        const result = await api("/api/globals?limit=" + encodeURIComponent(limit) + "&filter=" + encodeURIComponent(filter));
+        const result = await api("/api/globals?filter=" + encodeURIComponent(filter));
+        if (!isCurrentLoadToken("globals", token)) return;
         table("globalsTable", result.entries, [
           { label: "Name", render: (row) => escapeHtml(row.name) },
           { label: "OOP", render: (row) => inspectLink(row.oop) },
         ]);
         out("globalsOutput", result);
       } catch (error) {
+        if (!isCurrentLoadToken("globals", token)) return;
         out("globalsOutput", error.body || error.message);
       }
     }
     async function loadRoots() {
+      const token = nextLoadToken("roots");
       const root = document.getElementById("rootName").value;
-      const limit = document.getElementById("rootsLimit").value;
       const filter = document.getElementById("rootsFilter").value;
+      if (!root) return;
+      loading("rootsTable");
       try {
-        const result = await api("/api/roots?root=" + encodeURIComponent(root) + "&limit=" + encodeURIComponent(limit) + "&filter=" + encodeURIComponent(filter));
+        const result = await api("/api/roots?root=" + encodeURIComponent(root) + "&filter=" + encodeURIComponent(filter));
+        if (!isCurrentLoadToken("roots", token)) return;
         table("rootsTable", result.entries, [
           { label: "Name", render: (row) => escapeHtml(row.name) },
           { label: "OOP", render: (row) => inspectLink(row.oop) },
         ]);
         out("rootsOutput", result);
       } catch (error) {
+        if (!isCurrentLoadToken("roots", token)) return;
         out("rootsOutput", error.body || error.message);
       }
     }
     async function loadSymbolUsers() {
+      const token = nextLoadToken("symbolUsers");
+      loading("symbolUsersTable");
+      loading("symbolDictionariesTable");
+      loading("symbolEntriesTable");
       try {
         const result = await api("/api/symbol-list/users");
+        if (!isCurrentLoadToken("symbolUsers", token)) return;
         table("symbolUsersTable", result.users.map((name) => ({ name })), [
           { label: "User", render: (row) => "<button data-symbol-user=\\"" + escapeHtml(row.name) + "\\">" + escapeHtml(row.name) + "</button>" },
         ]);
         out("symbolPreviewOutput", result);
         if (result.users.length) await loadSymbolDictionaries(result.users[0]);
       } catch (error) {
+        if (!isCurrentLoadToken("symbolUsers", token)) return;
         out("symbolPreviewOutput", error.body || error.message);
       }
     }
     async function loadSymbolDictionaries(user) {
+      const token = nextLoadToken("symbolDictionaries");
       state.symbolUser = user;
       state.symbolDictionary = "";
+      loading("symbolDictionariesTable");
+      loading("symbolEntriesTable");
       try {
         const result = await api("/api/symbol-list/dictionaries?user=" + encodeURIComponent(user));
+        if (!isCurrentLoadToken("symbolDictionaries", token)) return;
         table("symbolDictionariesTable", result.dictionaries.map((name) => ({ name })), [
           { label: "Dictionary", render: (row) => "<button data-symbol-dictionary=\\"" + escapeHtml(row.name) + "\\">" + escapeHtml(row.name) + "</button>" },
         ]);
@@ -2616,20 +2658,24 @@ function explorerHtml(): string {
         out("symbolPreviewOutput", result);
         if (result.dictionaries.length) await loadSymbolEntries(result.dictionaries[0]);
       } catch (error) {
+        if (!isCurrentLoadToken("symbolDictionaries", token)) return;
         out("symbolPreviewOutput", error.body || error.message);
       }
     }
     async function loadSymbolEntries(dictionary) {
+      const token = nextLoadToken("symbolEntries");
       state.symbolDictionary = dictionary;
-      const limit = document.getElementById("symbolsLimit").value;
       const filter = document.getElementById("symbolsFilter").value;
+      loading("symbolEntriesTable");
       try {
-        const result = await api("/api/symbol-list/entries?user=" + encodeURIComponent(state.symbolUser) + "&dictionary=" + encodeURIComponent(dictionary) + "&limit=" + encodeURIComponent(limit) + "&filter=" + encodeURIComponent(filter));
+        const result = await api("/api/symbol-list/entries?user=" + encodeURIComponent(state.symbolUser) + "&dictionary=" + encodeURIComponent(dictionary) + "&filter=" + encodeURIComponent(filter));
+        if (!isCurrentLoadToken("symbolEntries", token)) return;
         table("symbolEntriesTable", result.entries.map((name) => ({ name })), [
           { label: "Entry", render: (row) => "<button data-symbol-entry=\\"" + escapeHtml(row.name) + "\\">" + escapeHtml(row.name) + "</button>" },
         ]);
         out("symbolPreviewOutput", result);
       } catch (error) {
+        if (!isCurrentLoadToken("symbolEntries", token)) return;
         out("symbolPreviewOutput", error.body || error.message);
       }
     }
@@ -3019,29 +3065,16 @@ function explorerHtml(): string {
       out("debugSummaryOutput", message);
       setStatus(false, message);
     }
-    async function searchClasses() {
-      const prefix = document.getElementById("classPrefix").value;
-      const limit = document.getElementById("classesLimit").value;
-      try {
-        const result = await api("/api/classes?prefix=" + encodeURIComponent(prefix) + "&limit=" + encodeURIComponent(limit));
-        table("classesTable", result.classes.map((name) => ({ name })), [
-          { label: "Name", render: (row) => "<button data-class-name=\\"" + escapeHtml(row.name) + "\\">" + escapeHtml(row.name) + "</button>" },
-        ]);
-      } catch (error) {
-        out("classOutput", error.body || error.message);
-      }
-    }
     async function describeClass() {
       try {
         const name = document.getElementById("className").value;
-        const methodLimit = document.getElementById("classMethodLimit").value;
-        const result = await api("/api/class?name=" + encodeURIComponent(name) + "&methodLimit=" + encodeURIComponent(methodLimit));
+        const result = await api("/api/class?name=" + encodeURIComponent(name));
         out("classOutput", result.description);
         table("classMethodsTable", result.methods, [
           { label: "Side", render: (row) => escapeHtml(row.side) },
           { label: "Selector", render: (row) => "<button data-method-side=\\"" + escapeHtml(row.side) + "\\" data-method-selector=\\"" + escapeHtml(row.selector) + "\\">" + escapeHtml(row.selector) + "</button>" },
         ]);
-        out("classSourceOutput", result.methodsTruncated ? "Select a method. Method list is truncated by the current limit." : "Select a method.");
+        out("classSourceOutput", result.methodsTruncated ? "Select a method. Method list is truncated by the default safety limit." : "Select a method.");
       } catch (error) {
         out("classOutput", error.body || error.message);
       }
@@ -3056,6 +3089,10 @@ function explorerHtml(): string {
       }
     }
     async function loadClassBrowserDictionaries() {
+      loading("classDictionariesTable");
+      loading("classesTable");
+      loading("classCategoriesTable");
+      loading("classMethodsTable");
       try {
         const result = await api("/api/class-browser/dictionaries");
         state.classBrowser.dictionaries = result.dictionaries;
@@ -3074,6 +3111,8 @@ function explorerHtml(): string {
       renderBrowserList("classDictionariesTable", state.classBrowser.dictionaries || [dictionary], dictionary, "data-class-browser-dictionary");
       table("classMethodsTable", [], []);
       out("classSourceOutput", "");
+      loading("classesTable");
+      loading("classCategoriesTable");
       try {
         const result = await api("/api/class-browser/classes?dictionary=" + encodeURIComponent(dictionary));
         state.classBrowser.classes = result.classes;
@@ -3092,9 +3131,10 @@ function explorerHtml(): string {
       state.classBrowser.method = "";
       document.getElementById("className").value = className;
       renderBrowserList("classesTable", state.classBrowser.classes || [className], className, "data-class-browser-class");
+      loading("classCategoriesTable");
+      loading("classMethodsTable");
       try {
-        const methodLimit = document.getElementById("classMethodLimit").value;
-        const description = await api("/api/class?name=" + encodeURIComponent(className) + "&methodLimit=" + encodeURIComponent(methodLimit)).catch(() => null);
+        const description = await api("/api/class?name=" + encodeURIComponent(className)).catch(() => null);
         if (description) out("classOutput", description.description);
         await loadClassBrowserCategories();
         await loadClassBrowserSource("");
@@ -3106,6 +3146,8 @@ function explorerHtml(): string {
       const browser = state.classBrowser;
       if (!browser.dictionary || !browser.className) return;
       browser.meta = document.getElementById("classMeta").checked;
+      loading("classCategoriesTable");
+      loading("classMethodsTable");
       const result = await api("/api/class-browser/categories?dictionary=" + encodeURIComponent(browser.dictionary) + "&class=" + encodeURIComponent(browser.className) + "&meta=" + (browser.meta ? "1" : "0"));
       browser.categories = result.categories;
       const preferred = result.categories.includes(browser.category) ? browser.category : "-- all --";
@@ -3121,6 +3163,7 @@ function explorerHtml(): string {
     async function loadClassBrowserMethods() {
       const browser = state.classBrowser;
       if (!browser.dictionary || !browser.className) return;
+      loading("classMethodsTable");
       const result = await api("/api/class-browser/methods?dictionary=" + encodeURIComponent(browser.dictionary) + "&class=" + encodeURIComponent(browser.className) + "&protocol=" + encodeURIComponent(browser.category || "-- all --") + "&meta=" + (browser.meta ? "1" : "0"));
       browser.methods = result.methods;
       renderBrowserList("classMethodsTable", result.methods, browser.method, "data-class-browser-method");
@@ -3174,14 +3217,19 @@ function explorerHtml(): string {
       }
     }
 
+    const loadGlobalsFromFilter = debounce(loadGlobals);
+    const loadRootsFromFilter = debounce(loadRoots);
+    const loadSymbolEntriesFromFilter = debounce(() => {
+      if (state.symbolDictionary) return loadSymbolEntries(state.symbolDictionary);
+      return Promise.resolve();
+    });
+
     document.getElementById("refreshStatus").addEventListener("click", refreshStatus);
     document.getElementById("inspectRun").addEventListener("click", runInspect);
-    document.getElementById("globalsRun").addEventListener("click", loadGlobals);
-    document.getElementById("rootsRun").addEventListener("click", loadRoots);
-    document.getElementById("symbolsLoadUsers").addEventListener("click", loadSymbolUsers);
-    document.getElementById("symbolsFilter").addEventListener("change", () => {
-      if (state.symbolDictionary) void loadSymbolEntries(state.symbolDictionary);
-    });
+    document.getElementById("globalsFilter").addEventListener("input", loadGlobalsFromFilter);
+    document.getElementById("rootsFilter").addEventListener("input", loadRootsFromFilter);
+    document.getElementById("rootName").addEventListener("change", loadRoots);
+    document.getElementById("symbolsFilter").addEventListener("input", loadSymbolEntriesFromFilter);
     document.getElementById("statusLogClear").addEventListener("click", () => {
       state.statusHistory = [];
       renderStatusLog();
@@ -3251,20 +3299,24 @@ function explorerHtml(): string {
         selectDebugVariable(indexes[Math.max(0, current - 1)], true);
       }
     });
-    document.getElementById("classBrowserLoad").addEventListener("click", loadClassBrowserDictionaries);
     document.getElementById("classMeta").addEventListener("change", () => {
       if (state.classBrowser.className) void loadClassBrowserCategories();
     });
+    document.getElementById("className").addEventListener("change", describeClass);
     document.getElementById("classInspectClass").addEventListener("click", () => inspectClassBrowserTarget("class"));
     document.getElementById("classInspectMethod").addEventListener("click", () => inspectClassBrowserTarget("method"));
     document.getElementById("classInspectInstances").addEventListener("click", () => inspectClassBrowserTarget("instances"));
     document.getElementById("classFileOut").addEventListener("click", fileOutClassBrowser);
-    document.getElementById("classesRun").addEventListener("click", searchClasses);
     document.getElementById("classDescribe").addEventListener("click", describeClass);
     document.getElementById("codegenRun").addEventListener("click", previewCodegen);
 
     setupFloatingWindows();
-    loadConfig().then(refreshStatus).catch((error) => setStatus(false, error.message));
+    loadConfig()
+      .then(async () => {
+        await refreshStatus();
+        await loadInitialData();
+      })
+      .catch((error) => setStatus(false, error.message));
   </script>
 </body>
 </html>`;

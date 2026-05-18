@@ -50,6 +50,17 @@ interface DebugFrameVariable {
   value: string;
 }
 
+interface ActiveDebugSession {
+  id: string;
+  session: Session;
+  source: string;
+  returnKind: string;
+  contextOop: ReturnType<typeof oop>;
+  exceptionOop?: ReturnType<typeof oop>;
+  createdAt: number;
+  lastProblem?: Record<string, unknown>;
+}
+
 const ROOT_NAMES = ["UserGlobals", "Globals", "Published", "SessionMethods"];
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 200;
@@ -76,6 +87,8 @@ const DEFAULT_CODEGEN_MANIFEST: RenderGeneratedModuleOptions = {
     },
   ],
 };
+const activeDebugSessions = new Map<string, ActiveDebugSession>();
+let nextDebugSessionId = 1;
 
 const options = parseExplorerArgs(process.argv.slice(2));
 const server = createServer((request, response) => {
@@ -94,7 +107,7 @@ process.once("SIGINT", () => shutdown());
 process.once("SIGTERM", () => shutdown());
 
 function shutdown() {
-  server.close();
+  void closeAllActiveDebugSessions("shutdown", true).finally(() => server.close());
 }
 
 async function route(request: IncomingMessage, response: ServerResponse): Promise<void> {
@@ -204,6 +217,10 @@ async function route(request: IncomingMessage, response: ServerResponse): Promis
   }
   if (request.method === "POST" && url.pathname === "/api/debug") {
     writeJson(response, 200, await safeJson(() => debugEndpoint(request)));
+    return;
+  }
+  if (request.method === "POST" && url.pathname === "/api/debug/action") {
+    writeJson(response, 200, await safeJson(() => debugActionEndpoint(request)));
     return;
   }
   if (request.method === "POST" && url.pathname === "/api/codegen/preview") {
@@ -848,8 +865,16 @@ async function debugEndpoint(request: IncomingMessage) {
     throw new Error("returnKind must be value, oop, or inspect.");
   }
 
+  return startDebugRun(source, returnKind, true);
+}
+
+async function startDebugRun(source: string, returnKind: string, closeExisting: boolean) {
+  if (closeExisting) {
+    await closeAllActiveDebugSessions("new debug run", true);
+  }
   const session = await Session.connect(Session.configFromEnv());
   const startedAt = Date.now();
+  let retained = false;
   try {
     try {
       const result = await session.execute(source);
@@ -866,9 +891,39 @@ async function debugEndpoint(request: IncomingMessage) {
       };
     } catch (error) {
       const problem = await debugProblemPayload(session, error);
+      const contextOop = debugErrorOop(error, "context");
+      const exceptionOop = debugErrorOop(error, "exceptionObj");
+      if (contextOop) {
+        const id = String(nextDebugSessionId++);
+        const status = await debugProcessStatus(session, contextOop).catch(() => "suspended");
+        problem.status = status;
+        const active: ActiveDebugSession = {
+          id,
+          session,
+          source,
+          returnKind,
+          contextOop,
+          exceptionOop,
+          createdAt: Date.now(),
+          lastProblem: problem,
+        };
+        activeDebugSessions.set(id, active);
+        retained = true;
+        return {
+          ok: false,
+          live: true,
+          debugSessionId: id,
+          source,
+          returnKind,
+          elapsedMs: Date.now() - startedAt,
+          actionStatus: status,
+          problem,
+        };
+      }
       await session.abort().catch(() => undefined);
       return {
         ok: false,
+        live: false,
         source,
         returnKind,
         elapsedMs: Date.now() - startedAt,
@@ -876,8 +931,130 @@ async function debugEndpoint(request: IncomingMessage) {
       };
     }
   } finally {
-    await session.logout().catch(() => undefined);
+    if (!retained) {
+      await session.logout().catch(() => undefined);
+    }
   }
+}
+
+async function debugActionEndpoint(request: IncomingMessage) {
+  const body = await readJsonBody(request);
+  const debugSessionId = requiredBodyString(body, "debugSessionId");
+  const action = requiredBodyString(body, "action");
+  const frameIndex = optionalBodyInteger(body, "frameIndex", 0);
+  const active = activeDebugSessions.get(debugSessionId);
+  if (!active) {
+    throw new Error("No live GemStone debug session. Run Debug again to create a halted process.");
+  }
+
+  const startedAt = Date.now();
+  const actionLevel = Math.max(1, frameIndex + 1);
+  let supported = true;
+  if (action === "restart") {
+    supported = await evaluateTrue(active.session, debugRestartScript(active.contextOop, actionLevel));
+  } else if (action === "step") {
+    supported = await evaluateTrue(active.session, debugAdvanceCurrentStepPointScript(active.contextOop, actionLevel));
+    if (!supported) {
+      supported = await evaluateTrue(active.session, debugBreakpointStepScript(active.contextOop, actionLevel));
+    }
+    if (!supported) {
+      supported = await evaluateTrue(active.session, debugServerStepScript(active.contextOop, actionLevel));
+    }
+  } else if (action === "stepInto") {
+    supported = await evaluateTrue(active.session, debugBreakpointStepScript(active.contextOop, actionLevel));
+    if (!supported) {
+      supported = await evaluateTrue(active.session, debugStepScript(active.contextOop, [
+        "stepIntoFromLevel:",
+        "_stepIntoInFrame:",
+        "gciStepIntoFromLevel:",
+        "step:",
+      ], actionLevel));
+    }
+  } else if (action === "stepOver" || action === "stepReturn") {
+    supported = await evaluateTrue(active.session, debugStepScript(active.contextOop, [
+      "stepOverFromLevel:",
+      "_stepOverInFrame:",
+      "gciStepOverFromLevel:",
+    ], actionLevel));
+    if (!supported && action === "stepOver") {
+      supported = await evaluateTrue(active.session, debugStepScript(active.contextOop, [
+        "step:",
+        "stepIntoFromLevel:",
+        "_stepIntoInFrame:",
+        "gciStepIntoFromLevel:",
+      ], actionLevel));
+    }
+  } else if (action === "proceed") {
+    supported = await evaluateTrue(active.session, debugProceedScript(active.contextOop));
+  } else if (action === "trim") {
+    supported = await evaluateTrue(active.session, debugTrimScript(active.contextOop, actionLevel));
+  } else if (action === "terminate") {
+    await evaluateTrue(active.session, debugTerminateScript(active.contextOop)).catch(() => false);
+    await closeActiveDebugSession(debugSessionId, "terminate", false);
+    return {
+      ok: true,
+      live: false,
+      debugSessionId,
+      source: active.source,
+      returnKind: active.returnKind,
+      elapsedMs: Date.now() - startedAt,
+      action,
+      actionStatus: "terminated",
+      resultMessage: "Debug process terminated.",
+    };
+  } else {
+    throw new Error(`Unsupported debugger action: ${action}.`);
+  }
+
+  if (!supported) {
+    throw new Error(`Debugger action ${action} is not supported by this GemStone process.`);
+  }
+
+  const status = await waitForDebugProcessStop(active.session, active.contextOop);
+  if (status === "terminated") {
+    await closeActiveDebugSession(debugSessionId, action, false);
+    return {
+      ok: true,
+      live: false,
+      debugSessionId,
+      source: active.source,
+      returnKind: active.returnKind,
+      elapsedMs: Date.now() - startedAt,
+      action,
+      actionStatus: status,
+      resultMessage: `Debug process ${status} after ${action}.`,
+    };
+  }
+
+  const previousProblem = active.lastProblem;
+  const problem = await debugLiveProblemPayload(active, `${debugActionLabel(action)}: ${status}`);
+  if (action === "step" && debugStepDidNotMove(previousProblem, problem)) {
+    const source = active.source;
+    const returnKind = active.returnKind;
+    await closeActiveDebugSession(debugSessionId, "step replay", true);
+    const replay = await startDebugRun(source, returnKind, false) as Record<string, unknown>;
+    replay.action = action;
+    replay.replayed = true;
+    if (replay.problem && typeof replay.problem === "object") {
+      (replay.problem as Record<string, unknown>).message = "stepped: replayed source to next halt";
+    }
+    return replay;
+  }
+  const nextFrameIndex = action === "stepReturn" ? Math.max(0, frameIndex - 1) : frameIndex;
+  problem.status = status;
+  active.lastProblem = problem;
+  return {
+    ok: false,
+    live: true,
+    debugSessionId,
+    source: active.source,
+    returnKind: active.returnKind,
+    elapsedMs: Date.now() - startedAt,
+    action,
+    actionStatus: status,
+    selectedFrameIndex: nextFrameIndex,
+    problem,
+  };
 }
 
 async function debugSuccessPayload(session: Session, result: ReturnType<typeof oop>, returnKind: string) {
@@ -918,6 +1095,422 @@ async function debugProblemPayload(session: Session, error: unknown) {
     frames,
     inspections,
   };
+}
+
+function debugErrorOop(error: unknown, field: "context" | "exceptionObj"): ReturnType<typeof oop> | undefined {
+  const record = typeof error === "object" && error !== null ? error as Record<string, unknown> : {};
+  const info = error instanceof GemStoneError ? error.info : record.info as Record<string, unknown> | undefined;
+  const value = info?.[field];
+  return typeof value === "bigint" ? value as ReturnType<typeof oop> : undefined;
+}
+
+async function debugLiveProblemPayload(active: ActiveDebugSession, message: string): Promise<Record<string, unknown>> {
+  const info: Record<string, unknown> = {
+    context: active.contextOop,
+    exceptionObj: active.exceptionOop,
+  };
+  const inspections = await debugInspections(active.session, info);
+  const frames = await debugContextFrames(active.session, active.contextOop).catch(() => []);
+  const previous = active.lastProblem ?? {};
+  return {
+    ...previous,
+    name: "GemStoneDebugger",
+    message,
+    contextOop: active.contextOop.toString(),
+    exceptionOop: active.exceptionOop?.toString(),
+    stack: debugStack(inspections) ?? previous.stack,
+    frames,
+    inspections,
+  };
+}
+
+function debugStepDidNotMove(
+  previousProblem: Record<string, unknown> | undefined,
+  nextProblem: Record<string, unknown>,
+): boolean {
+  const before = firstProblemFrame(previousProblem);
+  const after = firstProblemFrame(nextProblem);
+  if (!before || !after) return false;
+  if (before.selector !== "Executed Code" || after.selector !== "Executed Code") return false;
+  return before.printString === after.printString
+    && Number(before.stepPoint ?? 0) === Number(after.stepPoint ?? 0)
+    && Number(before.sourceOffset ?? 0) === Number(after.sourceOffset ?? 0);
+}
+
+function firstProblemFrame(problem: Record<string, unknown> | undefined): Record<string, unknown> | undefined {
+  const frames = problem?.frames;
+  if (!Array.isArray(frames)) return undefined;
+  const first = frames[0];
+  return typeof first === "object" && first !== null ? first as Record<string, unknown> : undefined;
+}
+
+async function evaluateTrue(session: Session, source: string): Promise<boolean> {
+  const result = await session.eval(source);
+  return result === true || result === "true";
+}
+
+async function waitForDebugProcessStop(
+  session: Session,
+  processOop: ReturnType<typeof oop>,
+  timeoutMs = 1000,
+): Promise<string> {
+  const deadline = Date.now() + Math.max(0, timeoutMs);
+  let lastStatus = "terminated";
+  while (Date.now() <= deadline) {
+    lastStatus = await debugProcessStatus(session, processOop).catch(() => "terminated");
+    if (lastStatus !== "running") return lastStatus;
+    await sleepMs(10);
+  }
+  return lastStatus;
+}
+
+async function debugProcessStatus(session: Session, processOop: ReturnType<typeof oop>): Promise<string> {
+  const status = await session.eval(`
+    [ | obj proc terminated suspended hasDetail printText |
+      ${debugProcessResolverSource(processOop)}
+      terminated := [proc isTerminated] on: Error do: [:ex | false].
+      terminated ifTrue: ['terminated'] ifFalse: [
+        suspended := [proc isSuspended] on: Error do: [:ex | false].
+        suspended ifTrue: ['suspended'] ifFalse: [
+          hasDetail := false.
+          [[proc _gsiDebuggerDetailedReportAt: 1]. hasDetail := true] on: Error do: [:ex | hasDetail := false].
+          hasDetail ifTrue: ['suspended'] ifFalse: [
+            printText := [proc printString] on: Error do: [:ex | ''].
+            ((printText isString) and: [printText beginsWith: 'GsProcess('])
+              ifTrue: ['running']
+              ifFalse: ['terminated']]]]
+    ] value
+  `);
+  return typeof status === "string" ? status : String(status ?? "terminated");
+}
+
+function debugProcessResolverSource(processOop: ReturnType<typeof oop>): string {
+  return `
+    obj := ${objectForOopSource(processOop)}.
+    proc := obj.
+    ((proc respondsTo: #_gsiDebuggerDetailedReportAt:) not) ifTrue: [
+      (obj respondsTo: #serverProcess) ifTrue: [proc := [obj serverProcess] on: Error do: [:ex | proc]]
+    ].
+    ((proc respondsTo: #_gsiDebuggerDetailedReportAt:) not and: [obj respondsTo: #process]) ifTrue: [
+      proc := [obj process] on: Error do: [:ex | proc]
+    ].
+    ((proc respondsTo: #_gsiDebuggerDetailedReportAt:) not and: [obj respondsTo: #topContext]) ifTrue: [
+      | top |
+      top := [obj topContext] on: Error do: [:ex | nil].
+      (top notNil and: [top respondsTo: #process]) ifTrue: [proc := [top process] on: Error do: [:ex | proc]]
+    ].
+  `;
+}
+
+function debugServerStepScript(processOop: ReturnType<typeof oop>, level: number): string {
+  const safeLevel = Math.max(1, Math.trunc(level || 1));
+  return `
+    [ | obj proc stepLevel supported actionResult |
+      ${debugProcessResolverSource(processOop)}
+      stepLevel := ${safeLevel}.
+      supported := false.
+      actionResult := nil.
+      (proc respondsTo: #step:) ifTrue: [
+        actionResult := [[proc step: stepLevel]. true] on: Error do: [:ex | nil].
+        supported := actionResult == true
+      ].
+      (supported not and: [proc respondsTo: #stepIntoFromLevel:]) ifTrue: [
+        actionResult := [[proc stepIntoFromLevel: stepLevel]. true] on: Error do: [:ex | nil].
+        supported := actionResult == true
+      ].
+      (supported not and: [proc respondsTo: #_stepIntoInFrame:]) ifTrue: [
+        actionResult := [[proc _stepIntoInFrame: stepLevel]. true] on: Error do: [:ex | nil].
+        supported := actionResult == true
+      ].
+      (supported not and: [proc respondsTo: #gciStepIntoFromLevel:]) ifTrue: [
+        actionResult := [[proc gciStepIntoFromLevel: stepLevel]. true] on: Error do: [:ex | nil].
+        supported := actionResult == true
+      ].
+      supported ifTrue: ['true'] ifFalse: ['false']
+    ] value
+  `;
+}
+
+function debugStepScript(processOop: ReturnType<typeof oop>, selectors: readonly string[], level: number): string {
+  const safeLevel = Math.max(1, Math.trunc(level || 1));
+  const selectorLines = selectors.map((selector) => `
+    (supported not and: [proc respondsTo: #${selector}]) ifTrue: [
+      actionResult := [[proc perform: #${selector} with: stepLevel]. true] on: Error do: [:ex | nil].
+      supported := actionResult == true
+    ].`).join("\n");
+  return `
+    [ | obj proc stepLevel supported actionResult |
+      ${debugProcessResolverSource(processOop)}
+      stepLevel := ${safeLevel}.
+      supported := false.
+      actionResult := nil.
+      ${selectorLines}
+      supported ifTrue: ['true'] ifFalse: ['false']
+    ] value
+  `;
+}
+
+function debugContextResolverSource(levelVariable: string): string {
+  return `
+    contextSkip := ${levelVariable} - 1.
+    contextSkip < 0 ifTrue: [contextSkip := 0].
+    ctx := [proc suspendedContext] on: Error do: [:ex | nil].
+    ctx isNil ifTrue: [
+      ctx := [obj suspendedContext] on: Error do: [:ex | nil]
+    ].
+    ctx isNil ifTrue: [
+      ctx := [obj topContext] on: Error do: [:ex | nil]
+    ].
+    1 to: contextSkip do: [:index |
+      ctx notNil ifTrue: [
+        ctx := [ctx sender] on: Error do: [:ex | nil]
+      ]
+    ].
+  `;
+}
+
+function debugAdvanceCurrentStepPointScript(processOop: ReturnType<typeof oop>, level: number): string {
+  const safeLevel = Math.max(1, Math.trunc(level || 1));
+  return `
+    [ | obj proc stepLevel targetStep stackReport fullEntry quickStepPoint advanced actionResult ctx contextSkip |
+      ${debugProcessResolverSource(processOop)}
+      stepLevel := ${safeLevel}.
+      quickStepPoint := nil.
+      (proc respondsTo: #_gsiStackReportFromLevel:toLevel:) ifTrue: [
+        stackReport := [proc _gsiStackReportFromLevel: stepLevel toLevel: stepLevel] on: Error do: [:ex | nil].
+        (((stackReport isNil) not) and: [stackReport respondsTo: #size and: [stackReport size >= 2]]) ifTrue: [
+          fullEntry := [stackReport at: 2] on: Error do: [:ex | nil].
+          (((fullEntry isNil) not) and: [fullEntry respondsTo: #size and: [fullEntry size >= 5]]) ifTrue: [
+            quickStepPoint := [(fullEntry at: 5) asInteger] on: Error do: [:ex | nil]
+          ]
+        ]
+      ].
+      quickStepPoint isNil ifTrue: ['false'] ifFalse: [
+        targetStep := quickStepPoint + 1.
+        advanced := false.
+        actionResult := nil.
+        (proc respondsTo: #_gsiStepAtLevel:step:) ifTrue: [
+          actionResult := [proc _gsiStepAtLevel: stepLevel step: targetStep. true] on: Error do: [:ex | nil].
+          advanced := actionResult == true
+        ].
+        (advanced not and: [proc respondsTo: #jumpToStepPoint:]) ifTrue: [
+          actionResult := [proc jumpToStepPoint: targetStep. true] on: Error do: [:ex | nil].
+          advanced := actionResult == true
+        ].
+        (advanced not and: [proc respondsTo: #runToStepPoint:]) ifTrue: [
+          actionResult := [proc runToStepPoint: targetStep. true] on: Error do: [:ex | nil].
+          advanced := actionResult == true
+        ].
+        (advanced not and: [proc respondsTo: #jumpTo:]) ifTrue: [
+          actionResult := [proc jumpTo: targetStep. true] on: Error do: [:ex | nil].
+          advanced := actionResult == true
+        ].
+        ${debugContextResolverSource("stepLevel")}
+        ctx notNil ifTrue: [
+          (advanced not and: [ctx respondsTo: #jumpToStepPoint:]) ifTrue: [
+            actionResult := [ctx jumpToStepPoint: targetStep. true] on: Error do: [:ex | nil].
+            advanced := actionResult == true
+          ].
+          (advanced not and: [ctx respondsTo: #runToStepPoint:]) ifTrue: [
+            actionResult := [ctx runToStepPoint: targetStep. true] on: Error do: [:ex | nil].
+            advanced := actionResult == true
+          ].
+          (advanced not and: [ctx respondsTo: #jumpTo:]) ifTrue: [
+            actionResult := [ctx jumpTo: targetStep. true] on: Error do: [:ex | nil].
+            advanced := actionResult == true
+          ]
+        ].
+        advanced ifTrue: ['true'] ifFalse: ['false']
+      ]
+    ] value
+  `;
+}
+
+function debugBreakpointStepScript(processOop: ReturnType<typeof oop>, level: number): string {
+  const safeLevel = Math.max(1, Math.trunc(level || 1));
+  return `
+    [ | obj proc stepLevel supported actionResult |
+      ${debugProcessResolverSource(processOop)}
+      stepLevel := ${safeLevel}.
+      supported := false.
+      (proc respondsTo: #setStepThroughBreaksAtLevel:breakpointLevel:) ifTrue: [
+        actionResult := [
+          proc setStepThroughBreaksAtLevel: stepLevel breakpointLevel: 1.
+          (proc respondsTo: #ignoreNextBreakpoint) ifTrue: [
+            [proc ignoreNextBreakpoint] on: Error do: [:ex | nil]
+          ].
+          proc resume.
+          true
+        ] on: Error do: [:ex | nil].
+        supported := actionResult == true
+      ].
+      supported ifTrue: ['true'] ifFalse: ['false']
+    ] value
+  `;
+}
+
+function debugProceedScript(processOop: ReturnType<typeof oop>): string {
+  return `
+    [ | obj proc resumed |
+      ${debugProcessResolverSource(processOop)}
+      resumed := false.
+      (proc respondsTo: #resume) ifTrue: [
+        resumed := [[proc resume]. true] on: Error do: [:ex | false]
+      ].
+      resumed ifTrue: ['true'] ifFalse: ['false']
+    ] value
+  `;
+}
+
+function debugTrimScript(processOop: ReturnType<typeof oop>, level: number): string {
+  const safeLevel = Math.max(1, Math.trunc(level || 1));
+  return `
+    [ | obj proc ctx currentLevel trimmed |
+      ${debugProcessResolverSource(processOop)}
+      trimmed := false.
+      (proc respondsTo: #trimStackToLevel:) ifTrue: [
+        trimmed := [[proc trimStackToLevel: ${safeLevel}]. true] on: Error do: [:ex | false]
+      ].
+      (trimmed not and: [proc respondsTo: #_trimStackToLevel:]) ifTrue: [
+        trimmed := [[proc _trimStackToLevel: ${safeLevel}]. true] on: Error do: [:ex | false]
+      ].
+      trimmed ifFalse: [
+        ctx := [proc suspendedContext] on: Error do: [:ex | nil].
+        currentLevel := 1.
+        [ctx notNil and: [currentLevel < ${safeLevel}]] whileTrue: [
+          ctx := [ctx sender] on: Error do: [:ex | nil].
+          currentLevel := currentLevel + 1
+        ].
+        (ctx notNil and: [proc respondsTo: #trimTo:]) ifTrue: [
+          trimmed := [[proc trimTo: ctx]. true] on: Error do: [:ex | false]
+        ]
+      ].
+      trimmed ifTrue: ['true'] ifFalse: ['false']
+    ] value
+  `;
+}
+
+function debugTerminateScript(processOop: ReturnType<typeof oop>): string {
+  return `
+    [ | obj proc ctx attempted |
+      ${debugProcessResolverSource(processOop)}
+      attempted := false.
+      (proc respondsTo: #terminate) ifTrue: [
+        attempted := true.
+        [proc terminate] on: Error do: [:ex | nil]
+      ].
+      (proc respondsTo: #terminateProcess) ifTrue: [
+        attempted := true.
+        [proc terminateProcess] on: Error do: [:ex | nil]
+      ].
+      ctx := [proc suspendedContext] on: Error do: [:ex | nil].
+      (ctx notNil and: [ctx respondsTo: #terminateProcess]) ifTrue: [
+        attempted := true.
+        [ctx terminateProcess] on: Error do: [:ex | nil]
+      ].
+      attempted ifTrue: ['true'] ifFalse: ['false']
+    ] value
+  `;
+}
+
+function debugRestartScript(processOop: ReturnType<typeof oop>, level: number): string {
+  const safeLevel = Math.max(1, Math.trunc(level || 1));
+  return `
+    [ | obj proc result restartLevel publicResult publicTried quickStepPoint stackReport fullEntry context currentLevel actionResult |
+      ${debugProcessResolverSource(processOop)}
+      restartLevel := ${safeLevel}.
+      result := false.
+      publicResult := nil.
+      publicTried := false.
+      actionResult := nil.
+      context := [proc topContext] on: Error do: [:ex | nil].
+      currentLevel := 1.
+      [context notNil and: [currentLevel < restartLevel]] whileTrue: [
+        context := [context sender] on: Error do: [:ex | nil].
+        currentLevel := currentLevel + 1
+      ].
+      (proc respondsTo: #trimStackToLevel:) ifTrue: [
+        publicTried := true.
+        publicResult := [proc trimStackToLevel: restartLevel. true] on: Error do: [:ex | nil].
+        result := publicResult == true
+      ].
+      ((proc respondsTo: #_trimStackToLevel:) and: [result not or: [publicTried not or: [publicResult isNil or: [publicResult == false]]]]) ifTrue: [
+        actionResult := [proc _trimStackToLevel: restartLevel. true] on: Error do: [:ex | nil].
+        result := actionResult == true
+      ].
+      ((result not) and: [context notNil and: [proc respondsTo: #trimTo:]]) ifTrue: [
+        actionResult := [proc trimTo: context. true] on: Error do: [:ex | nil].
+        result := actionResult == true
+      ].
+      (result not and: [restartLevel = 1]) ifTrue: [
+        result := true
+      ].
+      result ifFalse: ['false'] ifTrue: [
+        quickStepPoint := nil.
+        (proc respondsTo: #_gsiStackReportFromLevel:toLevel:) ifTrue: [
+          stackReport := [proc _gsiStackReportFromLevel: restartLevel toLevel: restartLevel] on: Error do: [:ex | nil].
+          (((stackReport isNil) not) and: [stackReport respondsTo: #size and: [stackReport size >= 2]]) ifTrue: [
+            fullEntry := [stackReport at: 2] on: Error do: [:ex | nil].
+            (((fullEntry isNil) not) and: [fullEntry respondsTo: #size and: [fullEntry size >= 5]]) ifTrue: [
+              quickStepPoint := [(fullEntry at: 5) asInteger] on: Error do: [:ex | nil]
+            ]
+          ]
+        ].
+        ((quickStepPoint notNil) and: [quickStepPoint > 1]) ifTrue: [
+          (proc respondsTo: #_gsiStepAtLevel:step:) ifTrue: [[proc _gsiStepAtLevel: restartLevel step: 1] on: Error do: [:ex | nil]].
+          (proc respondsTo: #jumpToStepPoint:) ifTrue: [[proc jumpToStepPoint: 1] on: Error do: [:ex | nil]].
+          (proc respondsTo: #runToStepPoint:) ifTrue: [[proc runToStepPoint: 1] on: Error do: [:ex | nil]].
+          (proc respondsTo: #jumpTo:) ifTrue: [[proc jumpTo: 1] on: Error do: [:ex | nil]].
+          context := [proc topContext] on: Error do: [:ex | nil].
+          currentLevel := 1.
+          [context notNil and: [currentLevel < restartLevel]] whileTrue: [
+            context := [context sender] on: Error do: [:ex | nil].
+            currentLevel := currentLevel + 1
+          ].
+          context notNil ifTrue: [
+            (context respondsTo: #jumpToStepPoint:) ifTrue: [[context jumpToStepPoint: 1] on: Error do: [:ex | nil]].
+            (context respondsTo: #runToStepPoint:) ifTrue: [[context runToStepPoint: 1] on: Error do: [:ex | nil]].
+            (context respondsTo: #jumpTo:) ifTrue: [[context jumpTo: 1] on: Error do: [:ex | nil]]
+          ]
+        ].
+        'true'
+      ]
+    ] value
+  `;
+}
+
+function debugActionLabel(action: string): string {
+  return {
+    proceed: "proceeded",
+    restart: "restarted",
+    step: "stepped",
+    stepInto: "stepped into",
+    stepOver: "stepped over",
+    stepReturn: "stepped out",
+    trim: "trimmed",
+  }[action] ?? action;
+}
+
+function sleepMs(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function closeActiveDebugSession(id: string, reason: string, terminate: boolean): Promise<void> {
+  const active = activeDebugSessions.get(id);
+  if (!active) return;
+  activeDebugSessions.delete(id);
+  if (terminate) {
+    await evaluateTrue(active.session, debugTerminateScript(active.contextOop)).catch(() => false);
+  }
+  await active.session.abort().catch(() => undefined);
+  await active.session.logout().catch(() => undefined);
+  void reason;
+}
+
+async function closeAllActiveDebugSessions(reason: string, terminate: boolean): Promise<void> {
+  for (const id of Array.from(activeDebugSessions.keys())) {
+    await closeActiveDebugSession(id, reason, terminate);
+  }
 }
 
 async function debugInspections(session: Session, info: Record<string, unknown> | undefined) {
@@ -1486,6 +2079,15 @@ function optionalBodyBoolean(body: Record<string, unknown>, name: string): boole
   const value = body[name];
   if (value === undefined) return undefined;
   if (typeof value !== "boolean") throw new Error(`Request field ${name} must be a boolean.`);
+  return value;
+}
+
+function optionalBodyInteger(body: Record<string, unknown>, name: string, defaultValue: number): number {
+  const value = body[name];
+  if (value === undefined) return defaultValue;
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0) {
+    throw new Error(`Request field ${name} must be a non-negative integer.`);
+  }
   return value;
 }
 
@@ -3106,6 +3708,35 @@ function explorerHtml(): string {
         out("debugOutput", error.body || error.message);
       }
     }
+    async function runDebugAction(action) {
+      const debugSessionId = state.lastDebug?.live ? state.lastDebug?.debugSessionId : "";
+      if (!debugSessionId) {
+        if (action === "restart") {
+          await runDebug();
+          return;
+        }
+        unsupportedDebugAction(action);
+        return;
+      }
+      try {
+        const result = await api("/api/debug/action", {
+          method: "POST",
+          body: JSON.stringify({
+            debugSessionId,
+            action,
+            frameIndex: state.selectedDebugFrame ?? 0,
+          }),
+        });
+        renderDebugReport(result);
+        if (Number.isInteger(result.selectedFrameIndex)) {
+          selectDebugFrame(result.selectedFrameIndex);
+        }
+      } catch (error) {
+        focusWindow("debugger");
+        out("debugOutput", error.body || error.message);
+        setStatus(false, (error.body && error.body.error) || error.message || String(error));
+      }
+    }
     function renderDebugReport(result) {
       state.lastDebug = result;
       out("debugOutput", result);
@@ -3119,9 +3750,13 @@ function explorerHtml(): string {
         const inspection = result.result && result.result.printString ? result.result : null;
         out("debugSummaryOutput", [
           "status: ok",
+          result.live === false ? "live: no" : "",
+          result.action ? "action: " + result.action : "",
+          result.actionStatus ? "action status: " + result.actionStatus : "",
           "elapsed: " + result.elapsedMs + "ms",
           "return: " + result.returnKind,
           "result oop: " + (result.resultOop || ""),
+          result.resultMessage ? "message: " + result.resultMessage : "",
           inspection ? "result class: " + inspection.class : "",
           inspection ? "result: " + inspection.printString : "",
         ].filter(Boolean).join("\\n"));
@@ -3139,6 +3774,11 @@ function explorerHtml(): string {
       focusWindow("debugger");
       out("debugSummaryOutput", [
         "status: halted",
+        result.live ? "live: yes" : "live: no",
+        result.debugSessionId ? "debug session: " + result.debugSessionId : "",
+        result.action ? "action: " + result.action : "",
+        result.actionStatus ? "action status: " + result.actionStatus : "",
+        problem.status ? "process status: " + problem.status : "",
         "elapsed: " + result.elapsedMs + "ms",
         "name: " + (problem.name || ""),
         "message: " + (problem.message || ""),
@@ -3150,7 +3790,8 @@ function explorerHtml(): string {
       ].join("\\n"));
       out("debugStackOutput", problem.stack || "");
       state.debugFrames = parseContextStack(problem.stack, problem.frames);
-      state.selectedDebugFrame = state.debugFrames.length ? state.debugFrames[0].index : null;
+      const preferredFrame = state.debugFrames.find((frame) => frame.selector === "Executed Code" || frame.source === source) || state.debugFrames[0];
+      state.selectedDebugFrame = preferredFrame ? preferredFrame.index : null;
       state.selectedDebugVariable = null;
       renderDebugStack(state.debugFrames);
       renderDebugSourcePreview(source, selectedDebugFrame());
@@ -3451,7 +4092,7 @@ function explorerHtml(): string {
       table("debugArgsTable", [], []);
     }
     function unsupportedDebugAction(action) {
-      const message = action + " needs a persistent GemStone debug process. The current JS explorer captures a halted report, aborts the session, and logs out after each debug run.";
+      const message = "No live GemStone debug session is available for " + action + ". Run Debug on code that halts or raises an exception first.";
       out("debugSummaryOutput", message);
       setStatus(false, message);
     }
@@ -3865,14 +4506,14 @@ function explorerHtml(): string {
     });
     document.getElementById("evalRun").addEventListener("click", runEval);
     document.getElementById("debugRun").addEventListener("click", runDebug);
-    document.getElementById("debugRestart").addEventListener("click", runDebug);
-    document.getElementById("debugProceed").addEventListener("click", () => unsupportedDebugAction("Proceed"));
-    document.getElementById("debugStep").addEventListener("click", () => unsupportedDebugAction("Step"));
-    document.getElementById("debugStepInto").addEventListener("click", () => unsupportedDebugAction("Step Into"));
-    document.getElementById("debugStepOver").addEventListener("click", () => unsupportedDebugAction("Step Over"));
-    document.getElementById("debugStepReturn").addEventListener("click", () => unsupportedDebugAction("Step Return"));
-    document.getElementById("debugTrim").addEventListener("click", () => unsupportedDebugAction("Trim"));
-    document.getElementById("debugTerminate").addEventListener("click", () => clearDebugReport("Terminated local debug report. No GemStone process is retained by the current stateless debugger."));
+    document.getElementById("debugRestart").addEventListener("click", () => runDebugAction("restart"));
+    document.getElementById("debugProceed").addEventListener("click", () => runDebugAction("proceed"));
+    document.getElementById("debugStep").addEventListener("click", () => runDebugAction("step"));
+    document.getElementById("debugStepInto").addEventListener("click", () => runDebugAction("stepInto"));
+    document.getElementById("debugStepOver").addEventListener("click", () => runDebugAction("stepOver"));
+    document.getElementById("debugStepReturn").addEventListener("click", () => runDebugAction("stepReturn"));
+    document.getElementById("debugTrim").addEventListener("click", () => runDebugAction("trim"));
+    document.getElementById("debugTerminate").addEventListener("click", () => runDebugAction("terminate"));
     document.getElementById("debugInspectFrame").addEventListener("click", () => inspectDebugTarget("frame"));
     document.getElementById("debugInspectReceiver").addEventListener("click", () => inspectDebugTarget("receiver"));
     document.getElementById("debugInspectVariable").addEventListener("click", () => inspectDebugTarget("variable"));

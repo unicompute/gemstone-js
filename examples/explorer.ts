@@ -190,6 +190,10 @@ async function route(request: IncomingMessage, response: ServerResponse): Promis
     writeJson(response, 200, await safeJson(() => classBrowserFileOutEndpoint(url)));
     return;
   }
+  if (request.method === "POST" && url.pathname === "/api/class-browser/compile") {
+    writeJson(response, 200, await safeJson(() => classBrowserCompileEndpoint(request)));
+    return;
+  }
   if (request.method === "POST" && url.pathname === "/api/eval") {
     writeJson(response, 200, await safeJson(() => evalEndpoint(request)));
     return;
@@ -624,6 +628,107 @@ async function classBrowserFileOutEndpoint(url: URL) {
       source: typeof source === "string" ? source : String(source ?? ""),
     };
   });
+}
+
+async function classBrowserCompileEndpoint(request: IncomingMessage) {
+  const body = await readJsonBody(request);
+  const dictionary = requiredBodyString(body, "dictionary");
+  const className = validateGlobalName(requiredBodyString(body, "class"));
+  const category = (optionalBodyString(body, "category")?.trim() || "as yet unclassified");
+  const selector = optionalBodyString(body, "selector")?.trim() || "";
+  const source = requiredBodyString(body, "source").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  const meta = optionalBodyBoolean(body, "meta") ?? false;
+  const commit = optionalBodyBoolean(body, "commit") ?? false;
+  if (selector.length > 200) {
+    throw new Error("selector must be 200 characters or fewer.");
+  }
+  if (source.length > 200_000) {
+    throw new Error("source must be 200000 characters or fewer.");
+  }
+
+  const oldSelectorExpression = selector ? `'${escapeSmalltalkStringLiteral(selector)}' asSymbol` : "nil";
+  const escapedSource = escapeSmalltalkStringLiteral(source);
+  const escapedCategory = escapeSmalltalkStringLiteral(category);
+  const payload = await withSession(async (session) => {
+    const result = await session.eval(`
+      | cls methodSource compileResult oldSel newSel protocolName message encode |
+      ${escapedFieldEncoderSource("encode")}
+      cls := ${classBrowserBehaviorExpression(className, dictionary, meta)}.
+      cls isNil ifTrue: [
+        'ERROR|' , (encode value: 'class not found')
+      ] ifFalse: [
+        methodSource := '${escapedSource}'.
+        oldSel := ${oldSelectorExpression}.
+        compileResult := [cls compileMethod: methodSource category: '${escapedCategory}' asSymbol]
+          on: Error do: [:ex | 'ERROR|' , (encode value: ex messageText)].
+        ((compileResult isString) and: [compileResult beginsWith: 'ERROR|']) ifTrue: [
+          compileResult
+        ] ifFalse: [
+          (compileResult isKindOf: Array) ifTrue: [
+            'ERROR|' , (encode value: 'Compilation failed')
+          ] ifFalse: [
+            newSel := [compileResult selector] on: Error do: [:ex | nil].
+            (newSel isNil and: [compileResult isSymbol]) ifTrue: [newSel := compileResult].
+            newSel isNil ifTrue: [newSel := oldSel].
+            ((newSel notNil) and: [oldSel notNil and: [newSel ~= oldSel and: [cls includesSelector: oldSel]]]) ifTrue: [
+              [cls removeSelector: oldSel] on: Error do: [:ex | ]
+            ].
+            protocolName := newSel isNil
+              ifTrue: ['${escapedCategory}']
+              ifFalse: [[cls categoryOfSelector: newSel] on: Error do: [:ex | '${escapedCategory}']].
+            protocolName ifNil: [protocolName := '${escapedCategory}'].
+            message := compileResult isString
+              ifTrue: [compileResult asString]
+              ifFalse: ['Success'].
+            'OK|',
+              (encode value: (newSel ifNil: [''] ifNotNil: [newSel asString])),
+              '|',
+              (encode value: protocolName asString),
+              '|',
+              (encode value: (oldSel ifNil: [''] ifNotNil: [oldSel asString])),
+              '|',
+              (encode value: message)
+          ]
+        ]
+      ]
+    `);
+    if (commit) await session.commit();
+    else await session.abort().catch(() => undefined);
+    return typeof result === "string" ? result : String(result ?? "");
+  });
+
+  if (payload.startsWith("ERROR|")) {
+    return {
+      success: false,
+      exception: decodeEscapedField(payload.slice("ERROR|".length)) || "Compilation failed",
+      committed: false,
+    };
+  }
+
+  const fields = payload.split("|", 5);
+  if (fields.length >= 5 && fields[0] === "OK") {
+    const selectorName = decodeEscapedField(fields[1]);
+    const protocolName = decodeEscapedField(fields[2]) || category;
+    const previousSelector = decodeEscapedField(fields[3]);
+    const message = decodeEscapedField(fields[4]) || "Success";
+    return {
+      success: true,
+      result: commit ? message : `${message}; changes aborted because Auto Commit is off`,
+      selector: selectorName || null,
+      previousSelector: previousSelector || null,
+      category: protocolName,
+      committed: commit,
+    };
+  }
+
+  return {
+    success: true,
+    result: commit ? (payload || "Success") : `${payload || "Success"}; changes aborted because Auto Commit is off`,
+    selector: selector || null,
+    previousSelector: selector || null,
+    category,
+    committed: commit,
+  };
 }
 
 async function evalEndpoint(request: IncomingMessage) {
@@ -1935,7 +2040,42 @@ function explorerHtml(): string {
       align-items: start;
     }
     .class-source { grid-column: 1 / -1; }
-    .class-source pre { min-height: 310px; }
+    .class-source-editor {
+      width: 100%;
+      min-height: 330px;
+      border: 0;
+      border-radius: 0;
+      resize: vertical;
+      background: var(--code-bg);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    .class-source-editor.is-readonly {
+      color: var(--muted);
+      background: var(--panel);
+      cursor: default;
+    }
+    .class-source-tools {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      padding: 6px 8px;
+      border-bottom: 1px solid var(--line);
+      background: var(--panel-2);
+    }
+    .class-source-status {
+      padding: 5px 8px;
+      border-top: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--muted);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 10px;
+      min-height: 24px;
+    }
+    .class-source-status.ok { color: var(--ok); }
+    .class-source-status.error { color: var(--danger); }
     .browser-panes {
       display: grid;
       grid-template-columns: minmax(150px, 0.65fr) minmax(190px, 0.9fr) minmax(170px, 0.8fr) minmax(210px, 1fr);
@@ -2222,7 +2362,19 @@ function explorerHtml(): string {
           <div class="surface"><h2>Methods</h2><div class="pane-filter-wrap"><input class="pane-filter" id="classMethodFilter" placeholder="Filter methods"></div><div class="browser-list" id="classMethodsTable"></div></div>
         </div>
         <div class="class-detail-grid">
-          <div class="surface class-source"><h2>Source</h2><pre id="classSourceOutput"></pre></div>
+          <div class="surface class-source">
+            <h2>Source <span id="classSourceNote"></span></h2>
+            <div class="class-source-tools">
+              <button class="action" id="classSourceSubmit">Submit</button>
+              <button class="action secondary" id="classSourceRevert">Revert</button>
+              <button class="action secondary" id="classSourceRefresh">Refresh</button>
+              <button class="action secondary" id="classNewMethod">New Method</button>
+              <button class="action secondary" id="classBrowseClass">Browse Class</button>
+              <label class="rowline"><input id="classAutoCommit" type="checkbox" checked> Auto Commit</label>
+            </div>
+            <textarea class="class-source-editor" id="classSourceOutput" spellcheck="false"></textarea>
+            <div class="class-source-status" id="classSourceStatus">Select a method to edit source.</div>
+          </div>
         </div>
         </div>
       </section>
@@ -2282,12 +2434,20 @@ function explorerHtml(): string {
         methods: [],
         method: "",
         meta: false,
+        sourceMode: "classDefinition",
+        sourceOriginal: "",
+        sourceDirty: false,
       },
     };
     const out = (id, value) => {
       const element = document.getElementById(id);
       if (!element) return;
-      element.textContent = typeof value === "string" ? value : JSON.stringify(value, null, 2);
+      const text = typeof value === "string" ? value : JSON.stringify(value, null, 2);
+      if (element instanceof HTMLTextAreaElement || element instanceof HTMLInputElement) {
+        element.value = text;
+      } else {
+        element.textContent = text;
+      }
     };
     const api = async (path, options = {}) => {
       const startedAt = performance.now();
@@ -3207,6 +3367,89 @@ function explorerHtml(): string {
       out("debugSummaryOutput", message);
       setStatus(false, message);
     }
+    const classSourceElement = () => document.getElementById("classSourceOutput");
+    const classSourceModeLabel = () => {
+      const browser = state.classBrowser;
+      if (browser.sourceMode === "method") {
+        const side = browser.meta ? "class" : "instance";
+        return browser.method ? browser.className + " " + side + " >> " + browser.method : browser.className + " " + side + " >> new method";
+      }
+      return browser.className ? browser.className + " definition" : "class definition";
+    };
+    const classBrowserCategoryForCompile = () => {
+      const category = String(state.classBrowser.category || "").trim();
+      return category && category !== "-- all --" ? category : "as yet unclassified";
+    };
+    function setClassSourceStatus(message, level = "") {
+      const status = document.getElementById("classSourceStatus");
+      if (!status) return;
+      status.textContent = message || "";
+      status.className = "class-source-status" + (level ? " " + level : "");
+    }
+    function syncClassSourceControls(message) {
+      const browser = state.classBrowser;
+      const source = classSourceElement();
+      const editable = browser.sourceMode === "method" && !!browser.className;
+      if (source) {
+        source.readOnly = !editable;
+        source.classList.toggle("is-readonly", !editable);
+      }
+      const submit = document.getElementById("classSourceSubmit");
+      const revert = document.getElementById("classSourceRevert");
+      const refresh = document.getElementById("classSourceRefresh");
+      const browseClass = document.getElementById("classBrowseClass");
+      if (submit) submit.disabled = !editable;
+      if (revert) revert.disabled = !browser.sourceDirty;
+      if (refresh) refresh.disabled = !browser.className;
+      if (browseClass) browseClass.disabled = !browser.className;
+      out("classSourceNote", classSourceModeLabel());
+      if (message) {
+        setClassSourceStatus(message);
+      } else if (!editable) {
+        setClassSourceStatus("Class definitions are browse-only. Select a method or start a new method to edit source.");
+      } else if (browser.sourceDirty) {
+        setClassSourceStatus("Modified");
+      } else {
+        setClassSourceStatus("Ready");
+      }
+    }
+    function setClassSource(value, { mode = state.classBrowser.sourceMode, status = "" } = {}) {
+      const text = String(value ?? "");
+      state.classBrowser.sourceMode = mode;
+      state.classBrowser.sourceOriginal = text;
+      state.classBrowser.sourceDirty = false;
+      out("classSourceOutput", text);
+      syncClassSourceControls(status);
+    }
+    function markClassSourceDirty() {
+      const source = classSourceElement();
+      state.classBrowser.sourceDirty = source ? source.value !== state.classBrowser.sourceOriginal : false;
+      syncClassSourceControls();
+    }
+    function revertClassSource() {
+      out("classSourceOutput", state.classBrowser.sourceOriginal);
+      state.classBrowser.sourceDirty = false;
+      syncClassSourceControls("Reverted");
+    }
+    async function refreshClassSource() {
+      const selector = state.classBrowser.sourceMode === "method" ? state.classBrowser.method : "";
+      await loadClassBrowserSource(selector || "");
+    }
+    function newClassBrowserMethod() {
+      if (!state.classBrowser.className) {
+        setClassSourceStatus("Select a class first", "error");
+        return;
+      }
+      state.classBrowser.method = "";
+      renderClassBrowserMethods("");
+      const template = "newMethod\\n  ^ self";
+      setClassSource(template, { mode: "method", status: "New method" });
+      const source = classSourceElement();
+      if (source) {
+        source.focus();
+        source.setSelectionRange(0, "newMethod".length);
+      }
+    }
     function showClassPreviewOutput(value) {
       out("classOutput", value);
       focusWindow("classPreview");
@@ -3261,7 +3504,7 @@ function explorerHtml(): string {
       renderClassBrowserDictionaries();
       renderClassBrowserCategories();
       renderClassBrowserMethods();
-      out("classSourceOutput", "");
+      setClassSource("", { mode: "classDefinition", status: "Loading classes..." });
       loading("classesTable");
       loading("classCategoriesTable");
       try {
@@ -3337,11 +3580,73 @@ function explorerHtml(): string {
     async function loadClassBrowserSource(selector) {
       const browser = state.classBrowser;
       if (!browser.dictionary || !browser.className) return;
+      const mode = selector ? "method" : "classDefinition";
+      setClassSource("Loading...", { mode, status: "Loading source..." });
       try {
         const result = await api("/api/class-browser/source?dictionary=" + encodeURIComponent(browser.dictionary) + "&class=" + encodeURIComponent(browser.className) + "&selector=" + encodeURIComponent(selector || "") + "&meta=" + (browser.meta ? "1" : "0"));
-        out("classSourceOutput", result.source || (selector ? "(source unavailable)" : "(definition unavailable)"));
+        setClassSource(result.source || (selector ? "" : "(definition unavailable)"), {
+          mode,
+          status: selector ? "Ready" : "Class definition",
+        });
       } catch (error) {
-        out("classSourceOutput", error.body || error.message);
+        setClassSource(error.body || error.message, { mode, status: "Source load failed" });
+        setClassSourceStatus("Source load failed", "error");
+      }
+    }
+    async function submitClassBrowserSource() {
+      const browser = state.classBrowser;
+      const source = classSourceElement();
+      if (!source) return;
+      if (browser.sourceMode !== "method") {
+        setClassSourceStatus("Class definitions are browse-only. Select a method or start a new method.", "error");
+        return;
+      }
+      if (!browser.dictionary || !browser.className) {
+        setClassSourceStatus("Select a dictionary and class first", "error");
+        return;
+      }
+      const methodSource = source.value;
+      if (!methodSource.trim()) {
+        setClassSourceStatus("Method source is empty", "error");
+        return;
+      }
+      const category = classBrowserCategoryForCompile();
+      const autoCommit = !!document.getElementById("classAutoCommit")?.checked;
+      setClassSourceStatus("Submitting...");
+      try {
+        const result = await api("/api/class-browser/compile", {
+          method: "POST",
+          body: JSON.stringify({
+            dictionary: browser.dictionary,
+            class: browser.className,
+            category,
+            selector: browser.method || "",
+            source: methodSource,
+            meta: browser.meta,
+            commit: autoCommit,
+          }),
+        });
+        if (!result.success) throw new Error(result.exception || "Compilation failed");
+        const selector = result.selector || browser.method || "";
+        const statusText = result.result || (result.committed ? "Compiled" : "Compile check passed");
+        if (!result.committed) {
+          setClassSourceStatus(statusText, "ok");
+          return;
+        }
+        browser.category = result.category || category;
+        browser.method = selector;
+        setClassSource(methodSource, { mode: "method", status: statusText });
+        await loadClassBrowserCategories();
+        if (selector) {
+          browser.method = selector;
+          renderClassBrowserMethods(selector);
+          await loadClassBrowserSource(selector);
+        }
+        setClassSourceStatus(statusText, "ok");
+        setStatus(true, statusText);
+      } catch (error) {
+        setClassSourceStatus(error.body?.error || error.body?.exception || error.message, "error");
+        setStatus(false, error.body?.error || error.body?.exception || error.message);
       }
     }
     async function inspectClassBrowserTarget(mode) {
@@ -3483,6 +3788,21 @@ function explorerHtml(): string {
       if (state.classBrowser.className) void loadClassBrowserCategories();
     });
     document.getElementById("className").addEventListener("change", () => describeClass(false));
+    document.getElementById("classSourceOutput").addEventListener("input", markClassSourceDirty);
+    document.getElementById("classSourceSubmit").addEventListener("click", submitClassBrowserSource);
+    document.getElementById("classSourceRevert").addEventListener("click", revertClassSource);
+    document.getElementById("classSourceRefresh").addEventListener("click", refreshClassSource);
+    document.getElementById("classNewMethod").addEventListener("click", newClassBrowserMethod);
+    document.getElementById("classBrowseClass").addEventListener("click", () => loadClassBrowserSource(""));
+    const classAutoCommit = document.getElementById("classAutoCommit");
+    try {
+      const storedAutoCommit = localStorage.getItem("gemstone-js-class-browser-auto-commit-v1");
+      if (storedAutoCommit !== null) classAutoCommit.checked = storedAutoCommit === "1";
+    } catch (_error) {}
+    classAutoCommit.addEventListener("change", () => {
+      try { localStorage.setItem("gemstone-js-class-browser-auto-commit-v1", classAutoCommit.checked ? "1" : "0"); } catch (_error) {}
+      setClassSourceStatus(classAutoCommit.checked ? "Auto Commit enabled" : "Auto Commit disabled", "ok");
+    });
     document.getElementById("classInspectClass").addEventListener("click", () => inspectClassBrowserTarget("class"));
     document.getElementById("classInspectMethod").addEventListener("click", () => inspectClassBrowserTarget("method"));
     document.getElementById("classInspectInstances").addEventListener("click", () => inspectClassBrowserTarget("instances"));
@@ -3491,6 +3811,7 @@ function explorerHtml(): string {
     document.getElementById("codegenRun").addEventListener("click", previewCodegen);
 
     setupFloatingWindows();
+    syncClassSourceControls();
     loadConfig()
       .then(async () => {
         await refreshStatus();

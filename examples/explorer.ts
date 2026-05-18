@@ -1785,10 +1785,22 @@ function explorerHtml(): string {
     }
     .frame-detail-grid {
       display: grid;
-      grid-template-columns: minmax(260px, 0.35fr) minmax(0, 0.65fr);
+      grid-template-columns: minmax(220px, 0.3fr) minmax(280px, 0.45fr) minmax(220px, 0.25fr);
       gap: 14px;
       align-items: start;
       margin-top: 14px;
+    }
+    .debug-variable-row {
+      cursor: pointer;
+    }
+    .debug-variable-row:hover td,
+    .debug-variable-row.active td {
+      background: #eef2ff;
+      color: #3730a3;
+    }
+    .debug-variable-row:focus {
+      outline: 2px solid #4f46e5;
+      outline-offset: -2px;
     }
     .debug-toolbar-group {
       display: flex;
@@ -2009,6 +2021,7 @@ function explorerHtml(): string {
           <span class="debug-toolbar-group" aria-label="Debugger inspect controls">
             <button class="action secondary" id="debugInspectFrame">Inspect Frame</button>
             <button class="action secondary" id="debugInspectReceiver">Inspect Receiver</button>
+            <button class="action secondary" id="debugInspectVariable">Inspect Variable</button>
             <button class="action secondary" id="debugInspectContext">Inspect Context</button>
             <button class="action secondary" id="debugInspectException">Inspect Exception</button>
           </span>
@@ -2017,6 +2030,7 @@ function explorerHtml(): string {
         <div class="frame-detail-grid">
           <div class="surface"><h2>Selected Frame</h2><pre id="debugFrameOutput"></pre></div>
           <div class="surface"><h2>Frame Variables</h2><div id="debugVariablesTable"></div></div>
+          <div class="surface"><h2>Selected Variable</h2><pre id="debugVariableOutput"></pre></div>
         </div>
         <div class="debugger-workbench">
           <textarea class="debugger-source" id="debugSource">1/0</textarea>
@@ -2156,6 +2170,7 @@ function explorerHtml(): string {
       lastDebug: null,
       debugFrames: [],
       selectedDebugFrame: null,
+      selectedDebugVariable: null,
       classBrowser: {
         dictionary: "",
         className: "Object",
@@ -2700,6 +2715,7 @@ function explorerHtml(): string {
       out("debugStackOutput", problem.stack || "");
       state.debugFrames = parseContextStack(problem.stack, problem.frames);
       state.selectedDebugFrame = state.debugFrames.length ? state.debugFrames[0].index : null;
+      state.selectedDebugVariable = null;
       renderDebugStack(state.debugFrames);
       renderDebugSourcePreview(source, selectedDebugFrame());
       renderDebugFrameDetails(selectedDebugFrame());
@@ -2733,13 +2749,16 @@ function explorerHtml(): string {
     async function inspectDebugTarget(kind) {
       const problem = state.lastDebug?.problem || {};
       const frame = selectedDebugFrame();
+      const variable = selectedDebugVariable();
       const value = kind === "frame"
         ? frame?.contextOop
         : kind === "receiver"
           ? frame?.receiverOop
-          : kind === "context"
-            ? problem.contextOop
-            : problem.exceptionOop;
+          : kind === "variable"
+            ? variable?.oop
+            : kind === "context"
+              ? problem.contextOop
+              : problem.exceptionOop;
       if (!value) return;
       document.getElementById("inspectOop").value = value;
       focusWindow("inspect");
@@ -2791,6 +2810,11 @@ function explorerHtml(): string {
     }
     function selectedDebugFrame() {
       return state.debugFrames.find((row) => row.index === state.selectedDebugFrame) || null;
+    }
+    function selectedDebugVariable() {
+      const frame = selectedDebugFrame();
+      if (!frame || !Array.isArray(frame.variables)) return null;
+      return frame.variables.find((row, index) => index === state.selectedDebugVariable) || null;
     }
     function renderDebugSourcePreview(source, frame) {
       const element = document.getElementById("debugSourcePreview");
@@ -2857,9 +2881,16 @@ function explorerHtml(): string {
     }
     function renderDebugFrameDetails(frame) {
       if (!frame) {
+        state.selectedDebugVariable = null;
         out("debugFrameOutput", "");
-        table("debugVariablesTable", [], []);
+        renderDebugVariables(null);
+        renderDebugVariableDetails(null);
         return;
+      }
+      const variables = Array.isArray(frame.variables) ? frame.variables : [];
+      if (variables.length === 0) state.selectedDebugVariable = null;
+      else if (!Number.isInteger(state.selectedDebugVariable) || state.selectedDebugVariable < 0 || state.selectedDebugVariable >= variables.length) {
+        state.selectedDebugVariable = 0;
       }
       out("debugFrameOutput", [
         "frame: " + frame.index,
@@ -2872,12 +2903,59 @@ function explorerHtml(): string {
         "reported line: " + (frame.line || ""),
         "print: " + (frame.text || ""),
       ].filter(Boolean).join("\\n"));
-      table("debugVariablesTable", frame.variables || [], [
-        { label: "Name", render: (row) => escapeHtml(row.name) },
-        { label: "OOP", render: (row) => row.oop ? inspectLink(row.oop) : "" },
-        { label: "Class", render: (row) => escapeHtml(row.className || "") },
-        { label: "Value", render: (row) => escapeHtml(row.value || "") },
-      ]);
+      renderDebugVariables(frame);
+      renderDebugVariableDetails(selectedDebugVariable());
+    }
+    function renderDebugVariables(frame) {
+      const element = document.getElementById("debugVariablesTable");
+      if (!element) return;
+      const rows = Array.isArray(frame?.variables) ? frame.variables : [];
+      if (!rows.length) {
+        element.innerHTML = "<div style=\\"padding:12px;color:var(--muted)\\">No variables</div>";
+        return;
+      }
+      element.innerHTML = [
+        "<table><thead><tr>",
+        "<th>Name</th><th>OOP</th><th>Class</th><th>Value</th>",
+        "</tr></thead><tbody>",
+        ...rows.map((row, index) => {
+          const active = index === state.selectedDebugVariable ? " active" : "";
+          return [
+            "<tr class=\\"debug-variable-row" + active + "\\" data-debug-variable-index=\\"" + escapeHtml(index) + "\\" tabindex=\\"0\\" aria-selected=\\"" + (active ? "true" : "false") + "\\">",
+            "<td>" + escapeHtml(row.name || "") + "</td>",
+            "<td>" + (row.oop ? inspectLink(row.oop) : "") + "</td>",
+            "<td>" + escapeHtml(row.className || "") + "</td>",
+            "<td>" + escapeHtml(row.value || "") + "</td>",
+            "</tr>",
+          ].join("");
+        }),
+        "</tbody></table>",
+      ].join("");
+    }
+    function renderDebugVariableDetails(variable) {
+      if (!variable) {
+        out("debugVariableOutput", "");
+        return;
+      }
+      out("debugVariableOutput", [
+        "name: " + (variable.name || ""),
+        "oop: " + (variable.oop || ""),
+        "class: " + (variable.className || ""),
+        "value: " + (variable.value || ""),
+      ].join("\\n"));
+    }
+    function selectDebugVariable(index, focusRow) {
+      const frame = selectedDebugFrame();
+      const variableIndex = Number(index);
+      if (!frame || !Array.isArray(frame.variables) || !frame.variables[variableIndex]) return;
+      state.selectedDebugVariable = variableIndex;
+      renderDebugVariables(frame);
+      renderDebugVariableDetails(frame.variables[variableIndex]);
+      if (focusRow) {
+        const row = document.querySelector("#debugVariablesTable [data-debug-variable-index=\\"" + variableIndex + "\\"]");
+        if (row) row.focus();
+      }
+      setStatus(true, "Selected variable " + (frame.variables[variableIndex].name || variableIndex));
     }
     function renderDebugStack(rows) {
       const element = document.getElementById("debugStackTable");
@@ -2912,6 +2990,7 @@ function explorerHtml(): string {
       const frame = state.debugFrames.find((row) => row.index === frameIndex);
       if (!frame) return;
       state.selectedDebugFrame = frame.index;
+      state.selectedDebugVariable = Array.isArray(frame.variables) && frame.variables.length ? 0 : null;
       renderDebugStack(state.debugFrames);
       renderDebugSourcePreview(state.lastDebug?.source || document.getElementById("debugSource").value, frame);
       renderDebugFrameDetails(frame);
@@ -2925,6 +3004,7 @@ function explorerHtml(): string {
       state.lastDebug = null;
       state.debugFrames = [];
       state.selectedDebugFrame = null;
+      state.selectedDebugVariable = null;
       out("debugSummaryOutput", message || "");
       out("debugSourcePreview", "");
       out("debugStackOutput", "");
@@ -3118,6 +3198,7 @@ function explorerHtml(): string {
     document.getElementById("debugTerminate").addEventListener("click", () => clearDebugReport("Terminated local debug report. No GemStone process is retained by the current stateless debugger."));
     document.getElementById("debugInspectFrame").addEventListener("click", () => inspectDebugTarget("frame"));
     document.getElementById("debugInspectReceiver").addEventListener("click", () => inspectDebugTarget("receiver"));
+    document.getElementById("debugInspectVariable").addEventListener("click", () => inspectDebugTarget("variable"));
     document.getElementById("debugInspectContext").addEventListener("click", () => inspectDebugTarget("context"));
     document.getElementById("debugInspectException").addEventListener("click", () => inspectDebugTarget("exception"));
     document.getElementById("debugStackTable").addEventListener("click", (event) => {
@@ -3142,6 +3223,32 @@ function explorerHtml(): string {
       } else if (event.key === "ArrowUp") {
         event.preventDefault();
         selectDebugFrame(indexes[Math.max(0, current - 1)], true);
+      }
+    });
+    document.getElementById("debugVariablesTable").addEventListener("click", (event) => {
+      if (event.target.closest("[data-oop]")) return;
+      const row = event.target.closest("[data-debug-variable-index]");
+      if (!row) return;
+      selectDebugVariable(row.dataset.debugVariableIndex);
+    });
+    document.getElementById("debugVariablesTable").addEventListener("keydown", (event) => {
+      const row = event.target.closest("[data-debug-variable-index]");
+      if (!row) return;
+      const frame = selectedDebugFrame();
+      const indexes = Array.isArray(frame?.variables) ? frame.variables.map((_variable, index) => index) : [];
+      const current = indexes.indexOf(Number(row.dataset.debugVariableIndex));
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        selectDebugVariable(row.dataset.debugVariableIndex);
+        return;
+      }
+      if (current < 0) return;
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        selectDebugVariable(indexes[Math.min(indexes.length - 1, current + 1)], true);
+      } else if (event.key === "ArrowUp") {
+        event.preventDefault();
+        selectDebugVariable(indexes[Math.max(0, current - 1)], true);
       }
     });
     document.getElementById("classBrowserLoad").addEventListener("click", loadClassBrowserDictionaries);

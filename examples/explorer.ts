@@ -1961,6 +1961,17 @@ function explorerHtml(): string {
       padding: 0;
       background: var(--code-bg);
     }
+    .pane-filter-wrap {
+      padding: 4px 6px;
+      border-bottom: 1px solid var(--line);
+      background: var(--panel-2);
+    }
+    .pane-filter {
+      width: 100%;
+      min-height: 24px;
+      padding: 3px 6px;
+      font-size: 10px;
+    }
     .browser-item {
       display: block;
       width: 100%;
@@ -2166,13 +2177,10 @@ function explorerHtml(): string {
       <section id="symbols" class="tool-window hidden" data-window="symbols" data-default-left="120" data-default-top="250" style="--x: 120px; --y: 250px; --w: 980px;">
         <div class="window-titlebar" data-drag-handle><h2>Symbol List Browser</h2><button class="window-button" type="button" data-window-close="symbols" aria-label="Close symbol list browser">x</button></div>
         <div class="window-body">
-        <div class="toolbar">
-          <label>Filter Entries <input id="symbolsFilter" placeholder="Object"></label>
-        </div>
         <div class="symbol-grid">
-          <div class="surface"><h2>Users</h2><div id="symbolUsersTable"></div></div>
-          <div class="surface"><h2>Dictionaries</h2><div id="symbolDictionariesTable"></div></div>
-          <div class="surface"><h2>Entries</h2><div id="symbolEntriesTable"></div></div>
+          <div class="surface"><h2>Users</h2><div class="pane-filter-wrap"><input class="pane-filter" id="symbolUsersFilter" placeholder="Filter users"></div><div class="browser-list" id="symbolUsersTable"></div></div>
+          <div class="surface"><h2>Dictionaries</h2><div class="pane-filter-wrap"><input class="pane-filter" id="symbolDictionariesFilter" placeholder="Filter dictionaries"></div><div class="browser-list" id="symbolDictionariesTable"></div></div>
+          <div class="surface"><h2>Entries</h2><div class="pane-filter-wrap"><input class="pane-filter" id="symbolsFilter" placeholder="Filter entries"></div><div class="browser-list" id="symbolEntriesTable"></div></div>
           <div class="surface"><h2>Value Preview</h2><pre id="symbolPreviewOutput"></pre></div>
         </div>
         </div>
@@ -2205,10 +2213,10 @@ function explorerHtml(): string {
           <button class="action secondary" id="classFileOut">Preview</button>
         </div>
         <div class="browser-panes">
-          <div class="surface"><h2>Dictionaries</h2><div class="browser-list" id="classDictionariesTable"></div></div>
-          <div class="surface"><h2>Classes</h2><div class="browser-list" id="classesTable"></div></div>
-          <div class="surface"><h2>Categories</h2><div class="browser-list" id="classCategoriesTable"></div></div>
-          <div class="surface"><h2>Methods</h2><div class="browser-list" id="classMethodsTable"></div></div>
+          <div class="surface"><h2>Dictionaries</h2><div class="pane-filter-wrap"><input class="pane-filter" id="classDictionaryFilter" placeholder="Filter dictionaries"></div><div class="browser-list" id="classDictionariesTable"></div></div>
+          <div class="surface"><h2>Classes</h2><div class="pane-filter-wrap"><input class="pane-filter" id="classListFilter" placeholder="Filter classes"></div><div class="browser-list" id="classesTable"></div></div>
+          <div class="surface"><h2>Categories</h2><div class="pane-filter-wrap"><input class="pane-filter" id="classCategoryFilter" placeholder="Filter categories"></div><div class="browser-list" id="classCategoriesTable"></div></div>
+          <div class="surface"><h2>Methods</h2><div class="pane-filter-wrap"><input class="pane-filter" id="classMethodFilter" placeholder="Filter methods"></div><div class="browser-list" id="classMethodsTable"></div></div>
         </div>
         <div class="class-detail-grid">
           <div class="surface"><h2>Description / File Out</h2><pre id="classOutput"></pre></div>
@@ -2246,16 +2254,24 @@ function explorerHtml(): string {
       loadTokens: {},
       lastInspection: null,
       inspectTab: "summary",
+      symbolUsers: [],
       symbolUser: "",
+      symbolDictionaries: [],
       symbolDictionary: "",
+      symbolEntries: [],
+      symbolEntry: "",
       lastDebug: null,
       debugFrames: [],
       selectedDebugFrame: null,
       selectedDebugVariable: null,
       classBrowser: {
+        dictionaries: [],
         dictionary: "",
+        classes: [],
         className: "Object",
+        categories: [],
         category: "-- all --",
+        methods: [],
         method: "",
         meta: false,
       },
@@ -2329,14 +2345,26 @@ function explorerHtml(): string {
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;");
     const inspectLink = (oop) => "<button data-oop=\\"" + escapeHtml(oop) + "\\">" + escapeHtml(oop) + "</button>";
-    const renderBrowserList = (target, items, active, dataName) => {
+    const normalizedListFilter = (value) => String(value || "").trim().toLowerCase();
+    const listFilterValue = (target) => normalizedListFilter(document.getElementById(target)?.value || "");
+    const filterListItems = (items, filterTarget) => {
+      const filter = filterTarget ? listFilterValue(filterTarget) : "";
+      if (!filter) return items || [];
+      return (items || []).filter((item) => String(item).toLowerCase().includes(filter));
+    };
+    const renderBrowserList = (target, items, active, dataName, filterTarget) => {
       const element = document.getElementById(target);
       if (!element) return;
       if (!items || !items.length) {
         element.innerHTML = "<div style=\\"padding:8px;color:var(--muted)\\">(empty)</div>";
         return;
       }
-      element.innerHTML = items.map((item) => {
+      const visibleItems = filterListItems(items, filterTarget);
+      if (!visibleItems.length) {
+        element.innerHTML = "<div style=\\"padding:8px;color:var(--muted)\\">(no matches)</div>";
+        return;
+      }
+      element.innerHTML = visibleItems.map((item) => {
         const activeClass = item === active ? " active" : "";
         return "<button type=\\"button\\" class=\\"browser-item" + activeClass + "\\" " + dataName + "=\\"" + escapeHtml(item) + "\\" title=\\"" + escapeHtml(item) + "\\">" + escapeHtml(item) + "</button>";
       }).join("");
@@ -2723,9 +2751,8 @@ function explorerHtml(): string {
       try {
         const result = await api("/api/symbol-list/users");
         if (!isCurrentLoadToken("symbolUsers", token)) return;
-        table("symbolUsersTable", result.users.map((name) => ({ name })), [
-          { label: "User", render: (row) => "<button data-symbol-user=\\"" + escapeHtml(row.name) + "\\">" + escapeHtml(row.name) + "</button>" },
-        ]);
+        state.symbolUsers = result.users;
+        renderSymbolUsers();
         out("symbolPreviewOutput", result);
         if (result.users.length) await loadSymbolDictionaries(result.users[0]);
       } catch (error) {
@@ -2737,15 +2764,17 @@ function explorerHtml(): string {
       const token = nextLoadToken("symbolDictionaries");
       state.symbolUser = user;
       state.symbolDictionary = "";
+      state.symbolEntry = "";
       loading("symbolDictionariesTable");
       loading("symbolEntriesTable");
       try {
         const result = await api("/api/symbol-list/dictionaries?user=" + encodeURIComponent(user));
         if (!isCurrentLoadToken("symbolDictionaries", token)) return;
-        table("symbolDictionariesTable", result.dictionaries.map((name) => ({ name })), [
-          { label: "Dictionary", render: (row) => "<button data-symbol-dictionary=\\"" + escapeHtml(row.name) + "\\">" + escapeHtml(row.name) + "</button>" },
-        ]);
-        table("symbolEntriesTable", [], []);
+        state.symbolDictionaries = result.dictionaries;
+        renderSymbolUsers();
+        renderSymbolDictionaries();
+        state.symbolEntries = [];
+        renderSymbolEntries();
         out("symbolPreviewOutput", result);
         if (result.dictionaries.length) await loadSymbolEntries(result.dictionaries[0]);
       } catch (error) {
@@ -2761,9 +2790,10 @@ function explorerHtml(): string {
       try {
         const result = await api("/api/symbol-list/entries?user=" + encodeURIComponent(state.symbolUser) + "&dictionary=" + encodeURIComponent(dictionary) + "&filter=" + encodeURIComponent(filter));
         if (!isCurrentLoadToken("symbolEntries", token)) return;
-        table("symbolEntriesTable", result.entries.map((name) => ({ name })), [
-          { label: "Entry", render: (row) => "<button data-symbol-entry=\\"" + escapeHtml(row.name) + "\\">" + escapeHtml(row.name) + "</button>" },
-        ]);
+        state.symbolEntries = result.entries;
+        if (!state.symbolEntries.includes(state.symbolEntry)) state.symbolEntry = "";
+        renderSymbolDictionaries();
+        renderSymbolEntries();
         out("symbolPreviewOutput", result);
       } catch (error) {
         if (!isCurrentLoadToken("symbolEntries", token)) return;
@@ -2772,12 +2802,23 @@ function explorerHtml(): string {
     }
     async function previewSymbolEntry(key) {
       try {
+        state.symbolEntry = key;
+        renderSymbolEntries();
         const result = await api("/api/symbol-list/preview?user=" + encodeURIComponent(state.symbolUser) + "&dictionary=" + encodeURIComponent(state.symbolDictionary) + "&key=" + encodeURIComponent(key));
         out("symbolPreviewOutput", result);
         if (result.inspection) renderInspection(result.inspection);
       } catch (error) {
         out("symbolPreviewOutput", error.body || error.message);
       }
+    }
+    function renderSymbolUsers() {
+      renderBrowserList("symbolUsersTable", state.symbolUsers || [], state.symbolUser, "data-symbol-user", "symbolUsersFilter");
+    }
+    function renderSymbolDictionaries() {
+      renderBrowserList("symbolDictionariesTable", state.symbolDictionaries || [], state.symbolDictionary, "data-symbol-dictionary", "symbolDictionariesFilter");
+    }
+    function renderSymbolEntries() {
+      renderBrowserList("symbolEntriesTable", state.symbolEntries || [], state.symbolEntry, "data-symbol-entry", "symbolsFilter");
     }
     async function runEval() {
       try {
@@ -3187,7 +3228,7 @@ function explorerHtml(): string {
       try {
         const result = await api("/api/class-browser/dictionaries");
         state.classBrowser.dictionaries = result.dictionaries;
-        renderBrowserList("classDictionariesTable", result.dictionaries, state.classBrowser.dictionary, "data-class-browser-dictionary");
+        renderClassBrowserDictionaries();
         const preferred = state.classBrowser.dictionary || (result.dictionaries.includes("Globals") ? "Globals" : result.dictionaries[0]);
         if (preferred) await selectClassBrowserDictionary(preferred);
       } catch (error) {
@@ -3199,8 +3240,11 @@ function explorerHtml(): string {
       state.classBrowser.className = "";
       state.classBrowser.category = "-- all --";
       state.classBrowser.method = "";
-      renderBrowserList("classDictionariesTable", state.classBrowser.dictionaries || [dictionary], dictionary, "data-class-browser-dictionary");
-      table("classMethodsTable", [], []);
+      state.classBrowser.categories = [];
+      state.classBrowser.methods = [];
+      renderClassBrowserDictionaries();
+      renderClassBrowserCategories();
+      renderClassBrowserMethods();
       out("classSourceOutput", "");
       loading("classesTable");
       loading("classCategoriesTable");
@@ -3210,7 +3254,7 @@ function explorerHtml(): string {
         const preferred = result.classes.includes(document.getElementById("className").value)
           ? document.getElementById("className").value
           : (result.classes.includes("Object") ? "Object" : result.classes[0]);
-        renderBrowserList("classesTable", result.classes, preferred || "", "data-class-browser-class");
+        renderClassBrowserClasses(preferred || "");
         if (preferred) await selectClassBrowserClass(preferred);
       } catch (error) {
         out("classOutput", error.body || error.message);
@@ -3221,7 +3265,7 @@ function explorerHtml(): string {
       state.classBrowser.category = "-- all --";
       state.classBrowser.method = "";
       document.getElementById("className").value = className;
-      renderBrowserList("classesTable", state.classBrowser.classes || [className], className, "data-class-browser-class");
+      renderClassBrowserClasses(className);
       loading("classCategoriesTable");
       loading("classMethodsTable");
       try {
@@ -3242,13 +3286,13 @@ function explorerHtml(): string {
       const result = await api("/api/class-browser/categories?dictionary=" + encodeURIComponent(browser.dictionary) + "&class=" + encodeURIComponent(browser.className) + "&meta=" + (browser.meta ? "1" : "0"));
       browser.categories = result.categories;
       const preferred = result.categories.includes(browser.category) ? browser.category : "-- all --";
-      renderBrowserList("classCategoriesTable", result.categories, preferred, "data-class-browser-category");
+      renderClassBrowserCategories(preferred);
       await selectClassBrowserCategory(preferred);
     }
     async function selectClassBrowserCategory(category) {
       state.classBrowser.category = category || "-- all --";
       state.classBrowser.method = "";
-      renderBrowserList("classCategoriesTable", state.classBrowser.categories || [state.classBrowser.category], state.classBrowser.category, "data-class-browser-category");
+      renderClassBrowserCategories(state.classBrowser.category);
       await loadClassBrowserMethods();
     }
     async function loadClassBrowserMethods() {
@@ -3257,12 +3301,24 @@ function explorerHtml(): string {
       loading("classMethodsTable");
       const result = await api("/api/class-browser/methods?dictionary=" + encodeURIComponent(browser.dictionary) + "&class=" + encodeURIComponent(browser.className) + "&protocol=" + encodeURIComponent(browser.category || "-- all --") + "&meta=" + (browser.meta ? "1" : "0"));
       browser.methods = result.methods;
-      renderBrowserList("classMethodsTable", result.methods, browser.method, "data-class-browser-method");
+      renderClassBrowserMethods(browser.method);
     }
     async function selectClassBrowserMethod(selector) {
       state.classBrowser.method = selector;
-      renderBrowserList("classMethodsTable", state.classBrowser.methods || [selector], selector, "data-class-browser-method");
+      renderClassBrowserMethods(selector);
       await loadClassBrowserSource(selector);
+    }
+    function renderClassBrowserDictionaries() {
+      renderBrowserList("classDictionariesTable", state.classBrowser.dictionaries || [], state.classBrowser.dictionary, "data-class-browser-dictionary", "classDictionaryFilter");
+    }
+    function renderClassBrowserClasses(active = state.classBrowser.className) {
+      renderBrowserList("classesTable", state.classBrowser.classes || [], active, "data-class-browser-class", "classListFilter");
+    }
+    function renderClassBrowserCategories(active = state.classBrowser.category) {
+      renderBrowserList("classCategoriesTable", state.classBrowser.categories || [], active, "data-class-browser-category", "classCategoryFilter");
+    }
+    function renderClassBrowserMethods(active = state.classBrowser.method) {
+      renderBrowserList("classMethodsTable", state.classBrowser.methods || [], active, "data-class-browser-method", "classMethodFilter");
     }
     async function loadClassBrowserSource(selector) {
       const browser = state.classBrowser;
@@ -3314,13 +3370,31 @@ function explorerHtml(): string {
       if (state.symbolDictionary) return loadSymbolEntries(state.symbolDictionary);
       return Promise.resolve();
     });
+    const bindListFilter = (inputId, render) => {
+      const input = document.getElementById(inputId);
+      if (!input) return;
+      const rerender = () => { void render(); };
+      input.addEventListener("input", rerender);
+      input.addEventListener("keydown", (event) => {
+        if (event.key !== "Escape" || !input.value) return;
+        event.preventDefault();
+        input.value = "";
+        rerender();
+      });
+    };
 
     document.getElementById("refreshStatus").addEventListener("click", refreshStatus);
     document.getElementById("inspectRun").addEventListener("click", runInspect);
     document.getElementById("globalsFilter").addEventListener("input", loadGlobalsFromFilter);
     document.getElementById("rootsFilter").addEventListener("input", loadRootsFromFilter);
     document.getElementById("rootName").addEventListener("change", loadRoots);
-    document.getElementById("symbolsFilter").addEventListener("input", loadSymbolEntriesFromFilter);
+    bindListFilter("symbolUsersFilter", renderSymbolUsers);
+    bindListFilter("symbolDictionariesFilter", renderSymbolDictionaries);
+    bindListFilter("symbolsFilter", loadSymbolEntriesFromFilter);
+    bindListFilter("classDictionaryFilter", renderClassBrowserDictionaries);
+    bindListFilter("classListFilter", renderClassBrowserClasses);
+    bindListFilter("classCategoryFilter", renderClassBrowserCategories);
+    bindListFilter("classMethodFilter", renderClassBrowserMethods);
     document.getElementById("statusLogClear").addEventListener("click", () => {
       state.statusHistory = [];
       renderStatusLog();

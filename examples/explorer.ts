@@ -802,6 +802,7 @@ async function evalEndpoint(request: IncomingMessage) {
   return withSession(async (session) => {
     if (returnKind === "oop") {
       const result = await session.execute(source);
+      await throwPendingGemStoneError(session);
       if (commit) await session.commit();
       else await session.abort().catch(() => undefined);
       return {
@@ -812,6 +813,7 @@ async function evalEndpoint(request: IncomingMessage) {
     }
     if (returnKind === "inspect") {
       const result = await session.execute(source);
+      await throwPendingGemStoneError(session);
       const inspection = await session.inspect(result);
       if (commit) await session.commit();
       else await session.abort().catch(() => undefined);
@@ -822,6 +824,7 @@ async function evalEndpoint(request: IncomingMessage) {
       };
     }
     const result = await session.eval(source);
+    await throwPendingGemStoneError(session);
     if (commit) await session.commit();
     else await session.abort().catch(() => undefined);
     return {
@@ -830,6 +833,11 @@ async function evalEndpoint(request: IncomingMessage) {
       result,
     };
   }, { finalize: false });
+}
+
+async function throwPendingGemStoneError(session: Session): Promise<void> {
+  const info = await session.runtime.err().catch(() => null);
+  if (info?.number) throw GemStoneError.fromInfo(info);
 }
 
 async function debugEndpoint(request: IncomingMessage) {
@@ -2314,7 +2322,7 @@ function explorerHtml(): string {
         <div class="surface inspect-panel hidden" data-inspect-panel="raw"><h2>Raw JSON</h2><pre id="inspectRawOutput"></pre></div>
         </div>
       </section>
-      <section id="debugger" class="tool-window" data-window="debugger" data-default-left="456" data-default-top="16" style="--x: 456px; --y: 16px; --w: 900px;">
+      <section id="debugger" class="tool-window hidden" data-window="debugger" data-debugger-window="true" data-default-left="456" data-default-top="16" style="--x: 456px; --y: 16px; --w: 900px;">
         <div class="window-titlebar" data-drag-handle><h2>Debugger</h2><button class="window-button" type="button" data-window-close="debugger" aria-label="Close debugger">x</button></div>
         <div class="window-body">
         <div class="toolbar">
@@ -2609,7 +2617,7 @@ function explorerHtml(): string {
     const desktop = document.getElementById("desktop");
     const taskbar = document.getElementById("taskbar");
     const layoutStorageKey = "gemstone-js-explorer-layout-v2";
-    const defaultVisibleWindows = new Set(["inspect", "debugger", "globals", "roots"]);
+    const defaultVisibleWindows = new Set(["inspect", "globals", "roots"]);
     const windowLabels = {
       inspect: "Inspect",
       debugger: "Debugger",
@@ -2658,7 +2666,7 @@ function explorerHtml(): string {
       focusWindow("inspect");
     };
     const openAllWindows = () => {
-      document.querySelectorAll(".tool-window:not([data-popup-only='true'])").forEach((win) => focusWindow(win.dataset.window));
+      document.querySelectorAll(".tool-window:not([data-popup-only='true']):not([data-debugger-window='true'])").forEach((win) => focusWindow(win.dataset.window));
     };
     const afterWindowMutation = () => {
       renderTaskbar();
@@ -2709,13 +2717,14 @@ function explorerHtml(): string {
         const entry = saved.windows[name];
         if (!entry) return;
         const popupOnly = win.dataset.popupOnly === "true";
+        const debuggerWindow = win.dataset.debuggerWindow === "true";
         if (Number.isFinite(entry.left)) win.style.left = Math.max(0, Math.round(entry.left)) + "px";
         if (Number.isFinite(entry.top)) win.style.top = Math.max(0, Math.round(entry.top)) + "px";
         if (Number.isFinite(entry.width)) win.style.width = Math.max(320, Math.round(entry.width)) + "px";
         if (Number.isFinite(entry.height)) win.style.height = Math.max(180, Math.round(entry.height)) + "px";
-        win.classList.toggle("hidden", popupOnly ? true : !entry.open);
-        win.dataset.active = !popupOnly && entry.active && entry.open ? "true" : "false";
-        if (!popupOnly && entry.active && entry.open) hasActive = true;
+        win.classList.toggle("hidden", popupOnly || debuggerWindow ? true : !entry.open);
+        win.dataset.active = !popupOnly && !debuggerWindow && entry.active && entry.open ? "true" : "false";
+        if (!popupOnly && !debuggerWindow && entry.active && entry.open) hasActive = true;
         if (Number.isFinite(entry.zIndex) && entry.zIndex > 0) {
           win.style.zIndex = String(Math.round(entry.zIndex));
           highestZ = Math.max(highestZ, Number(entry.zIndex));
@@ -3059,19 +3068,28 @@ function explorerHtml(): string {
       renderBrowserList("symbolEntriesTable", state.symbolEntries || [], state.symbolEntry, "data-symbol-entry", "symbolsFilter");
     }
     async function runEval() {
+      const source = document.getElementById("evalSource").value;
+      const returnKind = document.getElementById("evalReturn").value;
       try {
         const result = await api("/api/eval", {
           method: "POST",
           body: JSON.stringify({
-            source: document.getElementById("evalSource").value,
-            returnKind: document.getElementById("evalReturn").value,
+            source,
+            returnKind,
             commit: document.getElementById("evalCommit").checked,
           }),
         });
         out("evalOutput", result);
       } catch (error) {
         out("evalOutput", error.body || error.message);
+        await openDebuggerForException(source, returnKind);
       }
+    }
+    async function openDebuggerForException(source, returnKind = "inspect") {
+      document.getElementById("debugSource").value = source;
+      document.getElementById("debugReturn").value = ["value", "oop", "inspect"].includes(returnKind) ? returnKind : "inspect";
+      focusWindow("debugger");
+      await runDebug();
     }
     async function runDebug() {
       try {
@@ -3084,6 +3102,7 @@ function explorerHtml(): string {
         });
         renderDebugReport(result);
       } catch (error) {
+        focusWindow("debugger");
         out("debugOutput", error.body || error.message);
       }
     }
@@ -3117,6 +3136,7 @@ function explorerHtml(): string {
         return;
       }
       const problem = result.problem || {};
+      focusWindow("debugger");
       out("debugSummaryOutput", [
         "status: halted",
         "elapsed: " + result.elapsedMs + "ms",

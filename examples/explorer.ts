@@ -1800,6 +1800,58 @@ function explorerHtml(): string {
       min-height: 96px;
       border-left: 3px solid #0f766e;
     }
+    .debug-source-view {
+      margin: 0;
+      padding: 10px 0;
+      overflow: auto;
+      color: var(--code);
+      background: var(--code-bg);
+      min-height: 150px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    .debug-source-meta {
+      padding: 0 12px 10px;
+      margin-bottom: 6px;
+      border-bottom: 1px solid #cbd5e1;
+      white-space: pre-wrap;
+      color: #334155;
+    }
+    .debug-source-line {
+      display: grid;
+      grid-template-columns: 42px 32px minmax(0, 1fr);
+      min-height: 20px;
+      padding: 0 12px 0 0;
+    }
+    .debug-source-line.active {
+      background: #ccfbf1;
+      color: #134e4a;
+    }
+    .debug-source-marker,
+    .debug-source-lno {
+      color: #64748b;
+      text-align: right;
+      user-select: none;
+    }
+    .debug-source-marker {
+      padding-right: 8px;
+      font-weight: 700;
+    }
+    .debug-source-lno {
+      padding-right: 10px;
+    }
+    .debug-source-text {
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+    .debug-inline-cursor {
+      display: inline-block;
+      width: 0;
+      border-left: 2px solid #0f766e;
+      height: 1.1em;
+      transform: translateY(2px);
+    }
     .class-browser-grid {
       display: grid;
       grid-template-columns: minmax(210px, 0.7fr) minmax(240px, 0.8fr) minmax(300px, 1.1fr);
@@ -1970,7 +2022,7 @@ function explorerHtml(): string {
           <textarea class="debugger-source" id="debugSource">1/0</textarea>
           <div class="debugger-side">
             <div class="surface"><h2>Summary</h2><pre id="debugSummaryOutput"></pre></div>
-            <div class="surface"><h2>Source</h2><pre class="source-preview" id="debugSourcePreview"></pre></div>
+            <div class="surface"><h2>Source</h2><div class="source-preview debug-source-view" id="debugSourcePreview"></div></div>
           </div>
         </div>
         <div class="debugger-grid">
@@ -2741,7 +2793,9 @@ function explorerHtml(): string {
       return state.debugFrames.find((row) => row.index === state.selectedDebugFrame) || null;
     }
     function renderDebugSourcePreview(source, frame) {
-      const frameHeader = frame
+      const element = document.getElementById("debugSourcePreview");
+      if (!element) return;
+      const frameHeaderLines = frame
         ? [
             "frame #" + frame.index,
             frame.contextOop ? "context oop: " + frame.contextOop : "",
@@ -2752,18 +2806,54 @@ function explorerHtml(): string {
             frame.stepPoint ? "step point: " + frame.stepPoint : "",
             frame.step ? "step: " + frame.step : "",
             frame.line ? "line: " + frame.line : "",
-          ].filter(Boolean).join("\\n") + "\\n\\n"
-        : "";
-      const activeLine = frame && Number(frame.line) > 0 ? Number(frame.line) : 0;
-      const sourceText = String(frame?.source || source || "")
+          ].filter(Boolean)
+        : [];
+      const sourceText = String(frame?.source || source || "").replace(/\\r\\n/g, "\\n").replace(/\\r/g, "\\n");
+      const sourceLocation = sourceLocationForOffset(sourceText, frame?.sourceOffset || 0);
+      const activeLine = sourceLocation?.line || (frame && Number(frame.line) > 0 ? Number(frame.line) : 1);
+      const lines = sourceText
         .split("\\n")
-        .map((line, index) => {
-          const lineNumber = index + 1;
-          const active = activeLine > 0 ? lineNumber === activeLine : index === 0;
-          return (active ? ">> " : "   ") + line;
-        })
-        .join("\\n");
-      out("debugSourcePreview", frameHeader + sourceText);
+        .map((line, index) => renderDebugSourceLine(line, index + 1, activeLine, sourceLocation, frame))
+        .join("");
+      element.innerHTML = [
+        frameHeaderLines.length ? "<div class=\\"debug-source-meta\\">" + escapeHtml(frameHeaderLines.join("\\n")) + "</div>" : "",
+        lines || "<div class=\\"debug-source-line active\\"><span class=\\"debug-source-marker\\">&gt;</span><span class=\\"debug-source-lno\\">1</span><span class=\\"debug-source-text\\">&nbsp;</span></div>",
+      ].join("");
+    }
+    function sourceLocationForOffset(sourceText, offset) {
+      const point = Number(offset || 0);
+      const text = String(sourceText || "");
+      if (!(point > 0) || !text) return null;
+      const limit = Math.min(point, text.length + 1);
+      let line = 1;
+      let column = 1;
+      for (let index = 0; index < limit - 1 && index < text.length; index += 1) {
+        if (text[index] === "\\n") {
+          line += 1;
+          column = 1;
+        } else {
+          column += 1;
+        }
+      }
+      return { line, column };
+    }
+    function renderDebugSourceLine(line, lineNumber, activeLine, sourceLocation, frame) {
+      const active = Number(lineNumber) === Number(activeLine);
+      const cursorColumn = active && sourceLocation?.line === lineNumber ? sourceLocation.column : 0;
+      const marker = active ? (frame?.stepPoint ? "S" + frame.stepPoint : ">") : "";
+      return [
+        "<div class=\\"debug-source-line" + (active ? " active" : "") + "\\" data-debug-source-line=\\"" + escapeHtml(lineNumber) + "\\">",
+        "<span class=\\"debug-source-marker\\">" + escapeHtml(marker) + "</span>",
+        "<span class=\\"debug-source-lno\\">" + escapeHtml(lineNumber) + "</span>",
+        "<span class=\\"debug-source-text\\">" + renderDebugSourceLineText(line, cursorColumn) + "</span>",
+        "</div>",
+      ].join("");
+    }
+    function renderDebugSourceLineText(line, cursorColumn) {
+      const text = String(line || "");
+      if (!(Number(cursorColumn) > 0)) return text ? escapeHtml(text) : "&nbsp;";
+      const splitAt = Math.max(0, Math.min(text.length, Number(cursorColumn) - 1));
+      return escapeHtml(text.slice(0, splitAt)) + "<span class=\\"debug-inline-cursor\\"></span>" + escapeHtml(text.slice(splitAt));
     }
     function renderDebugFrameDetails(frame) {
       if (!frame) {

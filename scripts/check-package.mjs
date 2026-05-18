@@ -22,6 +22,7 @@ const packedFileByPath = new Map(pack.files.map((file) => [file.path, file]));
 const packageJson = JSON.parse(readFileSync("package.json", "utf8"));
 const nativeDeclaration = readFileSync("src/native-module.d.ts", "utf8");
 const ciWorkflow = readFileSync(".github/workflows/ci.yml", "utf8");
+const publishWorkflow = readFileSync(".github/workflows/publish.yml", "utf8");
 const frameworkDocs = readFileSync("docs/framework-adapters.md", "utf8");
 const betaDocs = readFileSync("docs/beta.md", "utf8");
 const examplesGuideDocs = readFileSync("docs/examples-guide.md", "utf8");
@@ -343,12 +344,26 @@ assertSnippets(
   ciWorkflow,
   [
     "npm run verify",
+    "FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true",
     "npm pack --json",
     "node scripts/write-checksums.mjs .tgz",
     "node scripts/verify-checksums.mjs SHA256SUMS.txt",
     "npm run ci-artifact:review -- --dir .",
     "SHA256SUMS.txt",
     "actions/upload-artifact@v4",
+  ],
+);
+assertSnippets(
+  ".github/workflows/publish.yml",
+  publishWorkflow,
+  [
+    "FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true",
+    "npm run verify",
+    "npm pack --json",
+    "node scripts/write-checksums.mjs .tgz",
+    "node scripts/verify-checksums.mjs SHA256SUMS.txt",
+    "npm run ci-artifact:review -- --dir .",
+    "npm publish gemstone-js-*.tgz --access public --tag alpha --provenance",
   ],
 );
 assertSnippets(

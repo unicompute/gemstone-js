@@ -55,6 +55,7 @@ function activate(context) {
     vscode.commands.registerCommand("gemstoneJs.clearRootsFilter", () => clearTreeFilter("roots")),
     vscode.commands.registerCommand("gemstoneJs.clearGlobalsFilter", () => clearTreeFilter("globals")),
     vscode.commands.registerCommand("gemstoneJs.clearClassesFilter", () => clearTreeFilter("classes")),
+    vscode.commands.registerCommand("gemstoneJs.clearTreeFilters", clearTreeFilters),
     vscode.commands.registerCommand("gemstoneJs.openOutput", () => output.show(true)),
     vscode.commands.registerCommand("gemstoneJs.openExplorer", () => openExplorer(explorer)),
     vscode.commands.registerCommand("gemstoneJs.openExplorerExternal", () => openExplorerExternal(explorer)),
@@ -1087,6 +1088,7 @@ async function connectionItems(server) {
     commandItem("Codegen", "gemstoneJs.openCodegen", "code", "preview wrappers"),
     commandItem("Status Log", "gemstoneJs.openStatusLog", "output", "recent Explorer activity"),
     commandItem("Output", "gemstoneJs.openOutput", "output", "GemStone JS output channel"),
+    commandItem("Clear Tree Filters", "gemstoneJs.clearTreeFilters", "clear-all", "roots, globals, classes"),
     commandItem("Doctor", "gemstoneJs.doctor", "beaker", "run local diagnostics"),
     commandItem("Evaluate Selection", "gemstoneJs.evaluateSelection", "run", "run selected Smalltalk"),
     commandItem("Debug Selection", "gemstoneJs.debugSelection", "debug-alt", "debug selected Smalltalk"),
@@ -1269,6 +1271,11 @@ async function promptTreeFilter(key, label) {
 function clearTreeFilter(key) {
   treeFilters[key] = "";
   refreshProvider(key);
+}
+
+function clearTreeFilters() {
+  for (const key of Object.keys(treeFilters)) treeFilters[key] = "";
+  refreshViews();
 }
 
 function refreshStatusBar() {

@@ -315,6 +315,7 @@ try {
     "gemstoneJs.clearRootsFilter",
     "gemstoneJs.clearGlobalsFilter",
     "gemstoneJs.clearClassesFilter",
+    "gemstoneJs.clearTreeFilters",
     "gemstoneJs.openOutput",
     "gemstoneJs.openExplorer",
     "gemstoneJs.openExplorerExternal",
@@ -410,6 +411,7 @@ try {
   assert(connectionItems.some((item) => item.label === "Codegen"));
   assert(connectionItems.some((item) => item.label === "Status Log"));
   assert(connectionItems.some((item) => item.label === "Output"));
+  assert(connectionItems.some((item) => item.label === "Clear Tree Filters"));
   assert(connectionItems.some((item) => item.label === "Inspect OOP"));
   assert(connectionItems.some((item) => item.label === "Debug File"));
   assert(connectionItems.some((item) => item.label === "Run File"));
@@ -526,6 +528,11 @@ try {
   await captured.commands.get("gemstoneJs.clearClassesFilter")();
   const clearedItems = await classProvider.getChildren();
   assert.notEqual(clearedItems[0].label, "Filter: Book");
+  captured.inputBoxValue = "Book";
+  await captured.commands.get("gemstoneJs.filterClasses")();
+  assert.equal((await classProvider.getChildren())[0].label, "Filter: Book");
+  await captured.commands.get("gemstoneJs.clearTreeFilters")();
+  assert.notEqual((await classProvider.getChildren())[0].label, "Filter: Book");
 
   const factory = captured.debugFactories.get("gemstone-js");
   const descriptor = factory.createDebugAdapterDescriptor();

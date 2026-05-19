@@ -17,6 +17,7 @@ VS Code wrapper for the gemstone-js Explorer. The extension starts the local Exp
 - `GemStone: Stop Explorer Server` stops the managed Explorer process.
 - `GemStone: Restart Explorer Server` restarts the managed Explorer process.
 - `GemStone: Filter Roots`, `GemStone: Filter Globals`, and `GemStone: Filter Classes` narrow tree contents.
+- `GemStone: Clear Tree Filters` clears Roots, Globals, and Classes filters together.
 - `GemStone: Doctor` runs connection/config diagnostics and writes JSON to the GemStone JS output channel.
 - `GemStone: Open Output` opens the GemStone JS output channel.
 - `GemStone: Evaluate Selection` sends the current selection to the Explorer session. If evaluation raises, the debugger opens automatically.
@@ -38,7 +39,7 @@ The GemStone activity bar contributes:
 - Classes
 
 Roots, globals, and classes load from the Explorer API. OOP-backed items can be inspected from the tree.
-Class rows open the Explorer Class Browser focused on that class and expose context menu actions for opening/copying the class name. The command palette can also open a selected class name or prompt for one. OOP rows open the Explorer object inspector and expose context menu actions for inspect, copy OOP, and copy object name; command-palette OOP actions can use a selected decimal OOP before prompting. Root/global/class views have their own refresh and filter actions.
+Class rows open the Explorer Class Browser focused on that class and expose context menu actions for opening/copying the class name. The command palette can also open a selected class name or prompt for one. OOP rows open the Explorer object inspector and expose context menu actions for inspect, copy OOP, and copy object name; command-palette OOP actions can use a selected decimal OOP before prompting. Root/global/class views have their own refresh and filter actions, plus a shared clear-filters command.
 
 ## Language Support
 

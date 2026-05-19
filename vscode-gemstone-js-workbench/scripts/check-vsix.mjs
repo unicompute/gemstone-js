@@ -117,6 +117,7 @@ function assertPackagedManifest(manifest, vsixManifest) {
     "gemstoneJs.filterRoots",
     "gemstoneJs.filterGlobals",
     "gemstoneJs.filterClasses",
+    "gemstoneJs.clearTreeFilters",
     "gemstoneJs.openOutput",
   ];
   const expectedActivationEvents = [
@@ -138,6 +139,7 @@ function assertPackagedManifest(manifest, vsixManifest) {
     "onCommand:gemstoneJs.runFile",
     "onCommand:gemstoneJs.configureConnection",
     "onCommand:gemstoneJs.openSettings",
+    "onCommand:gemstoneJs.clearTreeFilters",
     "onCommand:gemstoneJs.openOutput",
     "onDebugResolve:gemstone-js",
     "onView:gemstoneJs.connectionView",

@@ -28,6 +28,7 @@ async function run() {
     "gemstoneJs.openSettings",
     "gemstoneJs.refreshRoots",
     "gemstoneJs.filterClasses",
+    "gemstoneJs.clearTreeFilters",
     "gemstoneJs.openClassBrowser",
     "gemstoneJs.copyExplorerUrl",
     "gemstoneJs.openWorkspace",

@@ -21,6 +21,7 @@
 - Exposed Open Settings in the command palette and VSIX manifest.
 - Added tree context menu actions for inspecting and copying OOPs.
 - Added per-tree refresh and filter commands.
+- Added a shared Clear Tree Filters command.
 - Added SecretStorage-backed password management.
 - Added status bar connection state.
 - Added VSIX packaging, checksum, Marketplace publish, and offline smoke verification.

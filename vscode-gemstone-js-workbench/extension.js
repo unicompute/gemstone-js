@@ -909,4 +909,14 @@ function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-module.exports = { activate, deactivate };
+module.exports = {
+  activate,
+  deactivate,
+  _test: {
+    explorerWebviewHtml,
+    readConfig,
+    resolveRepoPath,
+    selectedSource,
+    sourceLocationForOffset,
+  },
+};

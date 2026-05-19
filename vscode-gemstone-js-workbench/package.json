@@ -276,7 +276,8 @@
     "check": "node --check extension.js",
     "package:ci": "npx @vscode/vsce package --no-dependencies",
     "package:dry-run": "npx @vscode/vsce package --no-dependencies --out gemstone-js-workbench.vsix",
-    "verify": "npm run check && npm run package:ci && npm run verify:vsix",
+    "test:smoke": "node scripts/smoke-test.mjs",
+    "verify": "npm run check && npm run test:smoke && npm run package:ci && npm run verify:vsix",
     "verify:vsix": "node scripts/check-vsix.mjs"
   },
   "devDependencies": {

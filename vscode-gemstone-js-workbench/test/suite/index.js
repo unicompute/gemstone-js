@@ -31,6 +31,7 @@ async function run() {
     "gemstoneJs.clearTreeFilters",
     "gemstoneJs.openClassBrowser",
     "gemstoneJs.copyExplorerUrl",
+    "gemstoneJs.copyConnectionSummary",
     "gemstoneJs.openWorkspace",
     "gemstoneJs.openGlobals",
     "gemstoneJs.openRoots",

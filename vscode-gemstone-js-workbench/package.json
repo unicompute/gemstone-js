@@ -38,6 +38,7 @@
     "onCommand:gemstoneJs.openExplorer",
     "onCommand:gemstoneJs.openExplorerExternal",
     "onCommand:gemstoneJs.copyExplorerUrl",
+    "onCommand:gemstoneJs.copyConnectionSummary",
     "onCommand:gemstoneJs.startExplorer",
     "onCommand:gemstoneJs.stopExplorer",
     "onCommand:gemstoneJs.restartExplorer",
@@ -275,6 +276,11 @@
       {
         "command": "gemstoneJs.copyExplorerUrl",
         "title": "GemStone: Copy Explorer URL",
+        "icon": "$(copy)"
+      },
+      {
+        "command": "gemstoneJs.copyConnectionSummary",
+        "title": "GemStone: Copy Connection Summary",
         "icon": "$(copy)"
       },
       {

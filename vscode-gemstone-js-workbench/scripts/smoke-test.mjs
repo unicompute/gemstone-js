@@ -320,6 +320,7 @@ try {
     "gemstoneJs.openExplorer",
     "gemstoneJs.openExplorerExternal",
     "gemstoneJs.copyExplorerUrl",
+    "gemstoneJs.copyConnectionSummary",
     "gemstoneJs.openClassBrowser",
     "gemstoneJs.openWorkspace",
     "gemstoneJs.openGlobals",
@@ -403,6 +404,7 @@ try {
   assert(connectionItems.some((item) => item.label === "Start Explorer"));
   assert(connectionItems.some((item) => item.label === "Open in Browser"));
   assert(connectionItems.some((item) => item.label === "Copy Explorer URL"));
+  assert(connectionItems.some((item) => item.label === "Copy Connection Summary"));
   assert(connectionItems.some((item) => item.label === "Configure Connection"));
   assert(connectionItems.some((item) => item.label === "Workspace"));
   assert(connectionItems.some((item) => item.label === "Globals"));
@@ -467,6 +469,21 @@ try {
   await captured.commands.get("gemstoneJs.copyExplorerUrl")();
   assert.equal(captured.clipboardWrites.at(-1), "http://127.0.0.1:3117/");
   assert.equal(captured.lastInfo, "Copied Explorer URL http://127.0.0.1:3117/");
+  await captured.commands.get("gemstoneJs.copyConnectionSummary")();
+  const connectionSummary = captured.clipboardWrites.at(-1);
+  assert.match(connectionSummary, /GemStone JS Connection/);
+  assert.match(connectionSummary, /Explorer: http:\/\/127\.0\.0\.1:3117/);
+  assert.match(connectionSummary, /State: running/);
+  assert.match(connectionSummary, /User: SystemUser/);
+  assert.match(connectionSummary, /Stone: gs64stone/);
+  assert.match(connectionSummary, /Configured stone: stone2/);
+  assert.match(connectionSummary, /NetLDI: netldi-host:50377/);
+  assert.match(connectionSummary, /Gem service: gemnetobject2/);
+  assert.match(connectionSummary, /Native session worker: enabled/);
+  assert.match(connectionSummary, /Password source: secretStorage/);
+  assert.match(connectionSummary, /Session: smoke/);
+  assert(!connectionSummary.includes("configured-secret"));
+  assert.equal(captured.lastInfo, "Copied GemStone connection summary.");
   await captured.commands.get("gemstoneJs.openClassBrowser")(classItems[1]);
   assert.match(captured.webviewPanels.at(-1).webview.html, /window=classes&amp;class=Booking/);
   await captured.commands.get("gemstoneJs.copyClassName")("Booking");

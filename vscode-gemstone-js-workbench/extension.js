@@ -60,6 +60,7 @@ function activate(context) {
     vscode.commands.registerCommand("gemstoneJs.openExplorer", () => openExplorer(explorer)),
     vscode.commands.registerCommand("gemstoneJs.openExplorerExternal", () => openExplorerExternal(explorer)),
     vscode.commands.registerCommand("gemstoneJs.copyExplorerUrl", () => copyExplorerUrl(explorer)),
+    vscode.commands.registerCommand("gemstoneJs.copyConnectionSummary", () => copyConnectionSummary(explorer)),
     vscode.commands.registerCommand("gemstoneJs.openClassBrowser", (className) => openClassBrowser(explorer, commandArgumentValue(className))),
     vscode.commands.registerCommand("gemstoneJs.openWorkspace", () => openExplorerWindow(explorer, "workspace")),
     vscode.commands.registerCommand("gemstoneJs.openGlobals", () => openExplorerWindow(explorer, "globals")),
@@ -368,6 +369,39 @@ async function copyExplorerUrl(server) {
   const url = explorerUrl(baseUrl);
   await vscode.env.clipboard.writeText(url);
   vscode.window.showInformationMessage(`Copied Explorer URL ${url}`);
+}
+
+async function copyConnectionSummary(server) {
+  const config = server.config();
+  let status;
+  let statusError;
+  try {
+    status = await server.status(false);
+  } catch (error) {
+    statusError = error;
+  }
+  const statusStone = String(status?.stone || status?.config?.stone || config.raw.stone || "");
+  const lines = [
+    "GemStone JS Connection",
+    `Explorer: ${server.baseUrl()}`,
+    `State: ${status ? "running" : "stopped"}`,
+    `User: ${config.raw.user || "(unset)"}`,
+    `Stone: ${statusStone || "(unset)"}`,
+  ];
+  if (statusStone && config.raw.stone && statusStone !== config.raw.stone) {
+    lines.push(`Configured stone: ${config.raw.stone}`);
+  }
+  lines.push(
+    `NetLDI: ${config.raw.netldiHost || "(unset)"}:${config.raw.netldiNameOrPort || "(unset)"}`,
+    `Gem service: ${config.raw.gemService || "(unset)"}`,
+    `Native session worker: ${config.raw.nativeSessionWorker ? "enabled" : "disabled"}`,
+    `Password source: ${config.passwordSource}`,
+  );
+  if (status?.sessionId !== undefined) lines.push(`Session: ${status.sessionId}`);
+  if (statusError) lines.push(`Status error: ${statusError.message}`);
+  const summary = lines.join("\n");
+  await vscode.env.clipboard.writeText(summary);
+  vscode.window.showInformationMessage("Copied GemStone connection summary.");
 }
 
 async function openClassBrowser(server, className) {
@@ -1080,6 +1114,7 @@ async function connectionItems(server) {
     commandItem("Open Explorer", "gemstoneJs.openExplorer", "browser", "webview or browser"),
     commandItem("Open in Browser", "gemstoneJs.openExplorerExternal", "link-external", "system browser"),
     commandItem("Copy Explorer URL", "gemstoneJs.copyExplorerUrl", "copy", `${config.explorerHost}:${config.explorerPort}`),
+    commandItem("Copy Connection Summary", "gemstoneJs.copyConnectionSummary", "copy", `${config.raw.user}@${config.raw.stone}`),
     commandItem("Configure Connection", "gemstoneJs.configureConnection", "settings", "connection settings"),
     commandItem("Workspace", "gemstoneJs.openWorkspace", "edit", "evaluate Smalltalk"),
     commandItem("Globals", "gemstoneJs.openGlobals", "globe", "browse UserGlobals"),

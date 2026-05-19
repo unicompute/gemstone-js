@@ -136,6 +136,93 @@ const booking = await session
 This mirrors the explicit `dataclass_to_dict()` style used in `gemstone-py`.
 Class instances become dictionary payloads only when the caller opts in.
 
+## Dictionary Mapping
+
+GemStone `StringKeyValueDictionary` is the most direct bridge between
+JavaScript records and GemStone object storage. Use it when the shape is keyed,
+reviewable, and not worth modeling as a full GemStone class.
+
+```ts
+import { Session, type TypedOop } from "gemstone-js";
+
+interface Booking {
+  id: string;
+  status: string;
+}
+
+const session = await Session.connect();
+const booking = await session
+  .classRef<Booking>("Booking")
+  .sendObject("find:", "B-1001");
+
+const dict = await session.dictionary({
+  status: "held",
+  tags: ["vip", "late-arrival"],
+  limits: { guests: 2, bags: 3 },
+});
+
+await dict.setObject("booking", booking);
+await dict.setAllValue({
+  owner: "front-desk",
+  priority: 3,
+});
+
+const status = await dict.requireValue("status");
+const bookingAgain: TypedOop<Booking> = await dict.requireObject<Booking>("booking");
+const limits = await dict.requireDict("limits");
+const entries = await dict.items({ maxEntries: 50 });
+const rawEntries = await dict.itemsOop({ maxEntries: 50 });
+```
+
+The value/object/raw naming is intentional:
+
+- `getValue()`/`requireValue()` marshal the stored GemStone value back into a
+  JavaScript value when possible.
+- `getObject<T>()`/`requireObject<T>()` return retained `TypedOop<T>` handles
+  for live GemStone objects.
+- `getOop()`/`requireOop()` and `itemsOop()` preserve raw object identity.
+- `getDict()`/`requireDict()` wrap nested dictionaries as `GsDict`.
+
+When you only have a raw dictionary OOP, the session-level helpers expose the
+same mapping operations without creating a long-lived wrapper:
+
+```ts
+const dictOop = await session.dictionaryToOop({
+  status: "held",
+  updatedBy: "api",
+});
+
+await session.dictionarySetObject(dictOop, "booking", booking);
+const values = await session.dictionaryEntries(dictOop, { maxEntries: 100 });
+const handles = await session.dictionaryEntriesOop(dictOop, { maxEntries: 100 });
+const mappedBooking = await session.dictionaryRequireObject<Booking>(dictOop, "booking");
+```
+
+For durable application state, dictionaries usually live under a persistent root
+or global. The root helper keeps the same mapping choices visible:
+
+```ts
+import { PersistentRoot } from "gemstone-js";
+
+const root = PersistentRoot.userGlobals(session);
+const index = await root.setDict("BookingIndex", {
+  kind: "booking-index",
+  active: true,
+});
+
+await index.setObject("B-1001", booking);
+await root.setObject("LastBooking", booking);
+
+const savedIndex = await root.requireDict("BookingIndex");
+const savedBooking = await savedIndex.requireObject<Booking>("B-1001");
+const rootBooking = await root.requireObject<Booking>("LastBooking");
+```
+
+Dictionaries are a good mapping target for configuration, indexes, metadata,
+API payload snapshots, and small keyed aggregates. Prefer class references and
+typed object handles when the GemStone object has behavior that should remain
+on the GemStone side.
+
 ## Value Converters
 
 Converters run before built-in argument marshalling. They are best for scalar
@@ -195,4 +282,3 @@ the remote object is a plain local value.
 Those features can be useful in narrow domains, but they also create sharp
 edges around transactions, remote latency, conflict handling, and object
 identity. The current object-mapping API keeps those boundaries reviewable.
-

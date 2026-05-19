@@ -168,6 +168,41 @@ const booking = await session
   .sendObject("createFromDictionary:", payload);
 ```
 
+Dictionaries are the other common mapping target. A `StringKeyValueDictionary` can hold marshalled values, nested dictionaries, and object handles while keeping the access mode explicit:
+
+```ts
+import { PersistentRoot } from "gemstone-js";
+
+const dict = await session.dictionary({
+  status: "held",
+  tags: ["vip", "late-arrival"],
+  limits: { guests: 2, bags: 3 },
+});
+
+await dict.setObject("booking", booking);
+await dict.setAllValue({
+  owner: "front-desk",
+  priority: 3,
+});
+
+const status = await dict.requireValue("status");
+const sameBooking = await dict.requireObject<Booking>("booking");
+const limits = await dict.requireDict("limits");
+const entries = await dict.items({ maxEntries: 50 });
+const rawEntries = await dict.itemsOop({ maxEntries: 50 });
+
+const root = PersistentRoot.userGlobals(session);
+const index = await root.setDict("BookingIndex", {
+  kind: "booking-index",
+  active: true,
+});
+
+await index.setObject("B-1001", sameBooking);
+await root.setObject("LastBooking", sameBooking);
+```
+
+The API names do real work here. `Value` methods marshal back to JavaScript values, `Object` methods return retained `TypedOop<T>` handles, `Oop` methods preserve raw identity, and `Dict` methods wrap nested dictionaries.
+
 This is the same bias as the rest of the project: preserve GemStone identity and transaction semantics, but make the JavaScript boundary typed, repeatable, and easy to review.
 
 ## Native Worker Mode

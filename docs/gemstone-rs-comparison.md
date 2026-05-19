@@ -56,6 +56,11 @@ Use `gemstone-rs` when:
 - compile-time checked wrappers and typed mapping matter
 - you want to move toward a shared Rust native core under `gemstone-py-native`
 
+For the JavaScript ecosystem, typed mapping should use a similar explicit
+contract: mapping manifests, generated `*Ref` classes around `TypedOop<T>`,
+repository helpers, and bounded snapshot/dictionary output rather than
+transparent property dispatch.
+
 ## Remaining Work
 
 For the Rust/Python track, the local Rust plan currently says **6 batches**,

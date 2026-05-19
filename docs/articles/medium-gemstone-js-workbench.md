@@ -205,6 +205,26 @@ The API names do real work here. `Value` methods marshal back to JavaScript valu
 
 This is the same bias as the rest of the project: preserve GemStone identity and transaction semantics, but make the JavaScript boundary typed, repeatable, and easy to review.
 
+The next mapping step should borrow the useful part of the Pharo bridge connector model without copying its transparent synchronization semantics. The shape is straightforward:
+
+- mapping manifest schema for class name, TypeScript type, selectors, setters, repository selectors, and snapshot fields
+- generated `BookingRef`-style classes wrapping `TypedOop<T>`
+- repository helpers returning typed refs
+- bounded `snapshot()` and dictionary helpers for UI/API payloads
+- Explorer and VS Code mapping views over committed manifests and generated files
+
+That would let application code say:
+
+```ts
+const bookings = new BookingRepository(session);
+const booking = await bookings.find("B-1001");
+
+await booking.setStatus("confirmed");
+const payload = await booking.snapshot();
+```
+
+The important constraint is that `status()` and `setStatus()` stay async remote calls. The mapping layer should make selector use nicer, not pretend the GemStone object is a local JavaScript object.
+
 ## Native Worker Mode
 
 The native backend is the main production hardening area. The raw GCI binding remains useful for low-level troubleshooting, but production trials should use the native session worker when possible.
@@ -262,6 +282,7 @@ The next valuable work is less about adding more small commands and more about h
 - stronger native worker stress tests
 - installed-package smoke checks across target platforms
 - Marketplace release polish for the VS Code extension
+- connector-inspired object mapping with generated `*Ref` classes and snapshot helpers
 - more visual Explorer workflows once the core debugger/class browser semantics settle
 
 The workbench is already useful as a wrapper around the Explorer. That is the right MVP. From there, the extension can grow into a richer GemStone development environment without losing the tested browser UI beneath it.

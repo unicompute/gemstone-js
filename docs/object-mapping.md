@@ -269,6 +269,135 @@ Bounded readback protects callers from unexpectedly large collections or deep
 object graphs. Inspection keeps object identity visible instead of pretending
 the remote object is a plain local value.
 
+## Mapping Manifest Roadmap
+
+The next object-mapping step should be connector-inspired, but still explicit
+and async. The goal is to keep GemStone identity visible while giving
+application code a smaller, typed surface than raw selector sends.
+
+1. **Mapping manifest schema**
+
+   Add a dedicated mapping manifest alongside the existing function-codegen
+   manifest. Each mapped class should declare the GemStone class name, the
+   TypeScript domain type, selectors, setters, repository selectors, and
+   snapshot fields.
+
+   ```json
+   {
+     "$schema": "./schemas/object-mapping-manifest.schema.json",
+     "classes": [
+       {
+         "name": "Booking",
+         "gemStoneClass": "Booking",
+         "typeName": "Booking",
+         "refName": "BookingRef",
+         "repository": {
+           "className": "BookingRepository",
+           "find": {
+             "name": "find",
+             "selector": "find:",
+             "args": [{ "name": "id", "type": "string" }]
+           }
+         },
+         "selectors": [
+           { "name": "status", "selector": "status", "returnType": "string" }
+         ],
+         "setters": [
+           { "name": "setStatus", "selector": "status:", "args": [{ "name": "status", "type": "string" }] }
+         ],
+         "snapshot": [
+           { "name": "id", "selector": "id", "type": "string" },
+           { "name": "status", "selector": "status", "type": "string" }
+         ]
+       }
+     ]
+   }
+   ```
+
+2. **Generated `*Ref` classes**
+
+   The generator should emit small reference classes that wrap
+   `TypedOop<T>`. Methods remain async and selector-backed; they do not become
+   JavaScript properties.
+
+   ```ts
+   export class BookingRef {
+     constructor(readonly object: TypedOop<Booking>) {}
+
+     get session(): Session {
+       return this.object.session;
+     }
+
+     get oop(): Oop {
+       return this.object.oop;
+     }
+
+     status(): Promise<string> {
+       return this.object.send<string>("status");
+     }
+
+     async setStatus(status: string): Promise<this> {
+       await this.object.send("status:", status);
+       return this;
+     }
+
+     async snapshot(): Promise<BookingSnapshot> {
+       return {
+         id: await this.object.send<string>("id"),
+         status: await this.status(),
+       };
+     }
+
+     inspect() {
+       return this.object.inspect();
+     }
+
+     release() {
+       return this.object.release();
+     }
+   }
+   ```
+
+3. **Repository helpers**
+
+   Repository helpers should return typed refs rather than raw `TypedOop<T>`
+   handles. They can wrap class-side selectors, persistent-root lookups, query
+   helpers, or GemStone repository objects.
+
+   ```ts
+   export class BookingRepository {
+     constructor(readonly session: Session) {}
+
+     async find(id: string): Promise<BookingRef> {
+       const object = await this.session
+         .classRef<Booking>("BookingRepository")
+         .sendObject("find:", id);
+       return new BookingRef(object);
+     }
+   }
+   ```
+
+4. **Snapshot and dictionary helpers**
+
+   Generated refs should support bounded `snapshot()` methods for UI/API
+   payloads. Snapshot output should be plain data, not retained GemStone
+   handles. Dictionary-backed snapshots should use the existing
+   `dictionaryOopToObject()`, `GsDict`, and `PersistentRoot` helpers with
+   `maxEntries` bounds.
+
+5. **Explorer and VS Code mapping views**
+
+   The Explorer and VS Code workbench can later read mapping manifests to show
+   mapped classes, generated ref methods, repository helpers, and snapshot
+   fields. This should be a tooling view over committed generated source, not a
+   hidden runtime mapper.
+
+This roadmap intentionally differs from a transparent JavaScript ORM. It is
+closer to the useful parts of the Pharo bridge connector model: reviewable class
+pair metadata, generated accessors, repository entry points, and inspectable
+mapping state. It avoids automatic local/GemStone synchronization until the
+typed ref and snapshot path is proven against live Stone workflows.
+
 ## What Is Not Automatic
 
 `gemstone-js` does not currently provide:
@@ -278,6 +407,7 @@ the remote object is a plain local value.
 - a session-wide identity map for local wrapper instances
 - automatic persistence of arbitrary JavaScript object graphs
 - lazy slot loading hidden behind synchronous property access
+- bidirectional local/GemStone synchronization through connector rows
 
 Those features can be useful in narrow domains, but they also create sharp
 edges around transactions, remote latency, conflict handling, and object

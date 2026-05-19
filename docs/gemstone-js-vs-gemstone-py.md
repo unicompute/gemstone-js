@@ -13,6 +13,12 @@ Node services, npm-distributed tools, explicit async request lifecycles,
 typed generated wrappers, web adapters, and package verification in a JS
 toolchain.
 
+For object mapping, the projects should intentionally differ. `gemstone-py`
+can lean on Python's dynamic proxy style, while `gemstone-js` should prefer a
+connector-inspired mapping manifest that generates explicit async `*Ref`
+classes, repository helpers, and snapshot/dictionary helpers around
+`TypedOop<T>`.
+
 ## Quick Commands
 
 ```bash
@@ -81,6 +87,11 @@ JS/Python product parity:
 4. Live CI
 5. Documentation and release polish
 6. Cross-project alignment
+
+The most useful post-beta API polish batch is object mapping maturity: publish
+a mapping manifest schema, generate `*Ref` classes wrapping `TypedOop<T>`, add
+repository helpers returning typed refs, generate bounded snapshots for UI/API
+payloads, and surface the mapping catalog in Explorer or the VS Code workbench.
 
 For a narrower conservative JavaScript beta, `--scope beta` now tracks one
 remaining validation batch, roughly **4-8 hours**: run the release candidate

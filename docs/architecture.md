@@ -169,6 +169,13 @@ The first implementation slice follows `../plan.js.txt`:
   emits reviewable manifests by default and can emit generated wrapper modules
   directly with `--module`; either mode can be checked against a committed file
   with `--check --out`.
+- The planned object-mapping layer should build on the same reviewable codegen
+  discipline: a mapping manifest schema for GemStone class names, TypeScript
+  types, selectors, setters, repository selectors, and snapshot fields;
+  generated `*Ref` classes that wrap `TypedOop<T>`; repository helpers that
+  return typed refs; and bounded snapshot/dictionary helpers for UI/API
+  payloads. Explorer and VS Code mapping views should read committed mapping
+  manifests and generated files rather than hiding an automatic runtime mapper.
 - `scripts/check-public-surface.mjs` parses `src/index.ts` with the TypeScript
   compiler API and compares value/type exports, source modules, and aliases
   against `scripts/public-surface.expected.json`. This keeps the public barrel

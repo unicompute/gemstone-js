@@ -110,6 +110,11 @@ For the broader object-mapping model, including `TypedOop<T>` handles,
 generated selector wrappers, dictionary payload conversion, and value
 converters, see `docs/object-mapping.md`.
 
+The next planned examples should cover a mapping manifest, generated
+`BookingRef`-style classes around `TypedOop<T>`, repository helpers returning
+typed refs, and bounded snapshot/dictionary payload helpers. Those examples
+should remain generated and committed so mapping behavior is reviewable in CI.
+
 ## Web Examples
 
 The dependency-free Fetch example is the smallest web service shape:

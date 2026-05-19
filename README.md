@@ -35,6 +35,11 @@ native package; the TypeScript package can be tested locally with a mock runtime
   dictionary payloads before persistence, mirroring gemstone-py's
   `dataclass_to_dict()` pattern. See `docs/object-mapping.md` for the supported
   mapping layers and the current non-ORM boundary.
+- The planned object-mapping track is connector-inspired but not transparent:
+  add a mapping manifest schema, generate `*Ref` classes around
+  `TypedOop<T>`, add repository helpers returning typed refs, provide bounded
+  snapshot/dictionary helpers for UI/API payloads, and later expose mappings in
+  Explorer/VS Code tooling.
 - `Session.classRef()` gives an explicit typed class handle for class-side
   sends, object-returning sends, allocation, and wrapping returned OOPs without
   hiding async remote calls behind JavaScript property access. Class names use

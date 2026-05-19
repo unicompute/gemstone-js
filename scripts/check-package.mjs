@@ -441,6 +441,10 @@ assertSnippets(
     "returnKind: \"object\"",
     "objectToDictionaryArgument()",
     "ValueConverterRegistry",
+    "Mapping Manifest Roadmap",
+    "Generated `*Ref` classes",
+    "snapshot fields",
+    "Explorer and VS Code mapping views",
     "transparent `booking.status` property dispatch",
   ],
 );

@@ -135,6 +135,10 @@ artifact verification, and the native session-thread spike.
 - Unknown object results stay explicit as raw `Oop` values or retained
   `TypedOop<T>` handles; JavaScript does not use gemstone-py's dynamic
   attribute dispatch proxy.
+- Future JavaScript object mapping should stay explicit: a mapping manifest
+  schema can generate async `*Ref` classes around `TypedOop<T>`, repository
+  helpers returning typed refs, and bounded snapshot/dictionary helpers instead
+  of transparent property dispatch.
 - GemStone OOPs are represented as branded `bigint` values in TypeScript, while
   the native Node boundary uses decimal strings to avoid 64-bit precision loss.
 - Root helper names use camelCase (`sessionMethods`) rather than Python's
@@ -182,6 +186,11 @@ reported by `gemstone-js-compare gemstone-rs --totals`.
    `GS_RUN_LIVE=1 GS_NATIVE_SESSION_WORKER=1 npm run test:live` from clean
    installed artifacts, then inspect CI tarballs, checksums, provenance
    metadata, and native prebuild artifacts before publishing.
+
+The next non-beta product batch should be connector-inspired object mapping:
+mapping manifest schema, generated `*Ref` classes, repository helpers, bounded
+snapshot/dictionary helpers, and Explorer/VS Code mapping views over committed
+generated files.
 
 The VS Code extension is still a later track. It is valuable, but the JavaScript
 package and native session-thread behavior should stabilize first so the

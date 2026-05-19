@@ -79,7 +79,9 @@ npm run verify
 
 This checks the extension entrypoint, packages a versioned VSIX, and verifies the
 archive contents. It also runs an offline smoke test that activates the extension
-against a lightweight VS Code API mock.
+against a lightweight VS Code API mock. VSIX verification checks required files,
+the packaged extension manifest, command/view/debugger contributions, and
+optional checksum artifacts.
 
 To run the real VS Code extension-host smoke test:
 

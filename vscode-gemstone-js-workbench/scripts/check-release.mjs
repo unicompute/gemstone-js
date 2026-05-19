@@ -12,6 +12,7 @@ const readmePath = join(root, "README.md");
 const fakeExplorerPath = join(root, "test", "fixtures", "fake-explorer.js");
 const hostTestPath = join(root, "test", "suite", "index.js");
 const hostRunnerPath = join(root, "scripts", "run-extension-host-test.mjs");
+const vsixCheckPath = join(root, "scripts", "check-vsix.mjs");
 const workflowPath = join(repoRoot, ".github", "workflows", "vscode-workbench.yml");
 
 const errors = [];
@@ -45,6 +46,11 @@ expect(readme.includes("GS_RUN_VSCODE_HOST=1 npm run test:host"), "README.md mus
 expect(existsSync(hostRunnerPath), "scripts/run-extension-host-test.mjs must exist");
 expect(existsSync(fakeExplorerPath), "test/fixtures/fake-explorer.js must exist");
 expect(existsSync(hostTestPath), "test/suite/index.js must exist");
+
+const vsixCheck = existsSync(vsixCheckPath) ? readFileSync(vsixCheckPath, "utf8") : "";
+expect(vsixCheck.includes("assertPackagedManifest"), "check-vsix.mjs must validate the packaged manifest metadata");
+expect(vsixCheck.includes("extension.vsixmanifest"), "check-vsix.mjs must inspect extension.vsixmanifest");
+expect(vsixCheck.includes("onDebugResolve:gemstone-js"), "check-vsix.mjs must validate debugger activation metadata");
 
 const workflow = existsSync(workflowPath) ? readFileSync(workflowPath, "utf8") : "";
 expect(workflow.includes("npm run release:package"), "VS Code workflow must build artifacts through npm run release:package");

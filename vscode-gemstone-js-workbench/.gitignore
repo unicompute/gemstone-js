@@ -1,5 +1,6 @@
 node_modules/
 .vscode-test/
+media/gemstone-rs-graphic_purple.png
 *.vsix
 npm-debug.log
 yarn-error.log

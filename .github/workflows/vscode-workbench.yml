@@ -1,0 +1,147 @@
+name: VS Code Workbench
+
+on:
+  push:
+    paths:
+      - "vscode-gemstone-js-workbench/**"
+      - ".github/workflows/vscode-workbench.yml"
+  pull_request:
+    paths:
+      - "vscode-gemstone-js-workbench/**"
+      - ".github/workflows/vscode-workbench.yml"
+  workflow_dispatch:
+    inputs:
+      publish-to-marketplace:
+        description: Publish the packaged VSIX to the Visual Studio Marketplace
+        required: true
+        default: "false"
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  build-vsix:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: vscode-gemstone-js-workbench
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Install extension dependencies
+        run: npm install --omit=optional
+
+      - name: Verify extension package
+        run: npm run verify
+
+      - name: Generate VSIX checksum
+        shell: bash
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          shasum -a 256 "gemstone-js-workbench-${version}.vsix" > "gemstone-js-workbench-${version}.vsix.sha256"
+
+      - name: Upload VSIX artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: gemstone-js-workbench-vsix
+          path: |
+            vscode-gemstone-js-workbench/*.vsix
+            vscode-gemstone-js-workbench/*.vsix.sha256
+          if-no-files-found: error
+
+  publish-marketplace:
+    needs: build-vsix
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs['publish-to-marketplace'] == 'true'
+    defaults:
+      run:
+        working-directory: vscode-gemstone-js-workbench
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Install extension dependencies
+        run: npm install --omit=optional
+
+      - name: Download VSIX artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: gemstone-js-workbench-vsix
+          path: vscode-gemstone-js-workbench
+
+      - name: Verify downloaded VSIX
+        run: npm run verify:vsix
+
+      - name: Check Marketplace version before publish
+        id: marketplace-precheck
+        shell: bash
+        run: |
+          expected_version="$(node -p "require('./package.json').version")"
+          echo "visible=false" >> "${GITHUB_OUTPUT}"
+          if npx @vscode/vsce show unicompute.gemstone-js-workbench --json > marketplace.json; then
+            if EXPECTED_VERSION="${expected_version}" node -e '
+            const fs = require("fs");
+            const expected = process.env.EXPECTED_VERSION;
+            const payload = JSON.parse(fs.readFileSync("marketplace.json", "utf8"));
+            const versions = (payload.versions || []).map((entry) => entry.version);
+            process.exit(versions.includes(expected) ? 0 : 1);
+            '
+            then
+              echo "Marketplace version ${expected_version} is already visible; skipping publish."
+              echo "visible=true" >> "${GITHUB_OUTPUT}"
+            fi
+          fi
+
+      - name: Publish to Visual Studio Marketplace
+        if: steps.marketplace-precheck.outputs.visible != 'true'
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        shell: bash
+        run: |
+          test -n "${VSCE_PAT}"
+          npx @vscode/vsce publish \
+            --packagePath gemstone-js-workbench-*.vsix \
+            --pat "${VSCE_PAT}" \
+            --no-dependencies
+
+      - name: Verify Marketplace version
+        shell: bash
+        run: |
+          expected_version="$(node -p "require('./package.json').version")"
+          for attempt in $(seq 1 20); do
+            if npx @vscode/vsce show unicompute.gemstone-js-workbench --json > marketplace.json; then
+              if EXPECTED_VERSION="${expected_version}" node -e '
+              const fs = require("fs");
+              const expected = process.env.EXPECTED_VERSION;
+              const payload = JSON.parse(fs.readFileSync("marketplace.json", "utf8"));
+              const versions = (payload.versions || []).map((entry) => entry.version);
+              if (payload.displayName !== "gemstone-js Workbench") {
+                throw new Error(`Unexpected Marketplace display name: ${payload.displayName}`);
+              }
+              if (!versions.includes(expected)) {
+                throw new Error(`Marketplace versions ${versions.join(", ")} do not include ${expected}`);
+              }
+              if (versions[0] !== expected) {
+                throw new Error(`Marketplace latest version is ${versions[0]}, expected ${expected}`);
+              }
+              '
+              then
+                echo "Marketplace version ${expected_version} is visible."
+                exit 0
+              fi
+            fi
+            echo "Marketplace version ${expected_version} not visible yet; retrying (${attempt}/20)..."
+            sleep 30
+          done
+          echo "Marketplace version ${expected_version} did not become visible."
+          exit 1

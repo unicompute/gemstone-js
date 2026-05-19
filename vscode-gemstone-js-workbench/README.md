@@ -67,11 +67,18 @@ The debugger is intentionally thin in this first version; session semantics rema
 From this directory:
 
 ```sh
-npm run check
+npm run verify
 ```
 
-To package manually after installing dev dependencies:
+This checks the extension entrypoint, packages a versioned VSIX, and verifies the
+archive contents.
+
+To package a fixed local smoke-test artifact:
 
 ```sh
 npm run package:dry-run
 ```
+
+The GitHub `VS Code Workbench` workflow builds and uploads the VSIX on changes
+under this directory. Run it manually with `publish-to-marketplace=true` to
+publish the package with the repository `VSCE_PAT` secret.

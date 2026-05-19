@@ -43,6 +43,7 @@ const forbiddenPatterns = [
   /^extension\/\.vscodeignore$/,
   /^extension\/\.vscode-test\//,
   /^extension\/scripts\//,
+  /^extension\/test\//,
   /^extension\/media\/gemstone-rs-graphic_purple\.png$/,
   /^extension\/.*\.vsix$/,
   /^extension\/.*\.vsix\.sha256$/,

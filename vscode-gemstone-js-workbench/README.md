@@ -81,6 +81,16 @@ This checks the extension entrypoint, packages a versioned VSIX, and verifies th
 archive contents. It also runs an offline smoke test that activates the extension
 against a lightweight VS Code API mock.
 
+To run the real VS Code extension-host smoke test:
+
+```sh
+GS_RUN_VSCODE_HOST=1 npm run test:host
+```
+
+That test starts VS Code through `@vscode/test-electron`, activates the extension,
+opens the Explorer against a fake local Explorer server, and starts/stops a
+`gemstone-js` debug session without requiring a live Stone.
+
 To package a fixed local smoke-test artifact:
 
 ```sh

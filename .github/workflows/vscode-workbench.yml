@@ -15,6 +15,10 @@ on:
         description: Publish the packaged VSIX to the Visual Studio Marketplace
         required: true
         default: "false"
+      run-extension-host-tests:
+        description: Run the opt-in VS Code extension-host smoke test
+        required: true
+        default: "false"
 
 permissions:
   contents: read
@@ -40,6 +44,12 @@ jobs:
 
       - name: Build verified VSIX artifact
         run: npm run release:package
+
+      - name: Run VS Code extension-host smoke
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs['run-extension-host-tests'] == 'true'
+        run: xvfb-run -a npm run test:host
+        env:
+          GS_RUN_VSCODE_HOST: "1"
 
       - name: Upload VSIX artifact
         uses: actions/upload-artifact@v7

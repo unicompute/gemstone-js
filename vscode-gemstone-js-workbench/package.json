@@ -416,9 +416,10 @@
     }
   },
   "scripts": {
-    "check": "node --check extension.js",
+    "check": "node scripts/check-syntax.mjs",
     "package:ci": "npx @vscode/vsce package --no-dependencies",
     "package:dry-run": "npx @vscode/vsce package --no-dependencies --out gemstone-js-workbench.vsix",
+    "test:host": "node scripts/run-extension-host-test.mjs",
     "test:smoke": "node scripts/smoke-test.mjs",
     "release": "node scripts/release.mjs",
     "release:check": "node scripts/check-release.mjs",
@@ -429,6 +430,7 @@
     "verify:vsix:checksum": "node scripts/check-vsix.mjs --checksum"
   },
   "devDependencies": {
+    "@vscode/test-electron": "^2.5.2",
     "@vscode/vsce": "^3.9.1"
   }
 }

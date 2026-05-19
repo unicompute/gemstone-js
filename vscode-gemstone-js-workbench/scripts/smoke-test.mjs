@@ -336,7 +336,9 @@ try {
     "gemstoneJs.evaluateSelection",
     "gemstoneJs.evaluateSelectionAs",
     "gemstoneJs.debugSelection",
+    "gemstoneJs.debugSelectionAs",
     "gemstoneJs.debugFile",
+    "gemstoneJs.debugFileAs",
     "gemstoneJs.runFile",
     "gemstoneJs.runFileAs",
     "gemstoneJs.configureConnection",
@@ -393,6 +395,16 @@ try {
     source: "1 + 1",
     returnKind: "inspect",
   });
+  captured.quickPickLabel = "Value";
+  await captured.commands.get("gemstoneJs.debugSelectionAs")();
+  assert.deepEqual(captured.startedDebugging, {
+    type: "gemstone-js",
+    request: "launch",
+    name: "GemStone Debug Selection (value)",
+    source: "1 + 1",
+    returnKind: "value",
+  });
+  assert.equal(captured.quickPickOptions.at(-1).pickerOptions.placeHolder, "Debug return kind");
   await captured.commands.get("gemstoneJs.debugFile")();
   assert.deepEqual(captured.startedDebugging, {
     type: "gemstone-js",
@@ -401,6 +413,16 @@ try {
     source: "self error: 'whole document'",
     returnKind: "inspect",
   });
+  captured.quickPickLabel = "OOP";
+  await captured.commands.get("gemstoneJs.debugFileAs")();
+  assert.deepEqual(captured.startedDebugging, {
+    type: "gemstone-js",
+    request: "launch",
+    name: "GemStone Debug File (oop)",
+    source: "self error: 'whole document'",
+    returnKind: "oop",
+  });
+  assert.equal(captured.quickPickOptions.at(-1).pickerOptions.placeHolder, "Debug file return kind");
 
   const connectionProvider = captured.treeProviders.get("gemstoneJs.connectionView");
   const connectionItems = await connectionProvider.getChildren();
@@ -422,7 +444,9 @@ try {
   assert(connectionItems.some((item) => item.label === "Inspect OOP"));
   assert(connectionItems.some((item) => item.label === "Evaluate Selection As..."));
   assert(connectionItems.some((item) => item.label === "Stop Explorer"));
+  assert(connectionItems.some((item) => item.label === "Debug Selection As..."));
   assert(connectionItems.some((item) => item.label === "Debug File"));
+  assert(connectionItems.some((item) => item.label === "Debug File As..."));
   assert(connectionItems.some((item) => item.label === "Run File"));
   assert(connectionItems.some((item) => item.label === "Run File As..."));
   assert(connectionItems.some((item) => item.label === "Set Default Return Kind"));

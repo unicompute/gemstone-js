@@ -107,7 +107,9 @@ function assertPackagedManifest(manifest, vsixManifest) {
     "gemstoneJs.evaluateSelection",
     "gemstoneJs.evaluateSelectionAs",
     "gemstoneJs.debugSelection",
+    "gemstoneJs.debugSelectionAs",
     "gemstoneJs.debugFile",
+    "gemstoneJs.debugFileAs",
     "gemstoneJs.runFile",
     "gemstoneJs.runFileAs",
     "gemstoneJs.configureConnection",
@@ -143,7 +145,9 @@ function assertPackagedManifest(manifest, vsixManifest) {
     "onCommand:gemstoneJs.evaluateSelection",
     "onCommand:gemstoneJs.evaluateSelectionAs",
     "onCommand:gemstoneJs.debugSelection",
+    "onCommand:gemstoneJs.debugSelectionAs",
     "onCommand:gemstoneJs.debugFile",
+    "onCommand:gemstoneJs.debugFileAs",
     "onCommand:gemstoneJs.runFile",
     "onCommand:gemstoneJs.runFileAs",
     "onCommand:gemstoneJs.configureConnection",
@@ -179,7 +183,16 @@ function assertPackagedManifest(manifest, vsixManifest) {
   );
   assertArrayIncludesAll(
     (manifest.contributes?.menus?.["editor/context"] || []).map((menuItem) => menuItem.command),
-    ["gemstoneJs.evaluateSelection", "gemstoneJs.evaluateSelectionAs", "gemstoneJs.debugSelection", "gemstoneJs.debugFile", "gemstoneJs.runFile", "gemstoneJs.runFileAs"],
+    [
+      "gemstoneJs.evaluateSelection",
+      "gemstoneJs.evaluateSelectionAs",
+      "gemstoneJs.debugSelection",
+      "gemstoneJs.debugSelectionAs",
+      "gemstoneJs.debugFile",
+      "gemstoneJs.debugFileAs",
+      "gemstoneJs.runFile",
+      "gemstoneJs.runFileAs",
+    ],
     "menus.editor/context",
   );
   assertArrayIncludesAll(

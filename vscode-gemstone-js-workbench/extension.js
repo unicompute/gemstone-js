@@ -85,7 +85,9 @@ function activate(context) {
     vscode.commands.registerCommand("gemstoneJs.evaluateSelection", () => evaluateSelection(explorer)),
     vscode.commands.registerCommand("gemstoneJs.evaluateSelectionAs", () => evaluateSelectionAs(explorer)),
     vscode.commands.registerCommand("gemstoneJs.debugSelection", () => debugSelection(explorer)),
+    vscode.commands.registerCommand("gemstoneJs.debugSelectionAs", () => debugSelectionAs(explorer)),
     vscode.commands.registerCommand("gemstoneJs.debugFile", () => debugFile(explorer)),
+    vscode.commands.registerCommand("gemstoneJs.debugFileAs", () => debugFileAs(explorer)),
     vscode.commands.registerCommand("gemstoneJs.runFile", () => runFile(explorer)),
     vscode.commands.registerCommand("gemstoneJs.runFileAs", () => runFileAs(explorer)),
     vscode.commands.registerCommand("gemstoneJs.configureConnection", () => configureConnection(explorer)),
@@ -681,13 +683,21 @@ async function debugSelection(server) {
     vscode.window.showWarningMessage("No Smalltalk source selected.");
     return;
   }
-  await vscode.debug.startDebugging(undefined, {
-    type: "gemstone-js",
-    request: "launch",
-    name: "GemStone Debug Selection",
-    source,
-    returnKind: server.config().defaultReturnKind,
+  await startGemStoneDebugging("GemStone Debug Selection", source, server.config().defaultReturnKind);
+}
+
+async function debugSelectionAs(server) {
+  const source = selectedSource();
+  if (!source) {
+    vscode.window.showWarningMessage("No Smalltalk source selected.");
+    return;
+  }
+  const choice = await vscode.window.showQuickPick(returnKindChoices(server.config().defaultReturnKind), {
+    placeHolder: "Debug return kind",
+    ignoreFocusOut: true,
   });
+  if (!choice) return;
+  await startGemStoneDebugging(`GemStone Debug Selection (${choice.value})`, source, choice.value);
 }
 
 async function debugFile(server) {
@@ -701,12 +711,35 @@ async function debugFile(server) {
     vscode.window.showWarningMessage("Active file is empty.");
     return;
   }
+  await startGemStoneDebugging("GemStone Debug File", source, server.config().defaultReturnKind);
+}
+
+async function debugFileAs(server) {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor) {
+    vscode.window.showWarningMessage("No active editor.");
+    return;
+  }
+  const source = editor.document.getText();
+  if (!source.trim()) {
+    vscode.window.showWarningMessage("Active file is empty.");
+    return;
+  }
+  const choice = await vscode.window.showQuickPick(returnKindChoices(server.config().defaultReturnKind), {
+    placeHolder: "Debug file return kind",
+    ignoreFocusOut: true,
+  });
+  if (!choice) return;
+  await startGemStoneDebugging(`GemStone Debug File (${choice.value})`, source, choice.value);
+}
+
+async function startGemStoneDebugging(name, source, returnKind) {
   await vscode.debug.startDebugging(undefined, {
     type: "gemstone-js",
     request: "launch",
-    name: "GemStone Debug File",
+    name,
     source,
-    returnKind: server.config().defaultReturnKind,
+    returnKind,
   });
 }
 
@@ -1188,7 +1221,9 @@ async function connectionItems(server) {
     commandItem("Evaluate Selection", "gemstoneJs.evaluateSelection", "run", "run selected Smalltalk"),
     commandItem("Evaluate Selection As...", "gemstoneJs.evaluateSelectionAs", "run", "choose inspect/value/OOP"),
     commandItem("Debug Selection", "gemstoneJs.debugSelection", "debug-alt", "debug selected Smalltalk"),
+    commandItem("Debug Selection As...", "gemstoneJs.debugSelectionAs", "debug-alt", "choose inspect/value/OOP"),
     commandItem("Debug File", "gemstoneJs.debugFile", "debug-alt", "debug active editor contents"),
+    commandItem("Debug File As...", "gemstoneJs.debugFileAs", "debug-alt", "choose inspect/value/OOP"),
     commandItem("Run File", "gemstoneJs.runFile", "play", "run active editor contents"),
     commandItem("Run File As...", "gemstoneJs.runFileAs", "play", "choose inspect/value/OOP"),
     commandItem("Inspect OOP", "gemstoneJs.inspectOop", "search", "open object inspector"),

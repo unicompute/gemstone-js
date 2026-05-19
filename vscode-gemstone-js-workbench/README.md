@@ -25,7 +25,9 @@ VS Code wrapper for the gemstone-js Explorer. The extension starts the local Exp
 - `GemStone: Evaluate Selection` sends the current selection to the Explorer session. If evaluation raises, the debugger opens automatically.
 - `GemStone: Evaluate Selection As...` evaluates the current selection with a one-off inspect, value, or OOP return kind.
 - `GemStone: Debug Selection` starts a VS Code debug session for the current selection.
+- `GemStone: Debug Selection As...` debugs the current selection with a one-off inspect, value, or OOP return kind.
 - `GemStone: Debug File` starts a VS Code debug session for the current editor contents.
+- `GemStone: Debug File As...` debugs the current editor contents with a one-off inspect, value, or OOP return kind.
 - `GemStone: Run File` evaluates the current editor contents.
 - `GemStone: Run File As...` evaluates the current editor contents with a one-off inspect, value, or OOP return kind.
 - `GemStone: Configure Connection` prompts for the core connection settings and stores the password in SecretStorage.
@@ -89,7 +91,7 @@ The `gemstone-js` debug type wraps the Explorer debugger API. It supports:
 - Step out
 - Restart
 
-The extension contributes launch configuration snippets for debugging the current selection or an inline Smalltalk expression. Evaluate, Debug Selection, Debug File, and Run File commands are available from the editor title area and editor context menu. Evaluate Selection As and Run File As are available from the editor context menu for one-off return-kind selection.
+The extension contributes launch configuration snippets for debugging the current selection or an inline Smalltalk expression. Evaluate, Debug Selection, Debug File, and Run File commands are available from the editor title area and editor context menu. The `As...` variants are available from the editor context menu for one-off return-kind selection.
 
 The debugger is intentionally thin in this first version; session semantics remain owned by the Explorer server.
 

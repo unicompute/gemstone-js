@@ -57,7 +57,9 @@
     "onCommand:gemstoneJs.evaluateSelection",
     "onCommand:gemstoneJs.evaluateSelectionAs",
     "onCommand:gemstoneJs.debugSelection",
+    "onCommand:gemstoneJs.debugSelectionAs",
     "onCommand:gemstoneJs.debugFile",
+    "onCommand:gemstoneJs.debugFileAs",
     "onCommand:gemstoneJs.runFile",
     "onCommand:gemstoneJs.runFileAs",
     "onCommand:gemstoneJs.configureConnection",
@@ -372,8 +374,18 @@
         "icon": "$(debug-alt)"
       },
       {
+        "command": "gemstoneJs.debugSelectionAs",
+        "title": "GemStone: Debug Selection As...",
+        "icon": "$(debug-alt)"
+      },
+      {
         "command": "gemstoneJs.debugFile",
         "title": "GemStone: Debug File",
+        "icon": "$(debug-alt)"
+      },
+      {
+        "command": "gemstoneJs.debugFileAs",
+        "title": "GemStone: Debug File As...",
         "icon": "$(debug-alt)"
       },
       {
@@ -580,16 +592,24 @@
           "group": "navigation@3"
         },
         {
-          "command": "gemstoneJs.debugFile",
+          "command": "gemstoneJs.debugSelectionAs",
           "group": "navigation@4"
         },
         {
-          "command": "gemstoneJs.runFile",
+          "command": "gemstoneJs.debugFile",
           "group": "navigation@5"
         },
         {
-          "command": "gemstoneJs.runFileAs",
+          "command": "gemstoneJs.debugFileAs",
           "group": "navigation@6"
+        },
+        {
+          "command": "gemstoneJs.runFile",
+          "group": "navigation@7"
+        },
+        {
+          "command": "gemstoneJs.runFileAs",
+          "group": "navigation@8"
         }
       ],
       "editor/title": [

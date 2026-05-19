@@ -274,6 +274,8 @@ const required = [
   "scripts/doctor.mjs",
   "scripts/examples-catalog.mjs",
   "scripts/examples.mjs",
+  "scripts/generate-doc-pdfs.mjs",
+  "scripts/generate-medium-screenshots.mjs",
   "scripts/inspect.mjs",
   "scripts/load-package-module.mjs",
   "scripts/migrations.mjs",

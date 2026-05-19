@@ -1,0 +1,167 @@
+# Building a JavaScript Workbench for GemStone/S
+
+_A practical look at `gemstone-js`, the Explorer UI, and the VS Code extension that turns GemStone/S into a JavaScript-native development workflow._
+
+![GemStone Explorer workspace](assets/gemstone-js-explorer-workspace.png)
+
+GemStone/S has always rewarded developers who are comfortable living close to the object database. The hard part for many modern teams is not the database model itself. It is the tooling boundary around it: JavaScript services, TypeScript wrappers, npm release flows, CI checks, and editor workflows all need a clear path into the Stone.
+
+`gemstone-js` is that bridge. It is an async TypeScript client for GemStone/S, with a native GCI backend, high-level session helpers, generated wrappers, web adapters, query helpers, migration tooling, release checks, and a browser-based Explorer. The newer VS Code workbench wraps that Explorer so developers can inspect, evaluate, debug, and browse GemStone objects without leaving their editor.
+
+This article walks through the current shape of the project and the decisions behind the workbench.
+
+## The Goal
+
+The goal is not to hide GemStone behind a generic ORM. GemStone is an object database, and the API should preserve that reality.
+
+The JavaScript side needs to make common work explicit:
+
+- connect to a Stone with clear environment variables
+- send selectors and evaluate Smalltalk
+- marshal JavaScript strings, numbers, arrays, dictionaries, and typed object handles
+- inspect OOPs and object structure
+- work with persistent roots, globals, dictionaries, arrays, and ordered collections
+- generate typed wrappers from manifests or decorators
+- test locally with a mock runtime and opt into live Stone regression tests
+- run production calls through a safer native session-worker backend
+
+That is the core contract: keep the GemStone model visible, but make the JavaScript workflow predictable.
+
+## The Explorer
+
+The Explorer is a local browser UI served by `examples/explorer.ts`. It gives the project a concrete development surface instead of only a library API.
+
+It includes:
+
+- connection status and Doctor diagnostics
+- workspace evaluation with selectable return kinds
+- roots and globals browsing
+- object inspection by OOP
+- class browsing and method source editing
+- generated-wrapper preview
+- debugger panels for exception contexts
+
+![GemStone Explorer class browser](assets/gemstone-js-class-browser.png)
+
+The class browser is intentionally close to the Python explorer workflow: list classes, select a method, preview source, edit, and submit. Description and file-out views are available when needed, but the main surface stays focused on browsing and editing.
+
+## Debugging `1/0`
+
+Debugging is where the Explorer becomes more than a convenience UI. When evaluation raises, the workbench can open the debugger automatically. A simple `1/0` gives a live exception context with stack frames, locals, receiver details, and action buttons.
+
+![GemStone debugger context stack](assets/gemstone-js-debugger.png)
+
+The debugger supports the operations developers expect first:
+
+- continue
+- restart
+- step over
+- step in
+- step out
+- selected-frame-aware actions
+- source previews from GemStone context frames
+- receiver, locals, context OOP, and exception OOP display
+
+The debugger is deliberately thin. Session semantics remain owned by the Explorer and GemStone APIs; VS Code is a client surface.
+
+## The VS Code Wrapper
+
+The VS Code extension started as a wrapper around the JavaScript Explorer rather than a completely separate UI. That was the right tradeoff.
+
+![VS Code workbench](assets/gemstone-js-vscode-workbench.png)
+
+The extension now provides:
+
+- `GemStone: Open Explorer`
+- `GemStone: Doctor`
+- `GemStone: Evaluate Selection`
+- `GemStone: Evaluate Selection As...`
+- `GemStone: Run File` and `Run File As...`
+- `GemStone: Debug Selection` and `Debug Selection As...`
+- `GemStone: Debug File` and `Debug File As...`
+- connection, roots, globals, and classes tree views
+- object/class copy and inspect commands
+- SecretStorage-backed password handling
+- redacted connection and Doctor report copy commands
+- quick settings for default return kind, Explorer open mode, and native session-worker mode
+
+That gives the developer a familiar editor workflow without duplicating the Explorer's core features.
+
+## Why Return Kinds Matter
+
+One of the most useful small details is return-kind selection.
+
+When evaluating Smalltalk, developers often need different result shapes:
+
+- `inspect` for a structured object inspection payload
+- `value` for JavaScript value marshalling
+- `oop` for a raw object handle
+
+The workbench has a default return kind, but the `As...` commands let developers choose per action. That avoids a noisy settings loop when switching between quick checks, object inspection, and wrapper development.
+
+## Native Worker Mode
+
+The native backend is the main production hardening area. The raw GCI binding remains useful for low-level troubleshooting, but production trials should use the native session worker when possible.
+
+The worker model queues calls for a session through a dedicated native worker boundary. This is a better fit for blocking native calls and GemStone session expectations, and it keeps JavaScript call sites async.
+
+The workbench exposes this as a quick setting:
+
+```text
+GemStone: Set Native Session Worker
+```
+
+Changing it stops the managed Explorer so the next launch uses the new mode.
+
+## Release Confidence
+
+The project now treats release proof as part of the library, not an afterthought.
+
+The local verification path checks:
+
+- TypeScript typecheck
+- codegen manifest output
+- decorator scanner output
+- examples catalog
+- comparison reports
+- public API surface
+- runtime API contract
+- unit tests
+- live-test guard coverage
+- checksum and provenance helpers
+- package artifact review
+- installed API contract
+
+The VS Code workbench has its own verify path that checks syntax, offline extension activation, command registration, VSIX packaging, artifact contents, and optional extension-host smoke tests.
+
+## What This Enables
+
+The important shift is that GemStone/S work can now sit inside a modern JavaScript delivery loop:
+
+- write TypeScript services
+- generate typed wrappers for GemStone selectors
+- run local tests without a live Stone
+- opt into live Stone regression checks
+- inspect production-shaped objects through the Explorer
+- debug exceptions from VS Code
+- publish npm packages with artifact/provenance checks
+
+That does not make GemStone less GemStone. It makes the surrounding workflow easier to ship and trust.
+
+## What Comes Next
+
+The next valuable work is less about adding more small commands and more about hardening:
+
+- deeper live regression coverage
+- stronger native worker stress tests
+- installed-package smoke checks across target platforms
+- Marketplace release polish for the VS Code extension
+- more visual Explorer workflows once the core debugger/class browser semantics settle
+
+The workbench is already useful as a wrapper around the Explorer. That is the right MVP. From there, the extension can grow into a richer GemStone development environment without losing the tested browser UI beneath it.
+
+## Links
+
+- `gemstone-js`: https://github.com/unicompute/gemstone-js
+- VS Code workbench package: `vscode-gemstone-js-workbench`
+- Generated PDF bundle: `artifacts/docs/pdf`

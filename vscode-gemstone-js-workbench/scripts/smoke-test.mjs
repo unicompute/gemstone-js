@@ -129,6 +129,7 @@ const vscode = {
     activeTextEditor: {
       selection: { isEmpty: false },
       document: {
+        fileName: "debug-smoke.st",
         getText(selection) {
           return selection ? "  1 + 1  " : "self error: 'whole document'";
         },
@@ -323,6 +324,7 @@ try {
     "gemstoneJs.doctor",
     "gemstoneJs.evaluateSelection",
     "gemstoneJs.debugSelection",
+    "gemstoneJs.debugFile",
     "gemstoneJs.runFile",
     "gemstoneJs.configureConnection",
     "gemstoneJs.setPassword",
@@ -375,6 +377,14 @@ try {
     source: "1 + 1",
     returnKind: "inspect",
   });
+  await captured.commands.get("gemstoneJs.debugFile")();
+  assert.deepEqual(captured.startedDebugging, {
+    type: "gemstone-js",
+    request: "launch",
+    name: "GemStone Debug File",
+    source: "self error: 'whole document'",
+    returnKind: "inspect",
+  });
 
   const connectionProvider = captured.treeProviders.get("gemstoneJs.connectionView");
   const connectionItems = await connectionProvider.getChildren();
@@ -391,6 +401,7 @@ try {
   assert(connectionItems.some((item) => item.label === "Status Log"));
   assert(connectionItems.some((item) => item.label === "Output"));
   assert(connectionItems.some((item) => item.label === "Inspect OOP"));
+  assert(connectionItems.some((item) => item.label === "Debug File"));
   assert(connectionItems.some((item) => item.label === "Run File"));
   assert.equal(connectionProvider.getTreeItem(connectionItems[0]).iconPath.id, "warning");
 

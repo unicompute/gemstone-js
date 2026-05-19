@@ -52,6 +52,7 @@
     "onCommand:gemstoneJs.doctor",
     "onCommand:gemstoneJs.evaluateSelection",
     "onCommand:gemstoneJs.debugSelection",
+    "onCommand:gemstoneJs.debugFile",
     "onCommand:gemstoneJs.runFile",
     "onCommand:gemstoneJs.configureConnection",
     "onCommand:gemstoneJs.setPassword",
@@ -332,6 +333,11 @@
         "icon": "$(debug-alt)"
       },
       {
+        "command": "gemstoneJs.debugFile",
+        "title": "GemStone: Debug File",
+        "icon": "$(debug-alt)"
+      },
+      {
         "command": "gemstoneJs.runFile",
         "title": "GemStone: Run File",
         "icon": "$(play)"
@@ -506,8 +512,12 @@
           "group": "navigation@2"
         },
         {
-          "command": "gemstoneJs.runFile",
+          "command": "gemstoneJs.debugFile",
           "group": "navigation@3"
+        },
+        {
+          "command": "gemstoneJs.runFile",
+          "group": "navigation@4"
         }
       ],
       "editor/title": [
@@ -522,9 +532,14 @@
           "group": "navigation@2"
         },
         {
-          "command": "gemstoneJs.runFile",
+          "command": "gemstoneJs.debugFile",
           "when": "editorTextFocus",
           "group": "navigation@3"
+        },
+        {
+          "command": "gemstoneJs.runFile",
+          "when": "editorTextFocus",
+          "group": "navigation@4"
         }
       ]
     }

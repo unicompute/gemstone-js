@@ -21,6 +21,7 @@ async function run() {
     "gemstoneJs.doctor",
     "gemstoneJs.evaluateSelection",
     "gemstoneJs.debugSelection",
+    "gemstoneJs.debugFile",
     "gemstoneJs.runFile",
     "gemstoneJs.openOutput",
     "gemstoneJs.configureConnection",

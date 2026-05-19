@@ -81,6 +81,7 @@ function activate(context) {
     vscode.commands.registerCommand("gemstoneJs.doctor", () => runDoctor(explorer)),
     vscode.commands.registerCommand("gemstoneJs.evaluateSelection", () => evaluateSelection(explorer)),
     vscode.commands.registerCommand("gemstoneJs.debugSelection", () => debugSelection(explorer)),
+    vscode.commands.registerCommand("gemstoneJs.debugFile", () => debugFile(explorer)),
     vscode.commands.registerCommand("gemstoneJs.runFile", () => runFile(explorer)),
     vscode.commands.registerCommand("gemstoneJs.configureConnection", () => configureConnection(explorer)),
     vscode.commands.registerCommand("gemstoneJs.setPassword", () => setPassword(explorer)),
@@ -583,6 +584,26 @@ async function debugSelection(server) {
   });
 }
 
+async function debugFile(server) {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor) {
+    vscode.window.showWarningMessage("No active editor.");
+    return;
+  }
+  const source = editor.document.getText();
+  if (!source.trim()) {
+    vscode.window.showWarningMessage("Active file is empty.");
+    return;
+  }
+  await vscode.debug.startDebugging(undefined, {
+    type: "gemstone-js",
+    request: "launch",
+    name: "GemStone Debug File",
+    source,
+    returnKind: server.config().defaultReturnKind,
+  });
+}
+
 async function debugSource(server, source, returnKind, openWorkbench) {
   output.show(true);
   const result = await server.debug(source, returnKind);
@@ -993,6 +1014,7 @@ async function connectionItems(server) {
     commandItem("Doctor", "gemstoneJs.doctor", "beaker", "run local diagnostics"),
     commandItem("Evaluate Selection", "gemstoneJs.evaluateSelection", "run", "run selected Smalltalk"),
     commandItem("Debug Selection", "gemstoneJs.debugSelection", "debug-alt", "debug selected Smalltalk"),
+    commandItem("Debug File", "gemstoneJs.debugFile", "debug-alt", "debug active editor contents"),
     commandItem("Run File", "gemstoneJs.runFile", "play", "run active editor contents"),
     commandItem("Inspect OOP", "gemstoneJs.inspectOop", "search", "open object inspector"),
     commandItem("Restart Explorer", "gemstoneJs.restartExplorer", "debug-restart", `${config.explorerHost}:${config.explorerPort}`),

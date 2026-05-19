@@ -19,6 +19,7 @@ VS Code wrapper for the gemstone-js Explorer. The extension starts the local Exp
 - `GemStone: Open Output` opens the GemStone JS output channel.
 - `GemStone: Evaluate Selection` sends the current selection to the Explorer session. If evaluation raises, the debugger opens automatically.
 - `GemStone: Debug Selection` starts a VS Code debug session for the current selection.
+- `GemStone: Debug File` starts a VS Code debug session for the current editor contents.
 - `GemStone: Run File` evaluates the current editor contents.
 - `GemStone: Configure Connection` prompts for the core connection settings and stores the password in SecretStorage.
 - `GemStone: Set Password` stores the GemStone password in VS Code SecretStorage.
@@ -79,7 +80,7 @@ The `gemstone-js` debug type wraps the Explorer debugger API. It supports:
 - Step out
 - Restart
 
-The extension contributes launch configuration snippets for debugging the current selection or an inline Smalltalk expression. Evaluate, Debug, and Run File commands are also available from the editor title area and editor context menu.
+The extension contributes launch configuration snippets for debugging the current selection or an inline Smalltalk expression. Evaluate, Debug Selection, Debug File, and Run File commands are also available from the editor title area and editor context menu.
 
 The debugger is intentionally thin in this first version; session semantics remain owned by the Explorer server.
 

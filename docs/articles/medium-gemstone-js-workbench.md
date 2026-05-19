@@ -164,4 +164,4 @@ The workbench is already useful as a wrapper around the Explorer. That is the ri
 
 - `gemstone-js`: https://github.com/unicompute/gemstone-js
 - VS Code workbench package: `vscode-gemstone-js-workbench`
-- Generated PDF bundle: `artifacts/docs/pdf`
+- Generated PDF bundle: `docs/pdf`

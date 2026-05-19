@@ -4,7 +4,7 @@ import { mkdirSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { spawnSync } from "node:child_process";
 
-const outputDir = "artifacts/docs/pdf";
+const outputDir = "docs/pdf";
 const documents = [
   ["README.md", "gemstone-js-readme.pdf", "gemstone-js README"],
   ["docs/architecture.md", "architecture.pdf", "Architecture"],

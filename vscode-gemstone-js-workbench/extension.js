@@ -58,6 +58,12 @@ function activate(context) {
     vscode.commands.registerCommand("gemstoneJs.openExplorer", () => openExplorer(explorer)),
     vscode.commands.registerCommand("gemstoneJs.openExplorerExternal", () => openExplorerExternal(explorer)),
     vscode.commands.registerCommand("gemstoneJs.openClassBrowser", (className) => openClassBrowser(explorer, commandArgumentValue(className))),
+    vscode.commands.registerCommand("gemstoneJs.openWorkspace", () => openExplorerWindow(explorer, "workspace")),
+    vscode.commands.registerCommand("gemstoneJs.openGlobals", () => openExplorerWindow(explorer, "globals")),
+    vscode.commands.registerCommand("gemstoneJs.openRoots", () => openExplorerWindow(explorer, "roots")),
+    vscode.commands.registerCommand("gemstoneJs.openSymbolList", () => openExplorerWindow(explorer, "symbols")),
+    vscode.commands.registerCommand("gemstoneJs.openCodegen", () => openExplorerWindow(explorer, "codegen")),
+    vscode.commands.registerCommand("gemstoneJs.openStatusLog", () => openExplorerWindow(explorer, "statusLog")),
     vscode.commands.registerCommand("gemstoneJs.startExplorer", async () => {
       await explorer.ensureStarted();
       refreshViews();
@@ -358,6 +364,10 @@ async function openClassBrowser(server, className) {
     return;
   }
   await openExplorer(server, { window: "classes", className: name });
+}
+
+async function openExplorerWindow(server, windowName) {
+  await openExplorer(server, { window: windowName });
 }
 
 function explorerUrl(baseUrl, options = {}) {
@@ -961,6 +971,12 @@ async function connectionItems(server) {
   const config = server.config();
   const items = [
     commandItem("Open Explorer", "gemstoneJs.openExplorer", "browser", "webview or browser"),
+    commandItem("Workspace", "gemstoneJs.openWorkspace", "edit", "evaluate Smalltalk"),
+    commandItem("Globals", "gemstoneJs.openGlobals", "globe", "browse UserGlobals"),
+    commandItem("Roots", "gemstoneJs.openRoots", "root-folder", "browse persistent roots"),
+    commandItem("Symbol List", "gemstoneJs.openSymbolList", "list-tree", "browse symbol dictionaries"),
+    commandItem("Codegen", "gemstoneJs.openCodegen", "code", "preview wrappers"),
+    commandItem("Status Log", "gemstoneJs.openStatusLog", "output", "recent Explorer activity"),
     commandItem("Doctor", "gemstoneJs.doctor", "beaker", "run local diagnostics"),
     commandItem("Evaluate Selection", "gemstoneJs.evaluateSelection", "run", "run selected Smalltalk"),
     commandItem("Debug Selection", "gemstoneJs.debugSelection", "debug-alt", "debug selected Smalltalk"),

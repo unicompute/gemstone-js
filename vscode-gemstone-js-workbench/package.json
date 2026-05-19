@@ -42,6 +42,12 @@
     "onCommand:gemstoneJs.restartExplorer",
     "onCommand:gemstoneJs.inspectOop",
     "onCommand:gemstoneJs.copyOop",
+    "onCommand:gemstoneJs.openWorkspace",
+    "onCommand:gemstoneJs.openGlobals",
+    "onCommand:gemstoneJs.openRoots",
+    "onCommand:gemstoneJs.openSymbolList",
+    "onCommand:gemstoneJs.openCodegen",
+    "onCommand:gemstoneJs.openStatusLog",
     "onCommand:gemstoneJs.doctor",
     "onCommand:gemstoneJs.evaluateSelection",
     "onCommand:gemstoneJs.debugSelection",
@@ -252,6 +258,30 @@
       {
         "command": "gemstoneJs.openClassBrowser",
         "title": "GemStone: Open Class Browser"
+      },
+      {
+        "command": "gemstoneJs.openWorkspace",
+        "title": "GemStone: Open Workspace"
+      },
+      {
+        "command": "gemstoneJs.openGlobals",
+        "title": "GemStone: Open Globals"
+      },
+      {
+        "command": "gemstoneJs.openRoots",
+        "title": "GemStone: Open Roots"
+      },
+      {
+        "command": "gemstoneJs.openSymbolList",
+        "title": "GemStone: Open Symbol List Browser"
+      },
+      {
+        "command": "gemstoneJs.openCodegen",
+        "title": "GemStone: Open Codegen"
+      },
+      {
+        "command": "gemstoneJs.openStatusLog",
+        "title": "GemStone: Open Status Log"
       },
       {
         "command": "gemstoneJs.startExplorer",

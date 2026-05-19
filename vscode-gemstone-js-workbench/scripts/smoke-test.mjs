@@ -297,6 +297,12 @@ try {
     "gemstoneJs.openExplorer",
     "gemstoneJs.openExplorerExternal",
     "gemstoneJs.openClassBrowser",
+    "gemstoneJs.openWorkspace",
+    "gemstoneJs.openGlobals",
+    "gemstoneJs.openRoots",
+    "gemstoneJs.openSymbolList",
+    "gemstoneJs.openCodegen",
+    "gemstoneJs.openStatusLog",
     "gemstoneJs.startExplorer",
     "gemstoneJs.stopExplorer",
     "gemstoneJs.restartExplorer",
@@ -356,6 +362,12 @@ try {
   const connectionItems = await connectionProvider.getChildren();
   assert.equal(connectionItems[0].label, "Explorer stopped or disconnected");
   assert(connectionItems.some((item) => item.label === "Start Explorer"));
+  assert(connectionItems.some((item) => item.label === "Workspace"));
+  assert(connectionItems.some((item) => item.label === "Globals"));
+  assert(connectionItems.some((item) => item.label === "Roots"));
+  assert(connectionItems.some((item) => item.label === "Symbol List"));
+  assert(connectionItems.some((item) => item.label === "Codegen"));
+  assert(connectionItems.some((item) => item.label === "Status Log"));
   assert(connectionItems.some((item) => item.label === "Inspect OOP"));
   assert.equal(connectionProvider.getTreeItem(connectionItems[0]).iconPath.id, "warning");
 
@@ -397,6 +409,17 @@ try {
   assert.match(captured.webviewPanels.at(-1).webview.html, /window=classes&amp;class=Booking/);
   await captured.commands.get("gemstoneJs.openClassBrowser")(classItems[1]);
   assert.match(captured.webviewPanels.at(-1).webview.html, /window=classes&amp;class=Booking/);
+  for (const [command, windowName] of [
+    ["gemstoneJs.openWorkspace", "workspace"],
+    ["gemstoneJs.openGlobals", "globals"],
+    ["gemstoneJs.openRoots", "roots"],
+    ["gemstoneJs.openSymbolList", "symbols"],
+    ["gemstoneJs.openCodegen", "codegen"],
+    ["gemstoneJs.openStatusLog", "statusLog"],
+  ]) {
+    await captured.commands.get(command)();
+    assert.match(captured.webviewPanels.at(-1).webview.html, new RegExp(`window=${windowName}`));
+  }
   captured.inputBoxValue = "4242";
   await captured.commands.get("gemstoneJs.inspectOop")();
   assert.equal(captured.lastInputBoxOptions.prompt, "GemStone object OOP");

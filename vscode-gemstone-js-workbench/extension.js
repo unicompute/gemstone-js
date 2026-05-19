@@ -57,6 +57,7 @@ function activate(context) {
     vscode.commands.registerCommand("gemstoneJs.clearClassesFilter", () => clearTreeFilter("classes")),
     vscode.commands.registerCommand("gemstoneJs.openExplorer", () => openExplorer(explorer)),
     vscode.commands.registerCommand("gemstoneJs.openExplorerExternal", () => openExplorerExternal(explorer)),
+    vscode.commands.registerCommand("gemstoneJs.copyExplorerUrl", () => copyExplorerUrl(explorer)),
     vscode.commands.registerCommand("gemstoneJs.openClassBrowser", (className) => openClassBrowser(explorer, commandArgumentValue(className))),
     vscode.commands.registerCommand("gemstoneJs.openWorkspace", () => openExplorerWindow(explorer, "workspace")),
     vscode.commands.registerCommand("gemstoneJs.openGlobals", () => openExplorerWindow(explorer, "globals")),
@@ -355,6 +356,13 @@ async function openExplorer(server, options = {}) {
 async function openExplorerExternal(server, options = {}) {
   const baseUrl = await server.ensureStarted();
   await vscode.env.openExternal(vscode.Uri.parse(explorerUrl(baseUrl, options)));
+}
+
+async function copyExplorerUrl(server) {
+  const baseUrl = await server.ensureStarted();
+  const url = explorerUrl(baseUrl);
+  await vscode.env.clipboard.writeText(url);
+  vscode.window.showInformationMessage(`Copied Explorer URL ${url}`);
 }
 
 async function openClassBrowser(server, className) {
@@ -971,6 +979,9 @@ async function connectionItems(server) {
   const config = server.config();
   const items = [
     commandItem("Open Explorer", "gemstoneJs.openExplorer", "browser", "webview or browser"),
+    commandItem("Open in Browser", "gemstoneJs.openExplorerExternal", "link-external", "system browser"),
+    commandItem("Copy Explorer URL", "gemstoneJs.copyExplorerUrl", "copy", `${config.explorerHost}:${config.explorerPort}`),
+    commandItem("Configure Connection", "gemstoneJs.configureConnection", "settings", "connection settings"),
     commandItem("Workspace", "gemstoneJs.openWorkspace", "edit", "evaluate Smalltalk"),
     commandItem("Globals", "gemstoneJs.openGlobals", "globe", "browse UserGlobals"),
     commandItem("Roots", "gemstoneJs.openRoots", "root-folder", "browse persistent roots"),

@@ -6,6 +6,7 @@ VS Code wrapper for the gemstone-js Explorer. The extension starts the local Exp
 
 - `GemStone: Open Explorer` starts the JS Explorer server and opens it in a VS Code webview.
 - `GemStone: Open Explorer in Browser` opens the Explorer URL in the system browser.
+- `GemStone: Copy Explorer URL` copies the managed Explorer URL.
 - `GemStone: Open Class Browser` opens the Explorer Class Browser focused on a class.
 - `GemStone: Open Workspace`, `GemStone: Open Globals`, `GemStone: Open Roots`, `GemStone: Open Symbol List Browser`, `GemStone: Open Codegen`, and `GemStone: Open Status Log` open focused Explorer tool windows.
 - `GemStone: Inspect OOP` opens the Explorer object inspector focused on an OOP.

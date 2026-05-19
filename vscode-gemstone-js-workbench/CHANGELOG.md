@@ -10,6 +10,7 @@
 - Added class browser deep links from class tree entries.
 - Added object inspector deep links from VS Code commands and tree entries.
 - Added direct commands for Explorer workspace, globals, roots, symbol list, codegen, and status log windows.
+- Added connection tree actions for browser opening, URL copy, and connection configuration.
 - Added tree context menu actions for inspecting and copying OOPs.
 - Added per-tree refresh and filter commands.
 - Added SecretStorage-backed password management.

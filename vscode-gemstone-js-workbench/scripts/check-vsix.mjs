@@ -89,6 +89,7 @@ function assertPackagedManifest(manifest, vsixManifest) {
   const expectedCommands = [
     "gemstoneJs.openExplorer",
     "gemstoneJs.openExplorerExternal",
+    "gemstoneJs.copyExplorerUrl",
     "gemstoneJs.openClassBrowser",
     "gemstoneJs.openWorkspace",
     "gemstoneJs.openGlobals",
@@ -115,6 +116,7 @@ function assertPackagedManifest(manifest, vsixManifest) {
   ];
   const expectedActivationEvents = [
     "onCommand:gemstoneJs.openExplorer",
+    "onCommand:gemstoneJs.copyExplorerUrl",
     "onCommand:gemstoneJs.openWorkspace",
     "onCommand:gemstoneJs.openGlobals",
     "onCommand:gemstoneJs.openRoots",

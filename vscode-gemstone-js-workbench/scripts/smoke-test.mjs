@@ -296,6 +296,7 @@ try {
     "gemstoneJs.clearClassesFilter",
     "gemstoneJs.openExplorer",
     "gemstoneJs.openExplorerExternal",
+    "gemstoneJs.copyExplorerUrl",
     "gemstoneJs.openClassBrowser",
     "gemstoneJs.openWorkspace",
     "gemstoneJs.openGlobals",
@@ -362,6 +363,9 @@ try {
   const connectionItems = await connectionProvider.getChildren();
   assert.equal(connectionItems[0].label, "Explorer stopped or disconnected");
   assert(connectionItems.some((item) => item.label === "Start Explorer"));
+  assert(connectionItems.some((item) => item.label === "Open in Browser"));
+  assert(connectionItems.some((item) => item.label === "Copy Explorer URL"));
+  assert(connectionItems.some((item) => item.label === "Configure Connection"));
   assert(connectionItems.some((item) => item.label === "Workspace"));
   assert(connectionItems.some((item) => item.label === "Globals"));
   assert(connectionItems.some((item) => item.label === "Roots"));
@@ -407,6 +411,11 @@ try {
 
   await captured.commands.get("gemstoneJs.openClassBrowser")("Booking");
   assert.match(captured.webviewPanels.at(-1).webview.html, /window=classes&amp;class=Booking/);
+  await captured.commands.get("gemstoneJs.openExplorerExternal")();
+  assert.equal(captured.openedExternal.at(-1).toString(), "http://127.0.0.1:3117/");
+  await captured.commands.get("gemstoneJs.copyExplorerUrl")();
+  assert.equal(captured.clipboardWrites.at(-1), "http://127.0.0.1:3117/");
+  assert.equal(captured.lastInfo, "Copied Explorer URL http://127.0.0.1:3117/");
   await captured.commands.get("gemstoneJs.openClassBrowser")(classItems[1]);
   assert.match(captured.webviewPanels.at(-1).webview.html, /window=classes&amp;class=Booking/);
   for (const [command, windowName] of [

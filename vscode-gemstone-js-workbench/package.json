@@ -37,6 +37,7 @@
     "onView:gemstoneJs.classesView",
     "onCommand:gemstoneJs.openExplorer",
     "onCommand:gemstoneJs.openExplorerExternal",
+    "onCommand:gemstoneJs.copyExplorerUrl",
     "onCommand:gemstoneJs.startExplorer",
     "onCommand:gemstoneJs.stopExplorer",
     "onCommand:gemstoneJs.restartExplorer",
@@ -254,6 +255,11 @@
       {
         "command": "gemstoneJs.openExplorerExternal",
         "title": "GemStone: Open Explorer in Browser"
+      },
+      {
+        "command": "gemstoneJs.copyExplorerUrl",
+        "title": "GemStone: Copy Explorer URL",
+        "icon": "$(copy)"
       },
       {
         "command": "gemstoneJs.openClassBrowser",

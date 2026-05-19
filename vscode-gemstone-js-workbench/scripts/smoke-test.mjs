@@ -221,6 +221,15 @@ try {
     args: ["gemstoneJs"],
   });
 
+  await captured.commands.get("gemstoneJs.debugSelection")();
+  assert.deepEqual(captured.startedDebugging, {
+    type: "gemstone-js",
+    request: "launch",
+    name: "GemStone Debug Selection",
+    source: "1 + 1",
+    returnKind: "inspect",
+  });
+
   const connectionProvider = captured.treeProviders.get("gemstoneJs.connectionView");
   const connectionItems = await connectionProvider.getChildren();
   assert.equal(connectionItems[0].label, "Explorer stopped or disconnected");
@@ -238,8 +247,156 @@ try {
   assert(messages.some((message) => message.type === "response" && message.command === "initialize" && message.success));
   assert(messages.some((message) => message.type === "event" && message.event === "initialized"));
 
+  await smokeDebugAdapter(extension._test.GemStoneDebugAdapter);
+
   console.log("VS Code workbench smoke test passed.");
 } finally {
   if (activated) await extension.deactivate().catch(() => undefined);
   Module._load = originalLoad;
+}
+
+async function smokeDebugAdapter(GemStoneDebugAdapter) {
+  const calls = [];
+  const fakeServer = {
+    config() {
+      return { defaultReturnKind: "inspect" };
+    },
+    async debug(source, returnKind) {
+      calls.push({ operation: "debug", source, returnKind });
+      return debugPayload("debug-1", "1/0", "ZeroDivide", [
+        {
+          index: 0,
+          selector: "SmallInteger>>/",
+          printString: "SmallInteger>>/",
+          source: "1/0",
+          sourceOffset: 2,
+          receiverOop: "42",
+          receiverClass: "SmallInteger",
+          variables: [
+            { name: "divisor", value: "0", className: "SmallInteger" },
+            { name: "receiver", oop: "42", className: "SmallInteger" },
+          ],
+        },
+      ]);
+    },
+    async debugAction(debugSessionId, action, frameIndex) {
+      calls.push({ operation: "debugAction", debugSessionId, action, frameIndex });
+      if (action === "terminate") return { ok: true, live: false };
+      return debugPayload(debugSessionId, "1/0", `after ${action}`, [
+        {
+          index: 0,
+          selector: "SmallInteger>>/",
+          printString: "SmallInteger>>/",
+          source: "1/0",
+          sourceOffset: 3,
+          receiverOop: "42",
+          receiverClass: "SmallInteger",
+          variables: [{ name: "action", value: action, className: "String" }],
+        },
+      ]);
+    },
+  };
+  const adapter = new GemStoneDebugAdapter(fakeServer, vscode.window.createOutputChannel("test"));
+  const messages = [];
+  let seq = 10;
+  adapter.onDidSendMessage((message) => messages.push(message));
+
+  const launch = await adapterRequest(adapter, messages, seq++, "launch", {
+    source: "1/0",
+    returnKind: "inspect",
+  });
+  assert.equal(launch.success, true);
+  assert(messages.some((message) => message.type === "event" && message.event === "stopped" && message.body?.reason === "exception"));
+  assert.deepEqual(calls[0], { operation: "debug", source: "1/0", returnKind: "inspect" });
+
+  const stack = await adapterRequest(adapter, messages, seq++, "stackTrace");
+  assert.equal(stack.body.totalFrames, 1);
+  assert.equal(stack.body.stackFrames[0].name, "SmallInteger>>/");
+  assert.equal(stack.body.stackFrames[0].source.sourceReference, 1);
+
+  const source = await adapterRequest(adapter, messages, seq++, "source", { sourceReference: 1 });
+  assert.equal(source.body.content, "1/0");
+
+  const scopes = await adapterRequest(adapter, messages, seq++, "scopes", { frameId: 1 });
+  assert.deepEqual(scopes.body.scopes.map((scope) => scope.name), ["Locals", "Receiver", "GemStone"]);
+
+  const locals = await adapterRequest(adapter, messages, seq++, "variables", {
+    variablesReference: scopes.body.scopes[0].variablesReference,
+  });
+  assert.deepEqual(locals.body.variables[0], {
+    name: "divisor",
+    value: "0",
+    type: "SmallInteger",
+    variablesReference: 0,
+  });
+
+  const receiver = await adapterRequest(adapter, messages, seq++, "variables", {
+    variablesReference: scopes.body.scopes[1].variablesReference,
+  });
+  assert.equal(receiver.body.variables[0].name, "receiverOop");
+  assert.equal(receiver.body.variables[0].value, "42");
+
+  const debug = await adapterRequest(adapter, messages, seq++, "variables", {
+    variablesReference: scopes.body.scopes[2].variablesReference,
+  });
+  assert.equal(debug.body.variables[0].name, "debugSessionId");
+  assert.equal(debug.body.variables[0].value, "debug-1");
+  assert.equal(debug.body.variables[1].value, "777");
+  assert.equal(debug.body.variables[2].value, "888");
+
+  const next = await adapterRequest(adapter, messages, seq++, "next", { threadId: 1 });
+  assert.equal(next.success, true);
+  assert.deepEqual(calls.at(-1), {
+    operation: "debugAction",
+    debugSessionId: "debug-1",
+    action: "stepOver",
+    frameIndex: 0,
+  });
+  assert(messages.some((message) => message.type === "event" && message.event === "stopped" && message.body?.reason === "stepOver"));
+
+  await adapterRequest(adapter, messages, seq++, "disconnect");
+  assert.deepEqual(calls.at(-1), {
+    operation: "debugAction",
+    debugSessionId: "debug-1",
+    action: "terminate",
+    frameIndex: 0,
+  });
+}
+
+function debugPayload(debugSessionId, source, message, frames) {
+  return {
+    ok: false,
+    live: true,
+    debugSessionId,
+    source,
+    returnKind: "inspect",
+    elapsedMs: 1,
+    problem: {
+      name: "ZeroDivide",
+      message,
+      number: 2026,
+      contextOop: "777",
+      exceptionOop: "888",
+      frames,
+    },
+  };
+}
+
+async function adapterRequest(adapter, messages, seq, command, args = undefined) {
+  adapter.handleMessage({
+    seq,
+    type: "request",
+    command,
+    arguments: args,
+  });
+  return waitFor(() => messages.find((message) => message.type === "response" && message.request_seq === seq));
+}
+
+async function waitFor(callback) {
+  for (let attempt = 0; attempt < 25; attempt += 1) {
+    const value = callback();
+    if (value) return value;
+    await new Promise((resolveDone) => setImmediate(resolveDone));
+  }
+  throw new Error("Timed out waiting for debug adapter response.");
 }

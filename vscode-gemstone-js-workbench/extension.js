@@ -913,6 +913,7 @@ module.exports = {
   activate,
   deactivate,
   _test: {
+    GemStoneDebugAdapter,
     explorerWebviewHtml,
     readConfig,
     resolveRepoPath,

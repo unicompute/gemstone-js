@@ -16,6 +16,7 @@ const captured = {
   inputBoxValues: [],
   inputBoxValue: "new-secret",
   openedExternal: [],
+  outputChannels: [],
   quickPickLabel: "Enabled",
   quickPickOptions: [],
   statusBars: [],
@@ -133,13 +134,24 @@ const vscode = {
         },
       },
     },
-    createOutputChannel() {
-      return {
+    createOutputChannel(name) {
+      const channel = {
         append() {},
         appendLine() {},
-        dispose() {},
-        show() {},
+        disposed: false,
+        name,
+        shown: false,
+        showPreserveFocus: undefined,
+        dispose() {
+          this.disposed = true;
+        },
+        show(preserveFocus) {
+          this.shown = true;
+          this.showPreserveFocus = preserveFocus;
+        },
       };
+      captured.outputChannels.push(channel);
+      return channel;
     },
     createWebviewPanel() {
       const panel = { webview: { html: "" } };
@@ -294,6 +306,7 @@ try {
     "gemstoneJs.clearRootsFilter",
     "gemstoneJs.clearGlobalsFilter",
     "gemstoneJs.clearClassesFilter",
+    "gemstoneJs.openOutput",
     "gemstoneJs.openExplorer",
     "gemstoneJs.openExplorerExternal",
     "gemstoneJs.copyExplorerUrl",
@@ -326,6 +339,10 @@ try {
     command: "workbench.action.openSettings",
     args: ["gemstoneJs"],
   });
+  assert.equal(captured.outputChannels[0].name, "GemStone JS");
+  await captured.commands.get("gemstoneJs.openOutput")();
+  assert.equal(captured.outputChannels[0].shown, true);
+  assert.equal(captured.outputChannels[0].showPreserveFocus, true);
 
   await captured.commands.get("gemstoneJs.setPassword")();
   assert.equal(captured.lastInputBoxOptions.password, true);
@@ -372,6 +389,7 @@ try {
   assert(connectionItems.some((item) => item.label === "Symbol List"));
   assert(connectionItems.some((item) => item.label === "Codegen"));
   assert(connectionItems.some((item) => item.label === "Status Log"));
+  assert(connectionItems.some((item) => item.label === "Output"));
   assert(connectionItems.some((item) => item.label === "Inspect OOP"));
   assert(connectionItems.some((item) => item.label === "Run File"));
   assert.equal(connectionProvider.getTreeItem(connectionItems[0]).iconPath.id, "warning");

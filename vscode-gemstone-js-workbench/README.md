@@ -16,6 +16,7 @@ VS Code wrapper for the gemstone-js Explorer. The extension starts the local Exp
 - `GemStone: Restart Explorer Server` restarts the managed Explorer process.
 - `GemStone: Filter Roots`, `GemStone: Filter Globals`, and `GemStone: Filter Classes` narrow tree contents.
 - `GemStone: Doctor` runs connection/config diagnostics and writes JSON to the GemStone JS output channel.
+- `GemStone: Open Output` opens the GemStone JS output channel.
 - `GemStone: Evaluate Selection` sends the current selection to the Explorer session. If evaluation raises, the debugger opens automatically.
 - `GemStone: Debug Selection` starts a VS Code debug session for the current selection.
 - `GemStone: Run File` evaluates the current editor contents.

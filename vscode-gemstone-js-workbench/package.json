@@ -67,6 +67,7 @@
     "onCommand:gemstoneJs.clearRootsFilter",
     "onCommand:gemstoneJs.clearGlobalsFilter",
     "onCommand:gemstoneJs.clearClassesFilter",
+    "onCommand:gemstoneJs.openOutput",
     "onCommand:gemstoneJs.openClassBrowser",
     "onDebugResolve:gemstone-js"
   ],
@@ -247,6 +248,11 @@
         "command": "gemstoneJs.clearClassesFilter",
         "title": "GemStone: Clear Classes Filter",
         "icon": "$(clear-all)"
+      },
+      {
+        "command": "gemstoneJs.openOutput",
+        "title": "GemStone: Open Output",
+        "icon": "$(output)"
       },
       {
         "command": "gemstoneJs.openExplorer",

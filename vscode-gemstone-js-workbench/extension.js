@@ -5,13 +5,17 @@ const fs = require("node:fs");
 const path = require("node:path");
 const vscode = require("vscode");
 
+const PASSWORD_SECRET_KEY = "gemstoneJs.password";
+
 let explorer;
 let output;
 let providers = [];
+let statusBar;
 
 function activate(context) {
   output = vscode.window.createOutputChannel("GemStone JS");
   explorer = new ExplorerServer(context, output);
+  statusBar = new GemStoneStatusBar(explorer);
 
   providers = [
     new WorkbenchTreeProvider(() => connectionItems(explorer)),
@@ -34,6 +38,7 @@ function activate(context) {
   context.subscriptions.push(
     output,
     explorer,
+    statusBar,
     vscode.commands.registerCommand("gemstoneJs.refreshViews", refreshViews),
     vscode.commands.registerCommand("gemstoneJs.openExplorer", () => openExplorer(explorer)),
     vscode.commands.registerCommand("gemstoneJs.openExplorerExternal", () => openExplorerExternal(explorer)),
@@ -53,6 +58,8 @@ function activate(context) {
     vscode.commands.registerCommand("gemstoneJs.evaluateSelection", () => evaluateSelection(explorer)),
     vscode.commands.registerCommand("gemstoneJs.debugSelection", () => debugSelection(explorer)),
     vscode.commands.registerCommand("gemstoneJs.runFile", () => runFile(explorer)),
+    vscode.commands.registerCommand("gemstoneJs.setPassword", () => setPassword(explorer)),
+    vscode.commands.registerCommand("gemstoneJs.clearPassword", () => clearPassword(explorer)),
     vscode.commands.registerCommand("gemstoneJs.openSettings", () =>
       vscode.commands.executeCommand("workbench.action.openSettings", "gemstoneJs"),
     ),
@@ -63,6 +70,7 @@ function activate(context) {
       },
     }),
   );
+  void explorer.loadSecretPassword().then(() => refreshStatusBar());
 }
 
 async function deactivate() {
@@ -75,10 +83,11 @@ class ExplorerServer {
     this.output = outputChannel;
     this.process = undefined;
     this.starting = undefined;
+    this.secretPassword = undefined;
   }
 
   config() {
-    return readConfig(this.context);
+    return readConfig(this.context, this.secretPassword);
   }
 
   baseUrl() {
@@ -111,6 +120,7 @@ class ExplorerServer {
   }
 
   async start() {
+    await this.loadSecretPassword();
     const config = this.config();
     const explorerScript = config.explorerScriptPath || path.join(config.repoPath, "examples", "explorer.ts");
     if (!fs.existsSync(explorerScript)) {
@@ -206,8 +216,80 @@ class ExplorerServer {
     return this.post("/api/debug/action", { debugSessionId, action, frameIndex });
   }
 
+  async loadSecretPassword() {
+    if (!this.context.secrets || typeof this.context.secrets.get !== "function") {
+      this.secretPassword = "";
+      return this.secretPassword;
+    }
+    this.secretPassword = await this.context.secrets.get(PASSWORD_SECRET_KEY) || "";
+    return this.secretPassword;
+  }
+
+  async setPassword(password) {
+    if (!this.context.secrets || typeof this.context.secrets.store !== "function") {
+      throw new Error("VS Code SecretStorage is not available in this extension host.");
+    }
+    await this.context.secrets.store(PASSWORD_SECRET_KEY, password);
+    this.secretPassword = password;
+  }
+
+  async clearPassword() {
+    if (this.context.secrets && typeof this.context.secrets.delete === "function") {
+      await this.context.secrets.delete(PASSWORD_SECRET_KEY);
+    }
+    this.secretPassword = "";
+  }
+
   dispose() {
     void this.stop();
+  }
+}
+
+class GemStoneStatusBar {
+  constructor(server) {
+    this.server = server;
+    this.item = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
+    this.item.name = "GemStone JS";
+    this.item.command = "gemstoneJs.doctor";
+    this.item.text = "$(debug-disconnect) GemStone: stopped";
+    this.item.tooltip = "GemStone Explorer is not connected. Click to run Doctor.";
+    this.item.show();
+  }
+
+  async refresh() {
+    const config = this.server.config();
+    const user = config.env.GS_USER || "GemStone";
+    const configuredStone = config.env.GS_STONE || "stone";
+    const worker = config.env.GS_NATIVE_SESSION_WORKER ? " worker" : "";
+    try {
+      const status = await this.server.status(false);
+      const stone = String(status.stone || status.config?.stone || configuredStone);
+      this.item.text = `$(database) GemStone: ${user}@${stone}${worker}`;
+      this.item.tooltip = [
+        "GemStone Explorer is running.",
+        `User: ${user}`,
+        `Stone: ${stone}`,
+        `Explorer: ${this.server.baseUrl()}`,
+        `Native session worker: ${config.env.GS_NATIVE_SESSION_WORKER ? "enabled" : "disabled"}`,
+      ].join("\n");
+      this.item.command = "gemstoneJs.openExplorer";
+    } catch {
+      this.item.text = `$(debug-disconnect) GemStone: ${user}@${configuredStone}`;
+      this.item.tooltip = [
+        "GemStone Explorer is stopped or unreachable.",
+        `User: ${user}`,
+        `Stone: ${configuredStone}`,
+        `Explorer: ${this.server.baseUrl()}`,
+        `Native session worker: ${config.env.GS_NATIVE_SESSION_WORKER ? "enabled" : "disabled"}`,
+        "Click to run Doctor.",
+      ].join("\n");
+      this.item.command = "gemstoneJs.doctor";
+    }
+    this.item.show();
+  }
+
+  dispose() {
+    this.item.dispose();
   }
 }
 
@@ -273,6 +355,7 @@ function explorerWebviewHtml(explorerUrl) {
 async function runDoctor(server) {
   output.show(true);
   try {
+    await server.loadSecretPassword();
     const report = await server.doctor();
     output.appendLine("GemStone Doctor");
     output.appendLine(JSON.stringify(report, null, 2));
@@ -281,7 +364,37 @@ async function runDoctor(server) {
   } catch (error) {
     output.appendLine(`GemStone doctor failed: ${error.message}`);
     vscode.window.showErrorMessage(`GemStone doctor failed: ${error.message}`);
+  } finally {
+    refreshStatusBar();
   }
+}
+
+async function setPassword(server) {
+  const password = await vscode.window.showInputBox({
+    prompt: "GemStone password",
+    placeHolder: "Stored in VS Code SecretStorage",
+    password: true,
+    ignoreFocusOut: true,
+  });
+  if (password === undefined) return;
+  if (password.length === 0) {
+    await clearPassword(server);
+    return;
+  }
+  await server.setPassword(password);
+  vscode.window.showInformationMessage("GemStone password stored in VS Code SecretStorage.");
+  refreshViews();
+}
+
+async function clearPassword(server) {
+  await server.clearPassword();
+  const config = server.config();
+  if (config.passwordSource === "setting") {
+    vscode.window.showWarningMessage("SecretStorage password cleared. The legacy gemstoneJs.password setting is still configured.");
+  } else {
+    vscode.window.showInformationMessage("GemStone SecretStorage password cleared.");
+  }
+  refreshViews();
 }
 
 async function evaluateSelection(server) {
@@ -413,6 +526,7 @@ class GemStoneDebugAdapter {
     this.returnKind = "inspect";
     this.frames = [];
     this.result = undefined;
+    this.selectedFrameId = undefined;
     this.variableHandles = new Map();
     this.nextVariableReference = 1000;
   }
@@ -433,6 +547,7 @@ class GemStoneDebugAdapter {
           supportsStepInTargetsRequest: false,
           supportsSetVariable: false,
           supportsEvaluateForHovers: false,
+          supportsRestartFrame: true,
         });
         this.sendEvent("initialized");
         break;
@@ -472,6 +587,9 @@ class GemStoneDebugAdapter {
       case "restart":
         await this.action(message, "restart");
         break;
+      case "restartFrame":
+        await this.action(message, "restart");
+        break;
       case "disconnect":
         await this.disconnect(message);
         break;
@@ -505,11 +623,16 @@ class GemStoneDebugAdapter {
   async action(message, action) {
     if (!this.debugSessionId) {
       this.sendResponse(message);
+      this.sendEvent("output", {
+        category: "stderr",
+        output: "No live GemStone debug session is available. Run GemStone: Debug Selection on code that raises or halts first.\n",
+      });
       this.sendEvent("terminated");
       return;
     }
-    const selectedFrame = this.frames[0]?.index ?? 0;
-    const result = await this.server.debugAction(this.debugSessionId, action, selectedFrame);
+    const selectedFrame = this.frameForId(message.arguments?.frameId || this.selectedFrameId);
+    const selectedFrameIndex = Number(selectedFrame.index ?? 0);
+    const result = await this.server.debugAction(this.debugSessionId, action, selectedFrameIndex);
     this.result = result;
     this.applyResult(result);
     this.sendResponse(message, { allThreadsContinued: false });
@@ -559,6 +682,7 @@ class GemStoneDebugAdapter {
 
   scopes(message) {
     const frame = this.frameForId(message.arguments?.frameId);
+    this.selectedFrameId = message.arguments?.frameId;
     const scopes = [
       {
         name: "Locals",
@@ -695,6 +819,8 @@ async function connectionItems(server) {
     commandItem("Evaluate Selection", "gemstoneJs.evaluateSelection", "run", "run selected Smalltalk"),
     commandItem("Debug Selection", "gemstoneJs.debugSelection", "debug-alt", "debug selected Smalltalk"),
     commandItem("Restart Explorer", "gemstoneJs.restartExplorer", "debug-restart", `${config.explorerHost}:${config.explorerPort}`),
+    commandItem("Set Password", "gemstoneJs.setPassword", "key", "store password in SecretStorage"),
+    commandItem("Clear Password", "gemstoneJs.clearPassword", "trash", "clear SecretStorage password"),
   ];
   try {
     const status = await server.status(false);
@@ -805,14 +931,21 @@ class TreeNode {
 
 function refreshViews() {
   for (const provider of providers) provider.refresh();
+  refreshStatusBar();
 }
 
-function readConfig(context) {
+function refreshStatusBar() {
+  if (statusBar) void statusBar.refresh();
+}
+
+function readConfig(context, secretPassword) {
   const cfg = vscode.workspace.getConfiguration("gemstoneJs");
   const repoPath = resolveRepoPath(context, String(cfg.get("repoPath") || ""));
   const extraEnv = cfg.get("extraEnv") || {};
   const user = String(cfg.get("user") || "");
-  const password = String(cfg.get("password") || "");
+  const settingPassword = String(cfg.get("password") || "");
+  const password = secretPassword ? secretPassword : settingPassword;
+  const passwordSource = secretPassword ? "secretStorage" : settingPassword ? "setting" : "empty";
   const stone = String(cfg.get("stone") || "");
   const netldiHost = String(cfg.get("netldiHost") || "");
   const netldiNameOrPort = String(cfg.get("netldiNameOrPort") || "");
@@ -842,6 +975,7 @@ function readConfig(context) {
     openMode: String(cfg.get("openMode") || "webview"),
     defaultReturnKind: String(cfg.get("defaultReturnKind") || "inspect"),
     env,
+    passwordSource,
   };
 }
 

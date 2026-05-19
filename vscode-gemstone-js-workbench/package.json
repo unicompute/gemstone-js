@@ -44,6 +44,8 @@
     "onCommand:gemstoneJs.evaluateSelection",
     "onCommand:gemstoneJs.debugSelection",
     "onCommand:gemstoneJs.runFile",
+    "onCommand:gemstoneJs.setPassword",
+    "onCommand:gemstoneJs.clearPassword",
     "onCommand:gemstoneJs.refreshViews",
     "onDebugResolve:gemstone-js"
   ],
@@ -94,7 +96,7 @@
         "gemstoneJs.password": {
           "type": "string",
           "default": "",
-          "description": "GemStone password. Exported as GS_PASS and GS_PASSWORD."
+          "description": "Legacy GemStone password fallback. Prefer GemStone: Set Password, which stores the password in VS Code SecretStorage."
         },
         "gemstoneJs.stone": {
           "type": "string",
@@ -173,15 +175,25 @@
       },
       {
         "command": "gemstoneJs.evaluateSelection",
-        "title": "GemStone: Evaluate Selection"
+        "title": "GemStone: Evaluate Selection",
+        "icon": "$(run)"
       },
       {
         "command": "gemstoneJs.debugSelection",
-        "title": "GemStone: Debug Selection"
+        "title": "GemStone: Debug Selection",
+        "icon": "$(debug-alt)"
       },
       {
         "command": "gemstoneJs.runFile",
         "title": "GemStone: Run File"
+      },
+      {
+        "command": "gemstoneJs.setPassword",
+        "title": "GemStone: Set Password"
+      },
+      {
+        "command": "gemstoneJs.clearPassword",
+        "title": "GemStone: Clear Password"
       }
     ],
     "debuggers": [
@@ -219,6 +231,30 @@
             "name": "Debug GemStone Selection",
             "source": "",
             "returnKind": "inspect"
+          }
+        ],
+        "configurationSnippets": [
+          {
+            "label": "GemStone: Debug Selection",
+            "description": "Debug the active editor selection, or the whole document when no text is selected.",
+            "body": {
+              "type": "gemstone-js",
+              "request": "launch",
+              "name": "Debug GemStone Selection",
+              "source": "",
+              "returnKind": "inspect"
+            }
+          },
+          {
+            "label": "GemStone: Debug Source",
+            "description": "Debug an inline Smalltalk source expression through the gemstone-js Explorer.",
+            "body": {
+              "type": "gemstone-js",
+              "request": "launch",
+              "name": "Debug GemStone Source",
+              "source": "1/0",
+              "returnKind": "inspect"
+            }
           }
         ]
       }
@@ -267,6 +303,18 @@
         },
         {
           "command": "gemstoneJs.debugSelection",
+          "group": "navigation@2"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "gemstoneJs.evaluateSelection",
+          "when": "editorTextFocus",
+          "group": "navigation@1"
+        },
+        {
+          "command": "gemstoneJs.debugSelection",
+          "when": "editorTextFocus",
           "group": "navigation@2"
         }
       ]

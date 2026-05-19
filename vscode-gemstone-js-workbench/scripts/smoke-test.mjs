@@ -12,7 +12,9 @@ const captured = {
   commands: new Map(),
   debugFactories: new Map(),
   executedCommands: [],
+  inputBoxValue: "new-secret",
   openedExternal: [],
+  statusBars: [],
   treeProviders: new Map(),
 };
 
@@ -24,7 +26,7 @@ const configValues = {
   explorerPort: 3117,
   openMode: "webview",
   user: "DataCurator",
-  password: "swordfish",
+  password: "legacy-password",
   stone: "gs64stone",
   netldiHost: "localhost",
   netldiNameOrPort: "netldi",
@@ -73,6 +75,7 @@ class DebugAdapterInlineImplementation {
 const vscode = {
   DebugAdapterInlineImplementation,
   EventEmitter,
+  StatusBarAlignment: { Left: 1, Right: 2 },
   ThemeIcon,
   TreeItem,
   TreeItemCollapsibleState: { None: 0, Collapsed: 1 },
@@ -128,6 +131,26 @@ const vscode = {
     createWebviewPanel() {
       return { webview: { html: "" } };
     },
+    createStatusBarItem(alignment, priority) {
+      const item = {
+        alignment,
+        priority,
+        text: "",
+        tooltip: "",
+        command: "",
+        name: "",
+        disposed: false,
+        visible: false,
+        dispose() {
+          this.disposed = true;
+        },
+        show() {
+          this.visible = true;
+        },
+      };
+      captured.statusBars.push(item);
+      return item;
+    },
     registerTreeDataProvider(viewId, provider) {
       captured.treeProviders.set(viewId, provider);
       return { dispose() {} };
@@ -139,6 +162,10 @@ const vscode = {
     showInformationMessage(message) {
       captured.lastInfo = message;
       return Promise.resolve();
+    },
+    showInputBox(options) {
+      captured.lastInputBoxOptions = options;
+      return Promise.resolve(captured.inputBoxValue);
     },
     showWarningMessage(message) {
       captured.lastWarning = message;
@@ -169,7 +196,22 @@ global.fetch = async () => {
 };
 
 const extension = require(resolve(extensionRoot, "extension.js"));
-const context = { extensionPath: extensionRoot, subscriptions: [] };
+const secrets = new Map([["gemstoneJs.password", "secret-password"]]);
+const context = {
+  extensionPath: extensionRoot,
+  subscriptions: [],
+  secrets: {
+    async get(key) {
+      return secrets.get(key);
+    },
+    async store(key, value) {
+      secrets.set(key, value);
+    },
+    async delete(key) {
+      secrets.delete(key);
+    },
+  },
+};
 let activated = false;
 
 try {
@@ -185,9 +227,15 @@ try {
   assert.equal(config.env.GS_CUSTOM, "custom");
   assert.equal(config.env.GS_USER, "DataCurator");
   assert.equal(config.env.GS_USERNAME, "DataCurator");
-  assert.equal(config.env.GS_PASS, "swordfish");
-  assert.equal(config.env.GS_PASSWORD, "swordfish");
+  assert.equal(config.env.GS_PASS, "legacy-password");
+  assert.equal(config.env.GS_PASSWORD, "legacy-password");
+  assert.equal(config.passwordSource, "setting");
   assert.equal(config.env.GS_NATIVE_SESSION_WORKER, "1");
+
+  const secretConfig = extension._test.readConfig(context, "secret-password");
+  assert.equal(secretConfig.env.GS_PASS, "secret-password");
+  assert.equal(secretConfig.env.GS_PASSWORD, "secret-password");
+  assert.equal(secretConfig.passwordSource, "secretStorage");
 
   assert.equal(extension._test.selectedSource(), "1 + 1");
   assert.deepEqual(extension._test.sourceLocationForOffset("a\nbc", 4), { line: 2, column: 2 });
@@ -195,6 +243,9 @@ try {
 
   extension.activate(context);
   activated = true;
+  await waitFor(() => captured.statusBars[0]?.visible);
+  await waitFor(() => captured.statusBars[0]?.text.includes("GemStone: DataCurator@gs64stone"));
+  assert.equal(captured.statusBars[0].command, "gemstoneJs.doctor");
   assert.equal(captured.treeProviders.size, 4);
   assert.equal(captured.debugFactories.size, 1);
 
@@ -209,6 +260,8 @@ try {
     "gemstoneJs.evaluateSelection",
     "gemstoneJs.debugSelection",
     "gemstoneJs.runFile",
+    "gemstoneJs.setPassword",
+    "gemstoneJs.clearPassword",
     "gemstoneJs.openSettings",
     "gemstoneJs.inspectOop",
   ]) {
@@ -220,6 +273,15 @@ try {
     command: "workbench.action.openSettings",
     args: ["gemstoneJs"],
   });
+
+  await captured.commands.get("gemstoneJs.setPassword")();
+  assert.equal(captured.lastInputBoxOptions.password, true);
+  assert.equal(secrets.get("gemstoneJs.password"), "new-secret");
+  assert.equal(captured.lastInfo, "GemStone password stored in VS Code SecretStorage.");
+
+  await captured.commands.get("gemstoneJs.clearPassword")();
+  assert.equal(secrets.has("gemstoneJs.password"), false);
+  assert.equal(captured.lastWarning, "SecretStorage password cleared. The legacy gemstoneJs.password setting is still configured.");
 
   await captured.commands.get("gemstoneJs.debugSelection")();
   assert.deepEqual(captured.startedDebugging, {
@@ -277,6 +339,16 @@ async function smokeDebugAdapter(GemStoneDebugAdapter) {
             { name: "receiver", oop: "42", className: "SmallInteger" },
           ],
         },
+        {
+          index: 1,
+          selector: "ZeroDivide>>defaultAction",
+          printString: "ZeroDivide>>defaultAction",
+          source: "self signal",
+          sourceOffset: 1,
+          receiverOop: "888",
+          receiverClass: "ZeroDivide",
+          variables: [{ name: "exception", oop: "888", className: "ZeroDivide" }],
+        },
       ]);
     },
     async debugAction(debugSessionId, action, frameIndex) {
@@ -310,7 +382,7 @@ async function smokeDebugAdapter(GemStoneDebugAdapter) {
   assert.deepEqual(calls[0], { operation: "debug", source: "1/0", returnKind: "inspect" });
 
   const stack = await adapterRequest(adapter, messages, seq++, "stackTrace");
-  assert.equal(stack.body.totalFrames, 1);
+  assert.equal(stack.body.totalFrames, 2);
   assert.equal(stack.body.stackFrames[0].name, "SmallInteger>>/");
   assert.equal(stack.body.stackFrames[0].source.sourceReference, 1);
 
@@ -344,13 +416,14 @@ async function smokeDebugAdapter(GemStoneDebugAdapter) {
   assert.equal(debug.body.variables[1].value, "777");
   assert.equal(debug.body.variables[2].value, "888");
 
+  await adapterRequest(adapter, messages, seq++, "scopes", { frameId: 2 });
   const next = await adapterRequest(adapter, messages, seq++, "next", { threadId: 1 });
   assert.equal(next.success, true);
   assert.deepEqual(calls.at(-1), {
     operation: "debugAction",
     debugSessionId: "debug-1",
     action: "stepOver",
-    frameIndex: 0,
+    frameIndex: 1,
   });
   assert(messages.some((message) => message.type === "event" && message.event === "stopped" && message.body?.reason === "stepOver"));
 
@@ -361,6 +434,16 @@ async function smokeDebugAdapter(GemStoneDebugAdapter) {
     action: "terminate",
     frameIndex: 0,
   });
+
+  const noSessionAdapter = new GemStoneDebugAdapter(fakeServer, vscode.window.createOutputChannel("test"));
+  const noSessionMessages = [];
+  noSessionAdapter.onDidSendMessage((message) => noSessionMessages.push(message));
+  await adapterRequest(noSessionAdapter, noSessionMessages, seq++, "next", { threadId: 1 });
+  assert(noSessionMessages.some((message) =>
+    message.type === "event" &&
+    message.event === "output" &&
+    message.body?.output.includes("No live GemStone debug session is available")
+  ));
 }
 
 function debugPayload(debugSessionId, source, message, frames) {

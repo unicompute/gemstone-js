@@ -19,6 +19,7 @@ const captured = {
   outputChannels: [],
   quickPickLabel: "Enabled",
   quickPickOptions: [],
+  selectedText: "  1 + 1  ",
   statusBars: [],
   treeProviders: new Map(),
   updatedSettings: [],
@@ -131,7 +132,7 @@ const vscode = {
       document: {
         fileName: "debug-smoke.st",
         getText(selection) {
-          return selection ? "  1 + 1  " : "self error: 'whole document'";
+          return selection ? captured.selectedText : "self error: 'whole document'";
         },
       },
     },
@@ -276,6 +277,10 @@ try {
   assert.equal(secretConfig.passwordSource, "secretStorage");
 
   assert.equal(extension._test.selectedSource(), "1 + 1");
+  assert.equal(extension._test.selectedClassNameCandidate(), "");
+  captured.selectedText = "  Booking  ";
+  assert.equal(extension._test.selectedClassNameCandidate(), "Booking");
+  captured.selectedText = "  1 + 1  ";
   assert.deepEqual(extension._test.sourceLocationForOffset("a\nbc", 4), { line: 2, column: 2 });
   assert.match(extension._test.explorerWebviewHtml("http://127.0.0.1:3117/?q=<x>"), /frame-src http:\/\/127\.0\.0\.1:3117/);
   assert.equal(
@@ -443,6 +448,14 @@ try {
 
   await captured.commands.get("gemstoneJs.openClassBrowser")("Booking");
   assert.match(captured.webviewPanels.at(-1).webview.html, /window=classes&amp;class=Booking/);
+  captured.selectedText = "  BookingLine  ";
+  await captured.commands.get("gemstoneJs.openClassBrowser")();
+  assert.match(captured.webviewPanels.at(-1).webview.html, /window=classes&amp;class=BookingLine/);
+  captured.selectedText = "  1 + 1  ";
+  captured.inputBoxValue = "Object";
+  await captured.commands.get("gemstoneJs.openClassBrowser")();
+  assert.equal(captured.lastInputBoxOptions.prompt, "GemStone class name");
+  assert.match(captured.webviewPanels.at(-1).webview.html, /window=classes&amp;class=Object/);
   await captured.commands.get("gemstoneJs.openExplorerExternal")();
   assert.equal(captured.openedExternal.at(-1).toString(), "http://127.0.0.1:3117/");
   await captured.commands.get("gemstoneJs.copyExplorerUrl")();

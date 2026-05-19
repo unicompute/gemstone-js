@@ -11,6 +11,7 @@
 - Added object inspector deep links from VS Code commands and tree entries.
 - Added object-name copy support from root/global tree entries.
 - Added class-name copy support from the Classes tree and command palette.
+- Improved Open Class Browser so it can use a selected class name or prompt from the command palette.
 - Added direct commands for Explorer workspace, globals, roots, symbol list, codegen, and status log windows.
 - Added connection tree actions for browser opening, URL copy, and connection configuration.
 - Added Run File to editor title/context menus and the connection tree.

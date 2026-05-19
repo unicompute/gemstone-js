@@ -7,7 +7,7 @@ VS Code wrapper for the gemstone-js Explorer. The extension starts the local Exp
 - `GemStone: Open Explorer` starts the JS Explorer server and opens it in a VS Code webview.
 - `GemStone: Open Explorer in Browser` opens the Explorer URL in the system browser.
 - `GemStone: Copy Explorer URL` copies the managed Explorer URL.
-- `GemStone: Open Class Browser` opens the Explorer Class Browser focused on a class.
+- `GemStone: Open Class Browser` opens the Explorer Class Browser focused on a class from a tree row, editor selection, or prompt.
 - `GemStone: Open Workspace`, `GemStone: Open Globals`, `GemStone: Open Roots`, `GemStone: Open Symbol List Browser`, `GemStone: Open Codegen`, and `GemStone: Open Status Log` open focused Explorer tool windows.
 - `GemStone: Inspect OOP` opens the Explorer object inspector focused on an OOP.
 - `GemStone: Copy OOP` copies an object OOP from tree context menus or a prompt.
@@ -37,7 +37,7 @@ The GemStone activity bar contributes:
 - Classes
 
 Roots, globals, and classes load from the Explorer API. OOP-backed items can be inspected from the tree.
-Class rows open the Explorer Class Browser focused on that class and expose context menu actions for opening/copying the class name. OOP rows open the Explorer object inspector and expose context menu actions for inspect, copy OOP, and copy object name. Root/global/class views have their own refresh and filter actions.
+Class rows open the Explorer Class Browser focused on that class and expose context menu actions for opening/copying the class name. The command palette can also open a selected class name or prompt for one. OOP rows open the Explorer object inspector and expose context menu actions for inspect, copy OOP, and copy object name. Root/global/class views have their own refresh and filter actions.
 
 ## Language Support
 

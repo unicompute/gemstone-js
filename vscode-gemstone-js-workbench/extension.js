@@ -370,7 +370,17 @@ async function copyExplorerUrl(server) {
 }
 
 async function openClassBrowser(server, className) {
-  const name = String(className || "").trim();
+  let name = String(className || "").trim();
+  if (!name) name = selectedClassNameCandidate();
+  if (!name) {
+    const answer = await vscode.window.showInputBox({
+      prompt: "GemStone class name",
+      placeHolder: "Object",
+      ignoreFocusOut: true,
+    });
+    if (answer === undefined) return;
+    name = answer.trim();
+  }
   if (!name) {
     await openExplorer(server, { window: "classes" });
     return;
@@ -719,6 +729,13 @@ function selectedSource() {
     ? editor.document.getText(editor.selection)
     : editor.document.getText();
   return selection.trim();
+}
+
+function selectedClassNameCandidate() {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor || !editor.selection || editor.selection.isEmpty) return "";
+  const value = String(editor.document.getText(editor.selection) || "").trim();
+  return /^[A-Z][A-Za-z0-9_]*$/.test(value) ? value : "";
 }
 
 function debugSummary(result) {
@@ -1379,6 +1396,7 @@ module.exports = {
     readConfig,
     resolveRepoPath,
     selectedSource,
+    selectedClassNameCandidate,
     sourceLocationForOffset,
   },
 };

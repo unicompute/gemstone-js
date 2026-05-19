@@ -8,6 +8,7 @@
 - Added Evaluate Selection As for one-off inspect/value/OOP return-kind selection.
 - Added Run File As and Set Default Return Kind return-kind controls.
 - Added Debug Selection As and Debug File As return-kind controls.
+- Added quick commands for Explorer open mode and native session worker mode.
 - Added a thin `gemstone-js` debug adapter over the Explorer debugger API.
 - Added Connection, Roots, Globals, and Classes tree views.
 - Added class browser deep links from class tree entries.

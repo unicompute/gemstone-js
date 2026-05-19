@@ -29,6 +29,8 @@ async function run() {
     "gemstoneJs.runFileAs",
     "gemstoneJs.openOutput",
     "gemstoneJs.configureConnection",
+    "gemstoneJs.setOpenMode",
+    "gemstoneJs.setNativeSessionWorker",
     "gemstoneJs.setDefaultReturnKind",
     "gemstoneJs.openSettings",
     "gemstoneJs.refreshRoots",

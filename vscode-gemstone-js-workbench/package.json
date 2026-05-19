@@ -63,6 +63,8 @@
     "onCommand:gemstoneJs.runFile",
     "onCommand:gemstoneJs.runFileAs",
     "onCommand:gemstoneJs.configureConnection",
+    "onCommand:gemstoneJs.setOpenMode",
+    "onCommand:gemstoneJs.setNativeSessionWorker",
     "onCommand:gemstoneJs.setDefaultReturnKind",
     "onCommand:gemstoneJs.setPassword",
     "onCommand:gemstoneJs.clearPassword",
@@ -401,6 +403,16 @@
       {
         "command": "gemstoneJs.configureConnection",
         "title": "GemStone: Configure Connection"
+      },
+      {
+        "command": "gemstoneJs.setOpenMode",
+        "title": "GemStone: Set Explorer Open Mode",
+        "icon": "$(layout)"
+      },
+      {
+        "command": "gemstoneJs.setNativeSessionWorker",
+        "title": "GemStone: Set Native Session Worker",
+        "icon": "$(server)"
       },
       {
         "command": "gemstoneJs.setDefaultReturnKind",

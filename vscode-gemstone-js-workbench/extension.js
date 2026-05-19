@@ -91,6 +91,8 @@ function activate(context) {
     vscode.commands.registerCommand("gemstoneJs.runFile", () => runFile(explorer)),
     vscode.commands.registerCommand("gemstoneJs.runFileAs", () => runFileAs(explorer)),
     vscode.commands.registerCommand("gemstoneJs.configureConnection", () => configureConnection(explorer)),
+    vscode.commands.registerCommand("gemstoneJs.setOpenMode", () => setOpenMode(explorer)),
+    vscode.commands.registerCommand("gemstoneJs.setNativeSessionWorker", () => setNativeSessionWorker(explorer)),
     vscode.commands.registerCommand("gemstoneJs.setDefaultReturnKind", () => setDefaultReturnKind(explorer)),
     vscode.commands.registerCommand("gemstoneJs.setPassword", () => setPassword(explorer)),
     vscode.commands.registerCommand("gemstoneJs.clearPassword", () => clearPassword(explorer)),
@@ -588,6 +590,32 @@ async function configureConnection(server) {
   await server.stop();
   await server.loadSecretPassword();
   vscode.window.showInformationMessage("GemStone connection settings updated.");
+  refreshViews();
+}
+
+async function setOpenMode(server) {
+  const current = server.config().openMode;
+  const choice = await vscode.window.showQuickPick(openModeChoices(current), {
+    placeHolder: `Explorer open mode (${current})`,
+    ignoreFocusOut: true,
+  });
+  if (!choice) return;
+  await vscode.workspace.getConfiguration("gemstoneJs").update("openMode", choice.value, configurationTarget());
+  vscode.window.showInformationMessage(`GemStone Explorer open mode set to ${choice.value}.`);
+  refreshViews();
+}
+
+async function setNativeSessionWorker(server) {
+  const current = server.config().raw.nativeSessionWorker;
+  const choice = await vscode.window.showQuickPick(nativeSessionWorkerChoices(current), {
+    placeHolder: `Native session worker (${current ? "enabled" : "disabled"})`,
+    ignoreFocusOut: true,
+  });
+  if (!choice) return;
+  await vscode.workspace.getConfiguration("gemstoneJs").update("nativeSessionWorker", choice.value, configurationTarget());
+  await server.stop();
+  await server.loadSecretPassword();
+  vscode.window.showInformationMessage(`GemStone native session worker ${choice.value ? "enabled" : "disabled"}. Explorer stopped so the next start uses the new setting.`);
   refreshViews();
 }
 
@@ -1209,6 +1237,8 @@ async function connectionItems(server) {
     commandItem("Copy Connection Summary", "gemstoneJs.copyConnectionSummary", "copy", `${config.raw.user}@${config.raw.stone}`),
     commandItem("Copy Doctor Report", "gemstoneJs.copyDoctorReport", "copy", "redacted diagnostics"),
     commandItem("Configure Connection", "gemstoneJs.configureConnection", "settings", "connection settings"),
+    commandItem("Set Explorer Open Mode", "gemstoneJs.setOpenMode", "layout", config.openMode),
+    commandItem("Set Native Session Worker", "gemstoneJs.setNativeSessionWorker", "server", config.raw.nativeSessionWorker ? "enabled" : "disabled"),
     commandItem("Workspace", "gemstoneJs.openWorkspace", "edit", "evaluate Smalltalk"),
     commandItem("Globals", "gemstoneJs.openGlobals", "globe", "browse UserGlobals"),
     commandItem("Roots", "gemstoneJs.openRoots", "root-folder", "browse persistent roots"),
@@ -1381,6 +1411,28 @@ function returnKindChoices(current) {
     { label: "OOP", description: "return object handle", value: "oop" },
   ];
   if (!current) return choices;
+  return choices.map((choice) => choice.value === current
+    ? { ...choice, description: `${choice.description} (current)` }
+    : choice);
+}
+
+function openModeChoices(current) {
+  const choices = [
+    { label: "Webview", description: "open inside VS Code", value: "webview" },
+    { label: "External Browser", description: "open in the system browser", value: "external" },
+  ];
+  return markCurrentChoice(choices, current);
+}
+
+function nativeSessionWorkerChoices(current) {
+  const choices = [
+    { label: "Enabled", description: "queue native calls on a session worker", value: true },
+    { label: "Disabled", description: "use the raw native backend setting", value: false },
+  ];
+  return markCurrentChoice(choices, current);
+}
+
+function markCurrentChoice(choices, current) {
   return choices.map((choice) => choice.value === current
     ? { ...choice, description: `${choice.description} (current)` }
     : choice);

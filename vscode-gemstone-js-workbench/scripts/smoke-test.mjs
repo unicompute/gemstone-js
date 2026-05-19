@@ -342,6 +342,8 @@ try {
     "gemstoneJs.runFile",
     "gemstoneJs.runFileAs",
     "gemstoneJs.configureConnection",
+    "gemstoneJs.setOpenMode",
+    "gemstoneJs.setNativeSessionWorker",
     "gemstoneJs.setDefaultReturnKind",
     "gemstoneJs.setPassword",
     "gemstoneJs.clearPassword",
@@ -433,6 +435,8 @@ try {
   assert(connectionItems.some((item) => item.label === "Copy Connection Summary"));
   assert(connectionItems.some((item) => item.label === "Copy Doctor Report"));
   assert(connectionItems.some((item) => item.label === "Configure Connection"));
+  assert(connectionItems.some((item) => item.label === "Set Explorer Open Mode"));
+  assert(connectionItems.some((item) => item.label === "Set Native Session Worker"));
   assert(connectionItems.some((item) => item.label === "Workspace"));
   assert(connectionItems.some((item) => item.label === "Globals"));
   assert(connectionItems.some((item) => item.label === "Roots"));
@@ -638,6 +642,27 @@ try {
   assert.equal((await classProvider.getChildren())[0].label, "Filter: Book");
   await captured.commands.get("gemstoneJs.clearTreeFilters")();
   assert.notEqual((await classProvider.getChildren())[0].label, "Filter: Book");
+
+  captured.quickPickLabel = "External Browser";
+  await captured.commands.get("gemstoneJs.setOpenMode")();
+  assert.equal(configValues.openMode, "external");
+  assert(captured.updatedSettings.some((entry) =>
+    entry.key === "openMode" &&
+    entry.value === "external" &&
+    entry.target === vscode.ConfigurationTarget.Workspace
+  ));
+  assert.equal(captured.quickPickOptions.at(-1).pickerOptions.placeHolder, "Explorer open mode (webview)");
+  assert.equal(captured.lastInfo, "GemStone Explorer open mode set to external.");
+  captured.quickPickLabel = "Disabled";
+  await captured.commands.get("gemstoneJs.setNativeSessionWorker")();
+  assert.equal(configValues.nativeSessionWorker, false);
+  assert(captured.updatedSettings.some((entry) =>
+    entry.key === "nativeSessionWorker" &&
+    entry.value === false &&
+    entry.target === vscode.ConfigurationTarget.Workspace
+  ));
+  assert.equal(captured.quickPickOptions.at(-1).pickerOptions.placeHolder, "Native session worker (enabled)");
+  assert.equal(captured.lastInfo, "GemStone native session worker disabled. Explorer stopped so the next start uses the new setting.");
 
   const factory = captured.debugFactories.get("gemstone-js");
   const descriptor = factory.createDebugAdapterDescriptor();

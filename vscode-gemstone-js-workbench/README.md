@@ -31,6 +31,8 @@ VS Code wrapper for the gemstone-js Explorer. The extension starts the local Exp
 - `GemStone: Run File` evaluates the current editor contents.
 - `GemStone: Run File As...` evaluates the current editor contents with a one-off inspect, value, or OOP return kind.
 - `GemStone: Configure Connection` prompts for the core connection settings and stores the password in SecretStorage.
+- `GemStone: Set Explorer Open Mode` switches between VS Code webview and external browser opening.
+- `GemStone: Set Native Session Worker` enables or disables `GS_NATIVE_SESSION_WORKER` and stops the Explorer so the next launch uses the new setting.
 - `GemStone: Set Default Return Kind` updates `gemstoneJs.defaultReturnKind` from a quick pick.
 - `GemStone: Set Password` stores the GemStone password in VS Code SecretStorage.
 - `GemStone: Clear Password` removes the SecretStorage password.

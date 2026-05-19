@@ -631,6 +631,7 @@ async function debugSource(server, source, returnKind, openWorkbench) {
 async function inspectOop(server, oop) {
   oop = commandArgumentValue(oop);
   let value = oop === undefined || oop === null ? "" : String(oop).trim();
+  if (!value) value = selectedOopCandidate();
   if (!value) {
     const answer = await vscode.window.showInputBox({
       prompt: "GemStone object OOP",
@@ -650,6 +651,7 @@ async function inspectOop(server, oop) {
 async function copyOop(oop) {
   oop = commandArgumentValue(oop);
   let value = oop === undefined || oop === null ? "" : String(oop).trim();
+  if (!value) value = selectedOopCandidate();
   if (!value) {
     const answer = await vscode.window.showInputBox({
       prompt: "GemStone object OOP",
@@ -736,6 +738,13 @@ function selectedClassNameCandidate() {
   if (!editor || !editor.selection || editor.selection.isEmpty) return "";
   const value = String(editor.document.getText(editor.selection) || "").trim();
   return /^[A-Z][A-Za-z0-9_]*$/.test(value) ? value : "";
+}
+
+function selectedOopCandidate() {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor || !editor.selection || editor.selection.isEmpty) return "";
+  const value = String(editor.document.getText(editor.selection) || "").trim();
+  return /^[0-9]+$/.test(value) ? value : "";
 }
 
 function debugSummary(result) {
@@ -1397,6 +1406,7 @@ module.exports = {
     resolveRepoPath,
     selectedSource,
     selectedClassNameCandidate,
+    selectedOopCandidate,
     sourceLocationForOffset,
   },
 };

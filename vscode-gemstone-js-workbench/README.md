@@ -9,8 +9,8 @@ VS Code wrapper for the gemstone-js Explorer. The extension starts the local Exp
 - `GemStone: Copy Explorer URL` copies the managed Explorer URL.
 - `GemStone: Open Class Browser` opens the Explorer Class Browser focused on a class from a tree row, editor selection, or prompt.
 - `GemStone: Open Workspace`, `GemStone: Open Globals`, `GemStone: Open Roots`, `GemStone: Open Symbol List Browser`, `GemStone: Open Codegen`, and `GemStone: Open Status Log` open focused Explorer tool windows.
-- `GemStone: Inspect OOP` opens the Explorer object inspector focused on an OOP.
-- `GemStone: Copy OOP` copies an object OOP from tree context menus or a prompt.
+- `GemStone: Inspect OOP` opens the Explorer object inspector focused on an OOP from a tree row, editor selection, or prompt.
+- `GemStone: Copy OOP` copies an object OOP from tree context menus, editor selection, or a prompt.
 - `GemStone: Copy Object Name` copies an OOP-backed tree row name from root/global entries or a prompt.
 - `GemStone: Copy Class Name` copies a class name from the Classes tree or a prompt.
 - `GemStone: Start Explorer Server` starts the Explorer without opening a UI.
@@ -37,7 +37,7 @@ The GemStone activity bar contributes:
 - Classes
 
 Roots, globals, and classes load from the Explorer API. OOP-backed items can be inspected from the tree.
-Class rows open the Explorer Class Browser focused on that class and expose context menu actions for opening/copying the class name. The command palette can also open a selected class name or prompt for one. OOP rows open the Explorer object inspector and expose context menu actions for inspect, copy OOP, and copy object name. Root/global/class views have their own refresh and filter actions.
+Class rows open the Explorer Class Browser focused on that class and expose context menu actions for opening/copying the class name. The command palette can also open a selected class name or prompt for one. OOP rows open the Explorer object inspector and expose context menu actions for inspect, copy OOP, and copy object name; command-palette OOP actions can use a selected decimal OOP before prompting. Root/global/class views have their own refresh and filter actions.
 
 ## Language Support
 

@@ -280,7 +280,10 @@ try {
   assert.equal(extension._test.selectedClassNameCandidate(), "");
   captured.selectedText = "  Booking  ";
   assert.equal(extension._test.selectedClassNameCandidate(), "Booking");
+  captured.selectedText = "  987654  ";
+  assert.equal(extension._test.selectedOopCandidate(), "987654");
   captured.selectedText = "  1 + 1  ";
+  assert.equal(extension._test.selectedOopCandidate(), "");
   assert.deepEqual(extension._test.sourceLocationForOffset("a\nbc", 4), { line: 2, column: 2 });
   assert.match(extension._test.explorerWebviewHtml("http://127.0.0.1:3117/?q=<x>"), /frame-src http:\/\/127\.0\.0\.1:3117/);
   assert.equal(
@@ -483,6 +486,10 @@ try {
     await captured.commands.get(command)();
     assert.match(captured.webviewPanels.at(-1).webview.html, new RegExp(`window=${windowName}`));
   }
+  captured.selectedText = "9898";
+  await captured.commands.get("gemstoneJs.inspectOop")();
+  assert.match(captured.webviewPanels.at(-1).webview.html, /window=inspect&amp;oop=9898/);
+  captured.selectedText = "  1 + 1  ";
   captured.inputBoxValue = "4242";
   await captured.commands.get("gemstoneJs.inspectOop")();
   assert.equal(captured.lastInputBoxOptions.prompt, "GemStone object OOP");
@@ -496,6 +503,11 @@ try {
   assert.equal(captured.lastInfo, "Copied OOP 42.");
   await captured.commands.get("gemstoneJs.copyOop")(globalItems[0]);
   assert.equal(captured.clipboardWrites.at(-1), "42");
+  captured.selectedText = "6161";
+  await captured.commands.get("gemstoneJs.copyOop")();
+  assert.equal(captured.clipboardWrites.at(-1), "6161");
+  assert.equal(captured.lastInfo, "Copied OOP 6161.");
+  captured.selectedText = "  1 + 1  ";
   await captured.commands.get("gemstoneJs.copyObjectName")("PublishedRoot");
   assert.equal(captured.clipboardWrites.at(-1), "PublishedRoot");
   assert.equal(captured.lastInfo, "Copied object name PublishedRoot.");

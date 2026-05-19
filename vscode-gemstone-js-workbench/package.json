@@ -59,6 +59,7 @@
     "onCommand:gemstoneJs.configureConnection",
     "onCommand:gemstoneJs.setPassword",
     "onCommand:gemstoneJs.clearPassword",
+    "onCommand:gemstoneJs.openSettings",
     "onCommand:gemstoneJs.refreshViews",
     "onCommand:gemstoneJs.refreshConnection",
     "onCommand:gemstoneJs.refreshRoots",
@@ -365,6 +366,11 @@
       {
         "command": "gemstoneJs.clearPassword",
         "title": "GemStone: Clear Password"
+      },
+      {
+        "command": "gemstoneJs.openSettings",
+        "title": "GemStone: Open Settings",
+        "icon": "$(settings-gear)"
       }
     ],
     "debuggers": [

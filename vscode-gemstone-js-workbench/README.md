@@ -26,6 +26,7 @@ VS Code wrapper for the gemstone-js Explorer. The extension starts the local Exp
 - `GemStone: Configure Connection` prompts for the core connection settings and stores the password in SecretStorage.
 - `GemStone: Set Password` stores the GemStone password in VS Code SecretStorage.
 - `GemStone: Clear Password` removes the SecretStorage password.
+- `GemStone: Open Settings` opens the extension settings filtered to `gemstoneJs`.
 
 ## Views
 

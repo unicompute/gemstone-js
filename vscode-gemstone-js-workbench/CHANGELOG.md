@@ -18,6 +18,7 @@
 - Added Run File to editor title/context menus and the connection tree.
 - Added Debug File to editor title/context menus and the connection tree.
 - Added an Open Output command and connection tree action for the GemStone JS output channel.
+- Exposed Open Settings in the command palette and VSIX manifest.
 - Added tree context menu actions for inspecting and copying OOPs.
 - Added per-tree refresh and filter commands.
 - Added SecretStorage-backed password management.

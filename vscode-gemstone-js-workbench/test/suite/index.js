@@ -25,6 +25,7 @@ async function run() {
     "gemstoneJs.runFile",
     "gemstoneJs.openOutput",
     "gemstoneJs.configureConnection",
+    "gemstoneJs.openSettings",
     "gemstoneJs.refreshRoots",
     "gemstoneJs.filterClasses",
     "gemstoneJs.openClassBrowser",

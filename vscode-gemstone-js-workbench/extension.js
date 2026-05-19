@@ -364,6 +364,9 @@ function explorerUrl(baseUrl, options = {}) {
   if (options.window) url.searchParams.set("window", String(options.window));
   if (options.className) url.searchParams.set("class", String(options.className));
   if (options.dictionary) url.searchParams.set("dictionary", String(options.dictionary));
+  if (options.oop !== undefined && options.oop !== null && String(options.oop).trim()) {
+    url.searchParams.set("oop", String(options.oop).trim());
+  }
   return url.toString();
 }
 
@@ -573,16 +576,21 @@ async function debugSource(server, source, returnKind, openWorkbench) {
 }
 
 async function inspectOop(server, oop) {
-  if (!oop) return;
-  output.show(true);
-  try {
-    const result = await server.get(`/api/inspect?oop=${encodeURIComponent(String(oop))}`);
-    output.appendLine(`GemStone Inspect OOP ${oop}`);
-    output.appendLine(JSON.stringify(result, null, 2));
-  } catch (error) {
-    output.appendLine(`Inspect failed: ${error.message}`);
-    vscode.window.showErrorMessage(`Inspect failed: ${error.message}`);
+  let value = oop === undefined || oop === null ? "" : String(oop).trim();
+  if (!value) {
+    const answer = await vscode.window.showInputBox({
+      prompt: "GemStone object OOP",
+      placeHolder: "123456789",
+      ignoreFocusOut: true,
+    });
+    if (answer === undefined) return;
+    value = answer.trim();
   }
+  if (!value) {
+    vscode.window.showWarningMessage("No OOP provided.");
+    return;
+  }
+  await openExplorer(server, { window: "inspect", oop: value });
 }
 
 function selectedSource() {
@@ -927,6 +935,7 @@ async function connectionItems(server) {
     commandItem("Doctor", "gemstoneJs.doctor", "beaker", "run local diagnostics"),
     commandItem("Evaluate Selection", "gemstoneJs.evaluateSelection", "run", "run selected Smalltalk"),
     commandItem("Debug Selection", "gemstoneJs.debugSelection", "debug-alt", "debug selected Smalltalk"),
+    commandItem("Inspect OOP", "gemstoneJs.inspectOop", "search", "open object inspector"),
     commandItem("Restart Explorer", "gemstoneJs.restartExplorer", "debug-restart", `${config.explorerHost}:${config.explorerPort}`),
     commandItem("Set Password", "gemstoneJs.setPassword", "key", "store password in SecretStorage"),
     commandItem("Clear Password", "gemstoneJs.clearPassword", "trash", "clear SecretStorage password"),

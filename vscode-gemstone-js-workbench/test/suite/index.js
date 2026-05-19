@@ -25,6 +25,7 @@ async function run() {
     "gemstoneJs.refreshRoots",
     "gemstoneJs.filterClasses",
     "gemstoneJs.openClassBrowser",
+    "gemstoneJs.inspectOop",
     "gemstoneJs.setPassword",
     "gemstoneJs.clearPassword",
   ]) {

@@ -262,6 +262,10 @@ try {
     extension._test.explorerUrl("http://127.0.0.1:3117", { window: "classes", className: "Object" }),
     "http://127.0.0.1:3117/?window=classes&class=Object",
   );
+  assert.equal(
+    extension._test.explorerUrl("http://127.0.0.1:3117", { window: "inspect", oop: "4242" }),
+    "http://127.0.0.1:3117/?window=inspect&oop=4242",
+  );
 
   extension.activate(context);
   activated = true;
@@ -344,6 +348,7 @@ try {
   const connectionItems = await connectionProvider.getChildren();
   assert.equal(connectionItems[0].label, "Explorer stopped or disconnected");
   assert(connectionItems.some((item) => item.label === "Start Explorer"));
+  assert(connectionItems.some((item) => item.label === "Inspect OOP"));
   assert.equal(connectionProvider.getTreeItem(connectionItems[0]).iconPath.id, "warning");
 
   const fetchCalls = [];
@@ -372,6 +377,12 @@ try {
 
   await captured.commands.get("gemstoneJs.openClassBrowser")("Booking");
   assert.match(captured.webviewPanels.at(-1).webview.html, /window=classes&amp;class=Booking/);
+  captured.inputBoxValue = "4242";
+  await captured.commands.get("gemstoneJs.inspectOop")();
+  assert.equal(captured.lastInputBoxOptions.prompt, "GemStone object OOP");
+  assert.match(captured.webviewPanels.at(-1).webview.html, /window=inspect&amp;oop=4242/);
+  await captured.commands.get("gemstoneJs.inspectOop")("5555");
+  assert.match(captured.webviewPanels.at(-1).webview.html, /window=inspect&amp;oop=5555/);
   captured.inputBoxValue = "";
   await captured.commands.get("gemstoneJs.clearClassesFilter")();
   const clearedItems = await classProvider.getChildren();

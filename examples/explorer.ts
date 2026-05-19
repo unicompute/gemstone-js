@@ -3479,6 +3479,13 @@ function explorerHtml(): string {
       const windowName = params.get("window") || "";
       const className = params.get("class") || "";
       const dictionary = params.get("dictionary") || "";
+      const oop = params.get("oop") || "";
+      if (oop) {
+        document.getElementById("inspectOop").value = oop;
+        focusWindow("inspect");
+        await runInspect();
+        return;
+      }
       if (className) {
         focusWindow("classes");
         if (!state.classBrowser.dictionary) await loadClassBrowserDictionaries();

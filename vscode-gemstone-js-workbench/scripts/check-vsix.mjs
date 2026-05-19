@@ -90,6 +90,7 @@ function assertPackagedManifest(manifest, vsixManifest) {
     "gemstoneJs.openExplorer",
     "gemstoneJs.openExplorerExternal",
     "gemstoneJs.openClassBrowser",
+    "gemstoneJs.inspectOop",
     "gemstoneJs.doctor",
     "gemstoneJs.evaluateSelection",
     "gemstoneJs.debugSelection",
@@ -107,6 +108,7 @@ function assertPackagedManifest(manifest, vsixManifest) {
   ];
   const expectedActivationEvents = [
     "onCommand:gemstoneJs.openExplorer",
+    "onCommand:gemstoneJs.inspectOop",
     "onCommand:gemstoneJs.evaluateSelection",
     "onCommand:gemstoneJs.debugSelection",
     "onCommand:gemstoneJs.configureConnection",

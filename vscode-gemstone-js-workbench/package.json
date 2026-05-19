@@ -40,6 +40,7 @@
     "onCommand:gemstoneJs.startExplorer",
     "onCommand:gemstoneJs.stopExplorer",
     "onCommand:gemstoneJs.restartExplorer",
+    "onCommand:gemstoneJs.inspectOop",
     "onCommand:gemstoneJs.doctor",
     "onCommand:gemstoneJs.evaluateSelection",
     "onCommand:gemstoneJs.debugSelection",
@@ -262,6 +263,11 @@
       {
         "command": "gemstoneJs.restartExplorer",
         "title": "GemStone: Restart Explorer"
+      },
+      {
+        "command": "gemstoneJs.inspectOop",
+        "title": "GemStone: Inspect OOP",
+        "icon": "$(search)"
       },
       {
         "command": "gemstoneJs.doctor",

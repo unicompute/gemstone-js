@@ -332,6 +332,7 @@ try {
     "gemstoneJs.openSettings",
     "gemstoneJs.inspectOop",
     "gemstoneJs.copyOop",
+    "gemstoneJs.copyObjectName",
     "gemstoneJs.copyClassName",
   ]) {
     assert.equal(typeof captured.commands.get(command), "function", `missing command ${command}`);
@@ -438,7 +439,7 @@ try {
   const globalTreeItem = globalsProvider.getTreeItem(globalItems[0]);
   assert.equal(globalTreeItem.contextValue, "gemstoneJs.oop");
   assert.equal(globalTreeItem.command.command, "gemstoneJs.inspectOop");
-  assert.deepEqual(globalTreeItem.command.arguments, ["42"]);
+  assert.deepEqual(globalTreeItem.command.arguments, ["42", "Object"]);
 
   await captured.commands.get("gemstoneJs.openClassBrowser")("Booking");
   assert.match(captured.webviewPanels.at(-1).webview.html, /window=classes&amp;class=Booking/);
@@ -482,10 +483,20 @@ try {
   assert.equal(captured.lastInfo, "Copied OOP 42.");
   await captured.commands.get("gemstoneJs.copyOop")(globalItems[0]);
   assert.equal(captured.clipboardWrites.at(-1), "42");
+  await captured.commands.get("gemstoneJs.copyObjectName")("PublishedRoot");
+  assert.equal(captured.clipboardWrites.at(-1), "PublishedRoot");
+  assert.equal(captured.lastInfo, "Copied object name PublishedRoot.");
+  await captured.commands.get("gemstoneJs.copyObjectName")(globalItems[0]);
+  assert.equal(captured.clipboardWrites.at(-1), "Object");
+  assert.equal(captured.lastInfo, "Copied object name Object.");
   captured.inputBoxValue = "777";
   await captured.commands.get("gemstoneJs.copyOop")();
   assert.equal(captured.lastInputBoxOptions.prompt, "GemStone object OOP");
   assert.equal(captured.clipboardWrites.at(-1), "777");
+  captured.inputBoxValue = "SessionTemps";
+  await captured.commands.get("gemstoneJs.copyObjectName")();
+  assert.equal(captured.lastInputBoxOptions.prompt, "GemStone object name");
+  assert.equal(captured.clipboardWrites.at(-1), "SessionTemps");
   captured.inputBoxValue = "";
   await captured.commands.get("gemstoneJs.clearClassesFilter")();
   const clearedItems = await classProvider.getChildren();

@@ -91,6 +91,7 @@ function activate(context) {
     ),
     vscode.commands.registerCommand("gemstoneJs.inspectOop", (oop) => inspectOop(explorer, oop)),
     vscode.commands.registerCommand("gemstoneJs.copyOop", (oop) => copyOop(oop)),
+    vscode.commands.registerCommand("gemstoneJs.copyObjectName", (name) => copyObjectName(name)),
     vscode.commands.registerCommand("gemstoneJs.copyClassName", (className) => copyClassName(className)),
     vscode.debug.registerDebugAdapterDescriptorFactory("gemstone-js", {
       createDebugAdapterDescriptor() {
@@ -656,6 +657,26 @@ async function copyOop(oop) {
   vscode.window.showInformationMessage(`Copied OOP ${value}.`);
 }
 
+async function copyObjectName(name) {
+  name = commandArgumentLabel(name);
+  let value = name === undefined || name === null ? "" : String(name).trim();
+  if (!value) {
+    const answer = await vscode.window.showInputBox({
+      prompt: "GemStone object name",
+      placeHolder: "Object",
+      ignoreFocusOut: true,
+    });
+    if (answer === undefined) return;
+    value = answer.trim();
+  }
+  if (!value) {
+    vscode.window.showWarningMessage("No object name provided.");
+    return;
+  }
+  await vscode.env.clipboard.writeText(value);
+  vscode.window.showInformationMessage(`Copied object name ${value}.`);
+}
+
 async function copyClassName(className) {
   className = commandArgumentValue(className);
   let value = className === undefined || className === null ? "" : String(className).trim();
@@ -679,6 +700,14 @@ async function copyClassName(className) {
 function commandArgumentValue(value) {
   if (value && typeof value === "object" && Array.isArray(value.arguments) && value.arguments.length > 0) {
     return value.arguments[0];
+  }
+  return value;
+}
+
+function commandArgumentLabel(value) {
+  if (value && typeof value === "object") {
+    if (Array.isArray(value.arguments) && value.arguments.length > 1) return value.arguments[1];
+    if (value.label !== undefined) return value.label;
   }
   return value;
 }
@@ -1138,7 +1167,7 @@ function oopItem(label, oop) {
     icon: "symbol-field",
     contextValue: "gemstoneJs.oop",
     command: "gemstoneJs.inspectOop",
-    arguments: [oop],
+    arguments: [oop, label],
   });
 }
 

@@ -43,6 +43,7 @@
     "onCommand:gemstoneJs.restartExplorer",
     "onCommand:gemstoneJs.inspectOop",
     "onCommand:gemstoneJs.copyOop",
+    "onCommand:gemstoneJs.copyObjectName",
     "onCommand:gemstoneJs.copyClassName",
     "onCommand:gemstoneJs.openWorkspace",
     "onCommand:gemstoneJs.openGlobals",
@@ -320,6 +321,11 @@
         "icon": "$(copy)"
       },
       {
+        "command": "gemstoneJs.copyObjectName",
+        "title": "GemStone: Copy Object Name",
+        "icon": "$(copy)"
+      },
+      {
         "command": "gemstoneJs.copyClassName",
         "title": "GemStone: Copy Class Name",
         "icon": "$(copy)"
@@ -501,6 +507,11 @@
           "command": "gemstoneJs.copyOop",
           "when": "viewItem == gemstoneJs.oop",
           "group": "inline@2"
+        },
+        {
+          "command": "gemstoneJs.copyObjectName",
+          "when": "viewItem == gemstoneJs.oop",
+          "group": "inline@3"
         },
         {
           "command": "gemstoneJs.openClassBrowser",

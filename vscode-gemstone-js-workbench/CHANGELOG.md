@@ -17,6 +17,7 @@
 - Added connection tree actions for browser opening, URL copy, and connection configuration.
 - Added Run File to editor title/context menus and the connection tree.
 - Added Debug File to editor title/context menus and the connection tree.
+- Added Stop Explorer to the Connection tree.
 - Added an Open Output command and connection tree action for the GemStone JS output channel.
 - Exposed Open Settings in the command palette and VSIX manifest.
 - Added tree context menu actions for inspecting and copying OOPs.

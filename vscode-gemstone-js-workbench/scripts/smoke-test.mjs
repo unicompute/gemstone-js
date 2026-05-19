@@ -413,6 +413,7 @@ try {
   assert(connectionItems.some((item) => item.label === "Output"));
   assert(connectionItems.some((item) => item.label === "Clear Tree Filters"));
   assert(connectionItems.some((item) => item.label === "Inspect OOP"));
+  assert(connectionItems.some((item) => item.label === "Stop Explorer"));
   assert(connectionItems.some((item) => item.label === "Debug File"));
   assert(connectionItems.some((item) => item.label === "Run File"));
   assert.equal(connectionProvider.getTreeItem(connectionItems[0]).iconPath.id, "warning");

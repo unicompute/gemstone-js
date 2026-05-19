@@ -1095,6 +1095,7 @@ async function connectionItems(server) {
     commandItem("Debug File", "gemstoneJs.debugFile", "debug-alt", "debug active editor contents"),
     commandItem("Run File", "gemstoneJs.runFile", "play", "run active editor contents"),
     commandItem("Inspect OOP", "gemstoneJs.inspectOop", "search", "open object inspector"),
+    commandItem("Stop Explorer", "gemstoneJs.stopExplorer", "debug-stop", `${config.explorerHost}:${config.explorerPort}`),
     commandItem("Restart Explorer", "gemstoneJs.restartExplorer", "debug-restart", `${config.explorerHost}:${config.explorerPort}`),
     commandItem("Set Password", "gemstoneJs.setPassword", "key", "store password in SecretStorage"),
     commandItem("Clear Password", "gemstoneJs.clearPassword", "trash", "clear SecretStorage password"),

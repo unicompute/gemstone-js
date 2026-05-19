@@ -14,7 +14,7 @@ VS Code wrapper for the gemstone-js Explorer. The extension starts the local Exp
 - `GemStone: Copy Object Name` copies an OOP-backed tree row name from root/global entries or a prompt.
 - `GemStone: Copy Class Name` copies a class name from the Classes tree or a prompt.
 - `GemStone: Start Explorer Server` starts the Explorer without opening a UI.
-- `GemStone: Stop Explorer Server` stops the managed Explorer process.
+- `GemStone: Stop Explorer Server` stops the managed Explorer process from the command palette or Connection tree.
 - `GemStone: Restart Explorer Server` restarts the managed Explorer process.
 - `GemStone: Filter Roots`, `GemStone: Filter Globals`, and `GemStone: Filter Classes` narrow tree contents.
 - `GemStone: Clear Tree Filters` clears Roots, Globals, and Classes filters together.

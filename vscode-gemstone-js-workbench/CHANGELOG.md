@@ -9,6 +9,7 @@
 - Added Connection, Roots, Globals, and Classes tree views.
 - Added class browser deep links from class tree entries.
 - Added object inspector deep links from VS Code commands and tree entries.
+- Added tree context menu actions for inspecting and copying OOPs.
 - Added per-tree refresh and filter commands.
 - Added SecretStorage-backed password management.
 - Added status bar connection state.

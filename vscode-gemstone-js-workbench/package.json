@@ -41,6 +41,7 @@
     "onCommand:gemstoneJs.stopExplorer",
     "onCommand:gemstoneJs.restartExplorer",
     "onCommand:gemstoneJs.inspectOop",
+    "onCommand:gemstoneJs.copyOop",
     "onCommand:gemstoneJs.doctor",
     "onCommand:gemstoneJs.evaluateSelection",
     "onCommand:gemstoneJs.debugSelection",
@@ -270,6 +271,11 @@
         "icon": "$(search)"
       },
       {
+        "command": "gemstoneJs.copyOop",
+        "title": "GemStone: Copy OOP",
+        "icon": "$(copy)"
+      },
+      {
         "command": "gemstoneJs.doctor",
         "title": "GemStone: Doctor"
       },
@@ -428,6 +434,23 @@
           "command": "gemstoneJs.filterClasses",
           "when": "view == gemstoneJs.classesView",
           "group": "navigation@2"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "gemstoneJs.inspectOop",
+          "when": "viewItem == gemstoneJs.oop",
+          "group": "inline@1"
+        },
+        {
+          "command": "gemstoneJs.copyOop",
+          "when": "viewItem == gemstoneJs.oop",
+          "group": "inline@2"
+        },
+        {
+          "command": "gemstoneJs.openClassBrowser",
+          "when": "viewItem == gemstoneJs.class",
+          "group": "inline@1"
         }
       ],
       "editor/context": [

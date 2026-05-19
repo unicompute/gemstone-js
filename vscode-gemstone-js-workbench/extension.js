@@ -57,7 +57,7 @@ function activate(context) {
     vscode.commands.registerCommand("gemstoneJs.clearClassesFilter", () => clearTreeFilter("classes")),
     vscode.commands.registerCommand("gemstoneJs.openExplorer", () => openExplorer(explorer)),
     vscode.commands.registerCommand("gemstoneJs.openExplorerExternal", () => openExplorerExternal(explorer)),
-    vscode.commands.registerCommand("gemstoneJs.openClassBrowser", (className) => openClassBrowser(explorer, className)),
+    vscode.commands.registerCommand("gemstoneJs.openClassBrowser", (className) => openClassBrowser(explorer, commandArgumentValue(className))),
     vscode.commands.registerCommand("gemstoneJs.startExplorer", async () => {
       await explorer.ensureStarted();
       refreshViews();
@@ -81,6 +81,7 @@ function activate(context) {
       vscode.commands.executeCommand("workbench.action.openSettings", "gemstoneJs"),
     ),
     vscode.commands.registerCommand("gemstoneJs.inspectOop", (oop) => inspectOop(explorer, oop)),
+    vscode.commands.registerCommand("gemstoneJs.copyOop", (oop) => copyOop(oop)),
     vscode.debug.registerDebugAdapterDescriptorFactory("gemstone-js", {
       createDebugAdapterDescriptor() {
         return new vscode.DebugAdapterInlineImplementation(new GemStoneDebugAdapter(explorer, output));
@@ -576,6 +577,7 @@ async function debugSource(server, source, returnKind, openWorkbench) {
 }
 
 async function inspectOop(server, oop) {
+  oop = commandArgumentValue(oop);
   let value = oop === undefined || oop === null ? "" : String(oop).trim();
   if (!value) {
     const answer = await vscode.window.showInputBox({
@@ -591,6 +593,33 @@ async function inspectOop(server, oop) {
     return;
   }
   await openExplorer(server, { window: "inspect", oop: value });
+}
+
+async function copyOop(oop) {
+  oop = commandArgumentValue(oop);
+  let value = oop === undefined || oop === null ? "" : String(oop).trim();
+  if (!value) {
+    const answer = await vscode.window.showInputBox({
+      prompt: "GemStone object OOP",
+      placeHolder: "123456789",
+      ignoreFocusOut: true,
+    });
+    if (answer === undefined) return;
+    value = answer.trim();
+  }
+  if (!value) {
+    vscode.window.showWarningMessage("No OOP provided.");
+    return;
+  }
+  await vscode.env.clipboard.writeText(value);
+  vscode.window.showInformationMessage(`Copied OOP ${value}.`);
+}
+
+function commandArgumentValue(value) {
+  if (value && typeof value === "object" && Array.isArray(value.arguments) && value.arguments.length > 0) {
+    return value.arguments[0];
+  }
+  return value;
 }
 
 function selectedSource() {
@@ -1016,6 +1045,7 @@ async function classesItems(server) {
       ...filterHeaderItems("classes", "Classes"),
       ...(result.classes || []).map((name) => new TreeNode(name, {
       icon: "symbol-class",
+      contextValue: "gemstoneJs.class",
       command: "gemstoneJs.openClassBrowser",
       arguments: [name],
       tooltip: "Open Explorer Class Browser",
@@ -1033,6 +1063,7 @@ function oopItem(label, oop) {
     description: oop,
     tooltip: `OOP ${oop}`,
     icon: "symbol-field",
+    contextValue: "gemstoneJs.oop",
     command: "gemstoneJs.inspectOop",
     arguments: [oop],
   });

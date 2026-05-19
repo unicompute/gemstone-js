@@ -9,6 +9,7 @@ const require = createRequire(import.meta.url);
 const extensionRoot = fileURLToPath(new URL("..", import.meta.url));
 const repoRoot = resolve(extensionRoot, "..");
 const captured = {
+  clipboardWrites: [],
   commands: new Map(),
   debugFactories: new Map(),
   executedCommands: [],
@@ -112,6 +113,12 @@ const vscode = {
     },
   },
   env: {
+    clipboard: {
+      writeText(value) {
+        captured.clipboardWrites.push(value);
+        return Promise.resolve();
+      },
+    },
     openExternal(uri) {
       captured.openedExternal.push(uri);
       return Promise.resolve(true);
@@ -302,6 +309,7 @@ try {
     "gemstoneJs.clearPassword",
     "gemstoneJs.openSettings",
     "gemstoneJs.inspectOop",
+    "gemstoneJs.copyOop",
   ]) {
     assert.equal(typeof captured.commands.get(command), "function", `missing command ${command}`);
   }
@@ -357,6 +365,7 @@ try {
     const parsed = new URL(String(url));
     if (parsed.pathname === "/api/config") return jsonResponse({ roots: ["UserGlobals", "Published"] });
     if (parsed.pathname === "/api/status") return jsonResponse({ stone: "gs64stone", sessionId: "smoke" });
+    if (parsed.pathname === "/api/globals") return jsonResponse({ entries: [{ name: "Object", oop: "42" }], truncated: false });
     if (parsed.pathname === "/api/classes") {
       const prefix = parsed.searchParams.get("prefix") || "";
       if (treeFilterExpected()) assert.equal(prefix, "Book");
@@ -373,9 +382,20 @@ try {
   const classTreeItem = classProvider.getTreeItem(classItems[1]);
   assert.equal(classTreeItem.command.command, "gemstoneJs.openClassBrowser");
   assert.deepEqual(classTreeItem.command.arguments, ["Booking"]);
+  assert.equal(classTreeItem.contextValue, "gemstoneJs.class");
   assert(fetchCalls.some((url) => url.includes("/api/classes?limit=120&prefix=Book")));
 
+  const globalsProvider = captured.treeProviders.get("gemstoneJs.globalsView");
+  const globalItems = await globalsProvider.getChildren();
+  assert.equal(globalItems[0].label, "Object");
+  const globalTreeItem = globalsProvider.getTreeItem(globalItems[0]);
+  assert.equal(globalTreeItem.contextValue, "gemstoneJs.oop");
+  assert.equal(globalTreeItem.command.command, "gemstoneJs.inspectOop");
+  assert.deepEqual(globalTreeItem.command.arguments, ["42"]);
+
   await captured.commands.get("gemstoneJs.openClassBrowser")("Booking");
+  assert.match(captured.webviewPanels.at(-1).webview.html, /window=classes&amp;class=Booking/);
+  await captured.commands.get("gemstoneJs.openClassBrowser")(classItems[1]);
   assert.match(captured.webviewPanels.at(-1).webview.html, /window=classes&amp;class=Booking/);
   captured.inputBoxValue = "4242";
   await captured.commands.get("gemstoneJs.inspectOop")();
@@ -383,6 +403,17 @@ try {
   assert.match(captured.webviewPanels.at(-1).webview.html, /window=inspect&amp;oop=4242/);
   await captured.commands.get("gemstoneJs.inspectOop")("5555");
   assert.match(captured.webviewPanels.at(-1).webview.html, /window=inspect&amp;oop=5555/);
+  await captured.commands.get("gemstoneJs.inspectOop")(globalItems[0]);
+  assert.match(captured.webviewPanels.at(-1).webview.html, /window=inspect&amp;oop=42/);
+  await captured.commands.get("gemstoneJs.copyOop")("42");
+  assert.equal(captured.clipboardWrites.at(-1), "42");
+  assert.equal(captured.lastInfo, "Copied OOP 42.");
+  await captured.commands.get("gemstoneJs.copyOop")(globalItems[0]);
+  assert.equal(captured.clipboardWrites.at(-1), "42");
+  captured.inputBoxValue = "777";
+  await captured.commands.get("gemstoneJs.copyOop")();
+  assert.equal(captured.lastInputBoxOptions.prompt, "GemStone object OOP");
+  assert.equal(captured.clipboardWrites.at(-1), "777");
   captured.inputBoxValue = "";
   await captured.commands.get("gemstoneJs.clearClassesFilter")();
   const clearedItems = await classProvider.getChildren();

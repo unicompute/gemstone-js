@@ -91,6 +91,7 @@ function assertPackagedManifest(manifest, vsixManifest) {
     "gemstoneJs.openExplorerExternal",
     "gemstoneJs.openClassBrowser",
     "gemstoneJs.inspectOop",
+    "gemstoneJs.copyOop",
     "gemstoneJs.doctor",
     "gemstoneJs.evaluateSelection",
     "gemstoneJs.debugSelection",
@@ -109,6 +110,7 @@ function assertPackagedManifest(manifest, vsixManifest) {
   const expectedActivationEvents = [
     "onCommand:gemstoneJs.openExplorer",
     "onCommand:gemstoneJs.inspectOop",
+    "onCommand:gemstoneJs.copyOop",
     "onCommand:gemstoneJs.evaluateSelection",
     "onCommand:gemstoneJs.debugSelection",
     "onCommand:gemstoneJs.configureConnection",
@@ -133,6 +135,11 @@ function assertPackagedManifest(manifest, vsixManifest) {
   assertEqual(manifest.icon, "media/icon_purple.png", "packaged icon");
   assertArrayIncludesAll(manifest.activationEvents, expectedActivationEvents, "activationEvents");
   assertArrayIncludesAll((manifest.contributes?.commands || []).map((command) => command.command), expectedCommands, "commands");
+  assertArrayIncludesAll(
+    (manifest.contributes?.menus?.["view/item/context"] || []).map((menuItem) => menuItem.command),
+    ["gemstoneJs.inspectOop", "gemstoneJs.copyOop", "gemstoneJs.openClassBrowser"],
+    "menus.view/item/context",
+  );
   assertArrayIncludesAll((manifest.contributes?.views?.gemstoneJs || []).map((view) => view.id), expectedViews, "views.gemstoneJs");
   assertArrayIncludesAll((manifest.contributes?.debuggers || []).map((debuggerEntry) => debuggerEntry.type), ["gemstone-js"], "debuggers");
   assertArrayIncludesAll((manifest.contributes?.languages || []).map((language) => language.id), ["smalltalk"], "languages");

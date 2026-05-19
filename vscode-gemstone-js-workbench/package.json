@@ -43,6 +43,7 @@
     "onCommand:gemstoneJs.restartExplorer",
     "onCommand:gemstoneJs.inspectOop",
     "onCommand:gemstoneJs.copyOop",
+    "onCommand:gemstoneJs.copyClassName",
     "onCommand:gemstoneJs.openWorkspace",
     "onCommand:gemstoneJs.openGlobals",
     "onCommand:gemstoneJs.openRoots",
@@ -319,6 +320,11 @@
         "icon": "$(copy)"
       },
       {
+        "command": "gemstoneJs.copyClassName",
+        "title": "GemStone: Copy Class Name",
+        "icon": "$(copy)"
+      },
+      {
         "command": "gemstoneJs.doctor",
         "title": "GemStone: Doctor"
       },
@@ -500,6 +506,11 @@
           "command": "gemstoneJs.openClassBrowser",
           "when": "viewItem == gemstoneJs.class",
           "group": "inline@1"
+        },
+        {
+          "command": "gemstoneJs.copyClassName",
+          "when": "viewItem == gemstoneJs.class",
+          "group": "inline@2"
         }
       ],
       "editor/context": [

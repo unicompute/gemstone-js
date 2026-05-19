@@ -99,6 +99,7 @@ function assertPackagedManifest(manifest, vsixManifest) {
     "gemstoneJs.openStatusLog",
     "gemstoneJs.inspectOop",
     "gemstoneJs.copyOop",
+    "gemstoneJs.copyClassName",
     "gemstoneJs.doctor",
     "gemstoneJs.evaluateSelection",
     "gemstoneJs.debugSelection",
@@ -127,6 +128,7 @@ function assertPackagedManifest(manifest, vsixManifest) {
     "onCommand:gemstoneJs.openStatusLog",
     "onCommand:gemstoneJs.inspectOop",
     "onCommand:gemstoneJs.copyOop",
+    "onCommand:gemstoneJs.copyClassName",
     "onCommand:gemstoneJs.evaluateSelection",
     "onCommand:gemstoneJs.debugSelection",
     "onCommand:gemstoneJs.debugFile",
@@ -156,7 +158,7 @@ function assertPackagedManifest(manifest, vsixManifest) {
   assertArrayIncludesAll((manifest.contributes?.commands || []).map((command) => command.command), expectedCommands, "commands");
   assertArrayIncludesAll(
     (manifest.contributes?.menus?.["view/item/context"] || []).map((menuItem) => menuItem.command),
-    ["gemstoneJs.inspectOop", "gemstoneJs.copyOop", "gemstoneJs.openClassBrowser"],
+    ["gemstoneJs.inspectOop", "gemstoneJs.copyOop", "gemstoneJs.openClassBrowser", "gemstoneJs.copyClassName"],
     "menus.view/item/context",
   );
   assertArrayIncludesAll(

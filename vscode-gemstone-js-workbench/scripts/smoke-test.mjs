@@ -332,6 +332,7 @@ try {
     "gemstoneJs.openSettings",
     "gemstoneJs.inspectOop",
     "gemstoneJs.copyOop",
+    "gemstoneJs.copyClassName",
   ]) {
     assert.equal(typeof captured.commands.get(command), "function", `missing command ${command}`);
   }
@@ -448,6 +449,15 @@ try {
   assert.equal(captured.lastInfo, "Copied Explorer URL http://127.0.0.1:3117/");
   await captured.commands.get("gemstoneJs.openClassBrowser")(classItems[1]);
   assert.match(captured.webviewPanels.at(-1).webview.html, /window=classes&amp;class=Booking/);
+  await captured.commands.get("gemstoneJs.copyClassName")("Booking");
+  assert.equal(captured.clipboardWrites.at(-1), "Booking");
+  assert.equal(captured.lastInfo, "Copied class Booking.");
+  await captured.commands.get("gemstoneJs.copyClassName")(classItems[1]);
+  assert.equal(captured.clipboardWrites.at(-1), "Booking");
+  captured.inputBoxValue = "Object";
+  await captured.commands.get("gemstoneJs.copyClassName")();
+  assert.equal(captured.lastInputBoxOptions.prompt, "GemStone class name");
+  assert.equal(captured.clipboardWrites.at(-1), "Object");
   for (const [command, windowName] of [
     ["gemstoneJs.openWorkspace", "workspace"],
     ["gemstoneJs.openGlobals", "globals"],

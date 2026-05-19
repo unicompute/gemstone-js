@@ -37,6 +37,7 @@ async function run() {
     "gemstoneJs.openStatusLog",
     "gemstoneJs.inspectOop",
     "gemstoneJs.copyOop",
+    "gemstoneJs.copyClassName",
     "gemstoneJs.setPassword",
     "gemstoneJs.clearPassword",
   ]) {

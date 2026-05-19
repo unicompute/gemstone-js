@@ -91,6 +91,7 @@ function activate(context) {
     ),
     vscode.commands.registerCommand("gemstoneJs.inspectOop", (oop) => inspectOop(explorer, oop)),
     vscode.commands.registerCommand("gemstoneJs.copyOop", (oop) => copyOop(oop)),
+    vscode.commands.registerCommand("gemstoneJs.copyClassName", (className) => copyClassName(className)),
     vscode.debug.registerDebugAdapterDescriptorFactory("gemstone-js", {
       createDebugAdapterDescriptor() {
         return new vscode.DebugAdapterInlineImplementation(new GemStoneDebugAdapter(explorer, output));
@@ -653,6 +654,26 @@ async function copyOop(oop) {
   }
   await vscode.env.clipboard.writeText(value);
   vscode.window.showInformationMessage(`Copied OOP ${value}.`);
+}
+
+async function copyClassName(className) {
+  className = commandArgumentValue(className);
+  let value = className === undefined || className === null ? "" : String(className).trim();
+  if (!value) {
+    const answer = await vscode.window.showInputBox({
+      prompt: "GemStone class name",
+      placeHolder: "Object",
+      ignoreFocusOut: true,
+    });
+    if (answer === undefined) return;
+    value = answer.trim();
+  }
+  if (!value) {
+    vscode.window.showWarningMessage("No class name provided.");
+    return;
+  }
+  await vscode.env.clipboard.writeText(value);
+  vscode.window.showInformationMessage(`Copied class ${value}.`);
 }
 
 function commandArgumentValue(value) {

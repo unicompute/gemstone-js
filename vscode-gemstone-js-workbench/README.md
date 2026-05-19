@@ -30,6 +30,12 @@ The GemStone activity bar contributes:
 Roots, globals, and classes load from the Explorer API. OOP-backed items can be inspected from the tree.
 Class rows open the Explorer Class Browser focused on that class. Root/global/class views have their own refresh and filter actions.
 
+## Language Support
+
+The extension contributes the `smalltalk` language id for `.st`, `.gs`, and
+`.topaz` files, with lightweight GemStone Smalltalk syntax highlighting and
+editor pairs for strings, comments, blocks, arrays, and braces.
+
 ## Settings
 
 Configure `gemstoneJs.*` in VS Code settings:

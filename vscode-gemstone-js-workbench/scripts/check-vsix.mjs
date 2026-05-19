@@ -33,11 +33,13 @@ const entrySet = new Set(entries);
 const requiredEntries = [
   "extension/package.json",
   "extension/extension.js",
+  "extension/language-configuration.json",
   "extension/readme.md",
   "extension/changelog.md",
   "extension/LICENSE.txt",
   "extension/media/icon.svg",
   "extension/media/icon_purple.png",
+  "extension/syntaxes/smalltalk.tmLanguage.json",
 ];
 const forbiddenPatterns = [
   /^extension\/node_modules\//,
@@ -126,6 +128,13 @@ function assertPackagedManifest(manifest, vsixManifest) {
   assertArrayIncludesAll((manifest.contributes?.commands || []).map((command) => command.command), expectedCommands, "commands");
   assertArrayIncludesAll((manifest.contributes?.views?.gemstoneJs || []).map((view) => view.id), expectedViews, "views.gemstoneJs");
   assertArrayIncludesAll((manifest.contributes?.debuggers || []).map((debuggerEntry) => debuggerEntry.type), ["gemstone-js"], "debuggers");
+  assertArrayIncludesAll((manifest.contributes?.languages || []).map((language) => language.id), ["smalltalk"], "languages");
+  const smalltalkLanguage = (manifest.contributes?.languages || []).find((language) => language.id === "smalltalk");
+  assertArrayIncludesAll(smalltalkLanguage?.extensions, [".st", ".gs", ".topaz"], "smalltalk language extensions");
+  assertEqual(smalltalkLanguage?.configuration, "./language-configuration.json", "smalltalk language configuration");
+  const smalltalkGrammar = (manifest.contributes?.grammars || []).find((grammar) => grammar.language === "smalltalk");
+  assertEqual(smalltalkGrammar?.scopeName, "source.smalltalk.gemstone", "smalltalk grammar scopeName");
+  assertEqual(smalltalkGrammar?.path, "./syntaxes/smalltalk.tmLanguage.json", "smalltalk grammar path");
   if (!manifest.contributes?.configuration?.properties?.["gemstoneJs.nativeSessionWorker"]) {
     throw new Error("VSIX package.json is missing gemstoneJs.nativeSessionWorker setting metadata.");
   }

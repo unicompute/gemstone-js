@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { spawnSync } from "node:child_process";
-import { readdirSync, statSync } from "node:fs";
+import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -11,6 +11,11 @@ const files = [
   ...collect(join(root, "scripts")),
   ...collect(join(root, "test")),
 ].filter((file) => /\.(?:cjs|js|mjs)$/.test(file));
+const jsonFiles = [
+  join(root, "package.json"),
+  join(root, "language-configuration.json"),
+  ...collect(join(root, "syntaxes")).filter((file) => file.endsWith(".json")),
+];
 
 for (const file of files) {
   const result = spawnSync(process.execPath, ["--check", file], {
@@ -24,7 +29,15 @@ for (const file of files) {
   }
 }
 
-console.log(`Syntax check passed: ${files.length} files.`);
+for (const file of jsonFiles) {
+  try {
+    JSON.parse(readFileSync(file, "utf8"));
+  } catch (error) {
+    throw new Error(`JSON syntax check failed: ${relative(root, file)}: ${error.message}`);
+  }
+}
+
+console.log(`Syntax check passed: ${files.length} JavaScript files, ${jsonFiles.length} JSON files.`);
 
 function collect(dir) {
   let entries;

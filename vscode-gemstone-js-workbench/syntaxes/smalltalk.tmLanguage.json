@@ -1,0 +1,116 @@
+{
+  "scopeName": "source.smalltalk.gemstone",
+  "name": "GemStone Smalltalk",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#symbols"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#selectors"
+    },
+    {
+      "include": "#temporaries"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.block.smalltalk",
+          "begin": "\"",
+          "end": "\""
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.single.smalltalk",
+          "begin": "'",
+          "end": "'",
+          "patterns": [
+            {
+              "name": "constant.character.escape.smalltalk",
+              "match": "''"
+            }
+          ]
+        }
+      ]
+    },
+    "symbols": {
+      "patterns": [
+        {
+          "name": "constant.other.symbol.smalltalk",
+          "match": "#[A-Za-z_][A-Za-z0-9_]*:?|#'(?:''|[^'])*'"
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.smalltalk",
+          "match": "\\b-?(?:\\d+r[0-9A-Za-z]+|\\d+(?:\\.\\d+)?(?:e-?\\d+)?)\\b"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "constant.language.smalltalk",
+          "match": "\\b(?:true|false|nil|self|super|thisContext)\\b"
+        },
+        {
+          "name": "keyword.control.smalltalk",
+          "match": "\\b(?:ifTrue|ifFalse|ifNil|ifNotNil|whileTrue|whileFalse|to|by|do|collect|select|reject|detect|inject|into|ensure|ifCurtailed|on|do)\\b:"
+        },
+        {
+          "name": "keyword.operator.assignment.smalltalk",
+          "match": ":=|_"
+        },
+        {
+          "name": "keyword.operator.return.smalltalk",
+          "match": "\\^"
+        }
+      ]
+    },
+    "selectors": {
+      "patterns": [
+        {
+          "name": "entity.name.function.selector.smalltalk",
+          "match": "\\b[A-Za-z_][A-Za-z0-9_]*:"
+        },
+        {
+          "name": "keyword.operator.binary.smalltalk",
+          "match": "[+\\-*/\\\\~<>=@%,|&?!]+"
+        }
+      ]
+    },
+    "temporaries": {
+      "patterns": [
+        {
+          "name": "variable.other.temporary.smalltalk",
+          "begin": "\\|",
+          "end": "\\|",
+          "patterns": [
+            {
+              "name": "variable.other.temporary.smalltalk",
+              "match": "\\b[A-Za-z_][A-Za-z0-9_]*\\b"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

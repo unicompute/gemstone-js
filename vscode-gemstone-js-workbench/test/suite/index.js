@@ -21,6 +21,7 @@ async function run() {
     "gemstoneJs.doctor",
     "gemstoneJs.evaluateSelection",
     "gemstoneJs.debugSelection",
+    "gemstoneJs.configureConnection",
     "gemstoneJs.refreshRoots",
     "gemstoneJs.filterClasses",
     "gemstoneJs.openClassBrowser",

@@ -15,6 +15,7 @@ VS Code wrapper for the gemstone-js Explorer. The extension starts the local Exp
 - `GemStone: Evaluate Selection` sends the current selection to the Explorer session. If evaluation raises, the debugger opens automatically.
 - `GemStone: Debug Selection` starts a VS Code debug session for the current selection.
 - `GemStone: Run File` evaluates the current editor contents.
+- `GemStone: Configure Connection` prompts for the core connection settings and stores the password in SecretStorage.
 - `GemStone: Set Password` stores the GemStone password in VS Code SecretStorage.
 - `GemStone: Clear Password` removes the SecretStorage password.
 

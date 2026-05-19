@@ -12,10 +12,14 @@ const captured = {
   commands: new Map(),
   debugFactories: new Map(),
   executedCommands: [],
+  inputBoxValues: [],
   inputBoxValue: "new-secret",
   openedExternal: [],
+  quickPickLabel: "Enabled",
+  quickPickOptions: [],
   statusBars: [],
   treeProviders: new Map(),
+  updatedSettings: [],
   webviewPanels: [],
 };
 
@@ -75,6 +79,7 @@ class DebugAdapterInlineImplementation {
 
 const vscode = {
   DebugAdapterInlineImplementation,
+  ConfigurationTarget: { Global: 1, Workspace: 2, WorkspaceFolder: 3 },
   EventEmitter,
   StatusBarAlignment: { Left: 1, Right: 2 },
   ThemeIcon,
@@ -168,7 +173,12 @@ const vscode = {
     },
     showInputBox(options) {
       captured.lastInputBoxOptions = options;
+      if (captured.inputBoxValues.length > 0) return Promise.resolve(captured.inputBoxValues.shift());
       return Promise.resolve(captured.inputBoxValue);
+    },
+    showQuickPick(options, pickerOptions) {
+      captured.quickPickOptions.push({ options, pickerOptions });
+      return Promise.resolve(options.find((option) => option.label === captured.quickPickLabel) || options[0]);
     },
     showWarningMessage(message) {
       captured.lastWarning = message;
@@ -182,6 +192,11 @@ const vscode = {
       return {
         get(key) {
           return configValues[key];
+        },
+        update(key, value, target) {
+          configValues[key] = value;
+          captured.updatedSettings.push({ key, value, target });
+          return Promise.resolve();
         },
       };
     },
@@ -278,6 +293,7 @@ try {
     "gemstoneJs.evaluateSelection",
     "gemstoneJs.debugSelection",
     "gemstoneJs.runFile",
+    "gemstoneJs.configureConnection",
     "gemstoneJs.setPassword",
     "gemstoneJs.clearPassword",
     "gemstoneJs.openSettings",
@@ -300,6 +316,20 @@ try {
   await captured.commands.get("gemstoneJs.clearPassword")();
   assert.equal(secrets.has("gemstoneJs.password"), false);
   assert.equal(captured.lastWarning, "SecretStorage password cleared. The legacy gemstoneJs.password setting is still configured.");
+
+  captured.inputBoxValues = ["SystemUser", "stone2", "netldi-host", "50377", "gemnetobject2", "configured-secret"];
+  captured.quickPickLabel = "Enabled";
+  await captured.commands.get("gemstoneJs.configureConnection")();
+  assert.equal(configValues.user, "SystemUser");
+  assert.equal(configValues.stone, "stone2");
+  assert.equal(configValues.netldiHost, "netldi-host");
+  assert.equal(configValues.netldiNameOrPort, "50377");
+  assert.equal(configValues.gemService, "gemnetobject2");
+  assert.equal(configValues.nativeSessionWorker, true);
+  assert.equal(secrets.get("gemstoneJs.password"), "configured-secret");
+  assert(captured.updatedSettings.some((entry) => entry.key === "user" && entry.target === vscode.ConfigurationTarget.Workspace));
+  assert.equal(captured.quickPickOptions.at(-1).pickerOptions.placeHolder, "Native session worker");
+  assert.equal(captured.lastInfo, "GemStone connection settings updated.");
 
   await captured.commands.get("gemstoneJs.debugSelection")();
   assert.deepEqual(captured.startedDebugging, {

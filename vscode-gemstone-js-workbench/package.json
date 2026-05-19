@@ -44,6 +44,7 @@
     "onCommand:gemstoneJs.evaluateSelection",
     "onCommand:gemstoneJs.debugSelection",
     "onCommand:gemstoneJs.runFile",
+    "onCommand:gemstoneJs.configureConnection",
     "onCommand:gemstoneJs.setPassword",
     "onCommand:gemstoneJs.clearPassword",
     "onCommand:gemstoneJs.refreshViews",
@@ -279,6 +280,10 @@
       {
         "command": "gemstoneJs.runFile",
         "title": "GemStone: Run File"
+      },
+      {
+        "command": "gemstoneJs.configureConnection",
+        "title": "GemStone: Configure Connection"
       },
       {
         "command": "gemstoneJs.setPassword",

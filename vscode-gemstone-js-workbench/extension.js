@@ -74,6 +74,7 @@ function activate(context) {
     vscode.commands.registerCommand("gemstoneJs.evaluateSelection", () => evaluateSelection(explorer)),
     vscode.commands.registerCommand("gemstoneJs.debugSelection", () => debugSelection(explorer)),
     vscode.commands.registerCommand("gemstoneJs.runFile", () => runFile(explorer)),
+    vscode.commands.registerCommand("gemstoneJs.configureConnection", () => configureConnection(explorer)),
     vscode.commands.registerCommand("gemstoneJs.setPassword", () => setPassword(explorer)),
     vscode.commands.registerCommand("gemstoneJs.clearPassword", () => clearPassword(explorer)),
     vscode.commands.registerCommand("gemstoneJs.openSettings", () =>
@@ -428,6 +429,70 @@ async function clearPassword(server) {
   } else {
     vscode.window.showInformationMessage("GemStone SecretStorage password cleared.");
   }
+  refreshViews();
+}
+
+async function configureConnection(server) {
+  const config = server.config();
+  const current = {
+    user: config.raw.user,
+    stone: config.raw.stone,
+    netldiHost: config.raw.netldiHost,
+    netldiNameOrPort: config.raw.netldiNameOrPort,
+    gemService: config.raw.gemService,
+    nativeSessionWorker: config.raw.nativeSessionWorker,
+  };
+  const next = {};
+  for (const field of [
+    ["user", "GemStone user", current.user],
+    ["stone", "GemStone stone", current.stone],
+    ["netldiHost", "NetLDI host", current.netldiHost],
+    ["netldiNameOrPort", "NetLDI name or port", current.netldiNameOrPort],
+    ["gemService", "Gem service", current.gemService],
+  ]) {
+    const [key, prompt, value] = field;
+    const answer = await vscode.window.showInputBox({
+      prompt,
+      value: String(value || ""),
+      ignoreFocusOut: true,
+    });
+    if (answer === undefined) return;
+    next[key] = answer.trim();
+  }
+
+  const workerOptions = [
+    { label: "Disabled", value: false },
+    { label: "Enabled", value: true },
+  ].sort((left, right) => Number(right.value === current.nativeSessionWorker) - Number(left.value === current.nativeSessionWorker));
+  const workerChoice = await vscode.window.showQuickPick(
+    workerOptions,
+    {
+      placeHolder: "Native session worker",
+      ignoreFocusOut: true,
+    },
+  );
+  if (!workerChoice) return;
+  next.nativeSessionWorker = Boolean(workerChoice.value);
+
+  const password = await vscode.window.showInputBox({
+    prompt: "GemStone password",
+    placeHolder: "Leave blank to keep the current SecretStorage password",
+    password: true,
+    ignoreFocusOut: true,
+  });
+  if (password === undefined) return;
+
+  const settings = vscode.workspace.getConfiguration("gemstoneJs");
+  const target = configurationTarget();
+  for (const [key, value] of Object.entries(next)) {
+    await settings.update(key, value, target);
+  }
+  if (password.length > 0) {
+    await server.setPassword(password);
+  }
+  await server.stop();
+  await server.loadSecretPassword();
+  vscode.window.showInformationMessage("GemStone connection settings updated.");
   refreshViews();
 }
 
@@ -1080,7 +1145,21 @@ function readConfig(context, secretPassword) {
     defaultReturnKind: String(cfg.get("defaultReturnKind") || "inspect"),
     env,
     passwordSource,
+    raw: {
+      gemService,
+      nativeSessionWorker,
+      netldiHost,
+      netldiNameOrPort,
+      stone,
+      user,
+    },
   };
+}
+
+function configurationTarget() {
+  return vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0
+    ? vscode.ConfigurationTarget.Workspace
+    : vscode.ConfigurationTarget.Global;
 }
 
 function resolveRepoPath(context, configuredPath) {
@@ -1154,6 +1233,7 @@ module.exports = {
     GemStoneDebugAdapter,
     explorerWebviewHtml,
     explorerUrl,
+    configurationTarget,
     readConfig,
     resolveRepoPath,
     selectedSource,

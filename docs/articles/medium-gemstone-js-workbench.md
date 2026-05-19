@@ -99,6 +99,77 @@ When evaluating Smalltalk, developers often need different result shapes:
 
 The workbench has a default return kind, but the `As...` commands let developers choose per action. That avoids a noisy settings loop when switching between quick checks, object inspection, and wrapper development.
 
+## Object Mapping Without an ORM
+
+`gemstone-js` does support object mapping, but it does not try to make GemStone look like a generic JavaScript ORM.
+
+The current model has three practical layers.
+
+First, common JavaScript values are marshalled through `performWith()` and generated wrappers: strings, numbers, booleans, arrays, plain objects, dictionaries, and retained object handles cross the boundary without every caller manually allocating GemStone objects.
+
+Second, live GemStone objects are represented as explicit handles:
+
+```ts
+import { Session, type TypedOop } from "gemstone-js";
+
+interface Booking {
+  id: string;
+  status: string;
+}
+
+const session = await Session.connect();
+const booking: TypedOop<Booking> = await session
+  .classRef<Booking>("Booking")
+  .sendObject("find:", "B-1001");
+
+const status = await booking.send<string>("status");
+await booking.send("status:", "confirmed");
+await session.commit();
+```
+
+That `TypedOop<Booking>` is a retained remote object handle with a TypeScript witness. It is not a hydrated local `Booking` instance. Selector sends are still visible, async, and transaction-bound.
+
+Third, generated wrappers turn those selector sends into application-facing functions:
+
+```ts
+export async function findBooking(
+  session: Session,
+  id: string,
+): Promise<TypedOop<Booking>> {
+  return session.classRef("Booking").sendObject("find:", id);
+}
+```
+
+For payload-style mapping, class instances can be converted explicitly into GemStone dictionaries:
+
+```ts
+import {
+  Session,
+  objectToDictionaryArgument,
+  scalarValueConverterRegistry,
+} from "gemstone-js";
+
+class BookingDraft {
+  constructor(
+    public id: string,
+    public status: string,
+    public requestedAt: Date,
+  ) {}
+}
+
+const session = await Session.connect({
+  valueConverters: scalarValueConverterRegistry(),
+});
+
+const draft = new BookingDraft("B-1001", "held", new Date());
+const payload = objectToDictionaryArgument(draft);
+const booking = await session
+  .classRef<Booking>("Booking")
+  .sendObject("createFromDictionary:", payload);
+```
+
+This is the same bias as the rest of the project: preserve GemStone identity and transaction semantics, but make the JavaScript boundary typed, repeatable, and easy to review.
+
 ## Native Worker Mode
 
 The native backend is the main production hardening area. The raw GCI binding remains useful for low-level troubleshooting, but production trials should use the native session worker when possible.

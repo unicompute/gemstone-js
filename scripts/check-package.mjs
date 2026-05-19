@@ -30,6 +30,7 @@ const doctorDocs = readFileSync("docs/doctor.md", "utf8");
 const jsComparisonDocs = readFileSync("docs/gemstone-js-vs-gemstone-py.md", "utf8");
 const parityDocs = readFileSync("docs/gemstone-py-parity.md", "utf8");
 const rustComparisonDocs = readFileSync("docs/gemstone-rs-comparison.md", "utf8");
+const objectMappingDocs = readFileSync("docs/object-mapping.md", "utf8");
 const releasingDocs = readFileSync("docs/releasing.md", "utf8");
 const checksumCheck = readFileSync("scripts/check-checksums.mjs", "utf8");
 const checksumWriter = readFileSync("scripts/write-checksums.mjs", "utf8");
@@ -227,6 +228,7 @@ const required = [
   "docs/gemstone-rs-comparison.md",
   "docs/migrations.md",
   "docs/naming.md",
+  "docs/object-mapping.md",
   "docs/releasing.md",
   "examples/booking.decorators.generated.ts",
   "examples/booking.decorators.ts",
@@ -427,6 +429,19 @@ assertSnippets(
     "examples/web-route-handler.ts",
     "GS_NETLDI_NAME_OR_PORT",
     "GS_NATIVE_SESSION_WORKER",
+  ],
+);
+assertSnippets(
+  "docs/object-mapping.md",
+  objectMappingDocs,
+  [
+    "Object Mapping",
+    "TypedOop<T>",
+    "Session.classRef<T>()",
+    "returnKind: \"object\"",
+    "objectToDictionaryArgument()",
+    "ValueConverterRegistry",
+    "transparent `booking.status` property dispatch",
   ],
 );
 assertSnippets(

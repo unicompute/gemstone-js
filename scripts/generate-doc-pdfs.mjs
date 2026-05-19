@@ -18,6 +18,7 @@ const documents = [
   ["docs/gemstone-rs-comparison.md", "gemstone-rs-comparison.pdf", "gemstone-rs Comparison"],
   ["docs/migrations.md", "migrations.pdf", "Migrations"],
   ["docs/naming.md", "naming.pdf", "Naming"],
+  ["docs/object-mapping.md", "object-mapping.pdf", "Object Mapping"],
   ["docs/releasing.md", "releasing.pdf", "Releasing"],
   ["vscode-gemstone-js-workbench/README.md", "vscode-gemstone-js-workbench-readme.pdf", "VS Code Workbench README"],
   ["vscode-gemstone-js-workbench/CHANGELOG.md", "vscode-gemstone-js-workbench-changelog.pdf", "VS Code Workbench Changelog"],

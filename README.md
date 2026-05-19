@@ -33,7 +33,8 @@ native package; the TypeScript package can be tested locally with a mock runtime
   paths. `objectToDictionaryArgument()`/
   `classInstanceToDictionaryArgument()` convert class instances into explicit
   dictionary payloads before persistence, mirroring gemstone-py's
-  `dataclass_to_dict()` pattern.
+  `dataclass_to_dict()` pattern. See `docs/object-mapping.md` for the supported
+  mapping layers and the current non-ORM boundary.
 - `Session.classRef()` gives an explicit typed class handle for class-side
   sends, object-returning sends, allocation, and wrapping returned OOPs without
   hiding async remote calls behind JavaScript property access. Class names use

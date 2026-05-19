@@ -106,6 +106,10 @@ array and dictionary argument marshalling, value returns, raw OOP returns, and
 retained typed-object returns. `examples/booking.decorators.ts` exercises the
 decorator scanner and emits `examples/booking.decorators.generated.ts`.
 
+For the broader object-mapping model, including `TypedOop<T>` handles,
+generated selector wrappers, dictionary payload conversion, and value
+converters, see `docs/object-mapping.md`.
+
 ## Web Examples
 
 The dependency-free Fetch example is the smallest web service shape:

@@ -11,6 +11,10 @@ The Medium article source is:
 
 - `docs/articles/medium-gemstone-js-workbench.md`
 
+The object-mapping guide is:
+
+- `docs/object-mapping.md`
+
 The article screenshots are:
 
 - `docs/articles/assets/gemstone-js-explorer-workspace.png`

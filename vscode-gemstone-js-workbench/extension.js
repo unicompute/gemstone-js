@@ -61,6 +61,7 @@ function activate(context) {
     vscode.commands.registerCommand("gemstoneJs.openExplorerExternal", () => openExplorerExternal(explorer)),
     vscode.commands.registerCommand("gemstoneJs.copyExplorerUrl", () => copyExplorerUrl(explorer)),
     vscode.commands.registerCommand("gemstoneJs.copyConnectionSummary", () => copyConnectionSummary(explorer)),
+    vscode.commands.registerCommand("gemstoneJs.copyDoctorReport", () => copyDoctorReport(explorer)),
     vscode.commands.registerCommand("gemstoneJs.openClassBrowser", (className) => openClassBrowser(explorer, commandArgumentValue(className))),
     vscode.commands.registerCommand("gemstoneJs.openWorkspace", () => openExplorerWindow(explorer, "workspace")),
     vscode.commands.registerCommand("gemstoneJs.openGlobals", () => openExplorerWindow(explorer, "globals")),
@@ -404,6 +405,24 @@ async function copyConnectionSummary(server) {
   vscode.window.showInformationMessage("Copied GemStone connection summary.");
 }
 
+async function copyDoctorReport(server) {
+  output.show(true);
+  try {
+    await server.loadSecretPassword();
+    const report = redactSecrets(await server.doctor());
+    const text = `GemStone JS Doctor\n${JSON.stringify(report, null, 2)}`;
+    output.appendLine(text);
+    await vscode.env.clipboard.writeText(text);
+    vscode.window.showInformationMessage("Copied GemStone doctor report.");
+    refreshViews();
+  } catch (error) {
+    output.appendLine(`GemStone doctor failed: ${error.message}`);
+    vscode.window.showErrorMessage(`GemStone doctor failed: ${error.message}`);
+  } finally {
+    refreshStatusBar();
+  }
+}
+
 async function openClassBrowser(server, className) {
   let name = String(className || "").trim();
   if (!name) name = selectedClassNameCandidate();
@@ -462,7 +481,7 @@ async function runDoctor(server) {
   output.show(true);
   try {
     await server.loadSecretPassword();
-    const report = await server.doctor();
+    const report = redactSecrets(await server.doctor());
     output.appendLine("GemStone Doctor");
     output.appendLine(JSON.stringify(report, null, 2));
     vscode.window.showInformationMessage("GemStone doctor completed.");
@@ -1115,6 +1134,7 @@ async function connectionItems(server) {
     commandItem("Open in Browser", "gemstoneJs.openExplorerExternal", "link-external", "system browser"),
     commandItem("Copy Explorer URL", "gemstoneJs.copyExplorerUrl", "copy", `${config.explorerHost}:${config.explorerPort}`),
     commandItem("Copy Connection Summary", "gemstoneJs.copyConnectionSummary", "copy", `${config.raw.user}@${config.raw.stone}`),
+    commandItem("Copy Doctor Report", "gemstoneJs.copyDoctorReport", "copy", "redacted diagnostics"),
     commandItem("Configure Connection", "gemstoneJs.configureConnection", "settings", "connection settings"),
     commandItem("Workspace", "gemstoneJs.openWorkspace", "edit", "evaluate Smalltalk"),
     commandItem("Globals", "gemstoneJs.openGlobals", "globe", "browse UserGlobals"),
@@ -1274,6 +1294,40 @@ function disconnectedItems(error) {
 
 function errorItems(error) {
   return [new TreeNode("Load failed", { description: error.message, icon: "error" })];
+}
+
+function redactSecrets(value, seen = new WeakSet()) {
+  if (!value || typeof value !== "object") return value;
+  if (seen.has(value)) return "[Circular]";
+  seen.add(value);
+  if (Array.isArray(value)) {
+    const array = value.map((item) => redactSecrets(item, seen));
+    seen.delete(value);
+    return array;
+  }
+  const result = {};
+  for (const [key, entry] of Object.entries(value)) {
+    result[key] = isSensitiveKey(key, entry) ? "<redacted>" : redactSecrets(entry, seen);
+  }
+  seen.delete(value);
+  return result;
+}
+
+function isSensitiveKey(key, value) {
+  const lower = String(key || "").toLowerCase();
+  if (typeof value === "boolean" && lower.endsWith("set")) return false;
+  return lower === "pass" ||
+    lower === "password" ||
+    lower === "token" ||
+    lower === "authorization" ||
+    lower.includes("password") ||
+    lower.includes("_pass") ||
+    lower.includes("-pass") ||
+    lower.includes("secret") ||
+    lower.includes("credential") ||
+    lower.endsWith("token") ||
+    lower.endsWith("pat") ||
+    lower.includes("_token");
 }
 
 class TreeNode {

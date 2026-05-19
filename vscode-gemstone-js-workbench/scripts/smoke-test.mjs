@@ -321,6 +321,7 @@ try {
     "gemstoneJs.openExplorerExternal",
     "gemstoneJs.copyExplorerUrl",
     "gemstoneJs.copyConnectionSummary",
+    "gemstoneJs.copyDoctorReport",
     "gemstoneJs.openClassBrowser",
     "gemstoneJs.openWorkspace",
     "gemstoneJs.openGlobals",
@@ -405,6 +406,7 @@ try {
   assert(connectionItems.some((item) => item.label === "Open in Browser"));
   assert(connectionItems.some((item) => item.label === "Copy Explorer URL"));
   assert(connectionItems.some((item) => item.label === "Copy Connection Summary"));
+  assert(connectionItems.some((item) => item.label === "Copy Doctor Report"));
   assert(connectionItems.some((item) => item.label === "Configure Connection"));
   assert(connectionItems.some((item) => item.label === "Workspace"));
   assert(connectionItems.some((item) => item.label === "Globals"));
@@ -426,6 +428,18 @@ try {
     const parsed = new URL(String(url));
     if (parsed.pathname === "/api/config") return jsonResponse({ roots: ["UserGlobals", "Published"] });
     if (parsed.pathname === "/api/status") return jsonResponse({ stone: "gs64stone", sessionId: "smoke" });
+    if (parsed.pathname === "/api/doctor") {
+      return jsonResponse({
+        status: "ok",
+        config: {
+          stone: "gs64stone",
+          passwordSet: true,
+          hostPasswordSet: false,
+          GS_PASS: "configured-secret",
+        },
+        checks: [{ name: "smoke", status: "ok", details: { token: "configured-secret" } }],
+      });
+    }
     if (parsed.pathname === "/api/globals") return jsonResponse({ entries: [{ name: "Object", oop: "42" }], truncated: false });
     if (parsed.pathname === "/api/classes") {
       const prefix = parsed.searchParams.get("prefix") || "";
@@ -484,6 +498,16 @@ try {
   assert.match(connectionSummary, /Session: smoke/);
   assert(!connectionSummary.includes("configured-secret"));
   assert.equal(captured.lastInfo, "Copied GemStone connection summary.");
+  await captured.commands.get("gemstoneJs.copyDoctorReport")();
+  const doctorReport = captured.clipboardWrites.at(-1);
+  assert.match(doctorReport, /GemStone JS Doctor/);
+  assert.match(doctorReport, /"status": "ok"/);
+  assert.match(doctorReport, /"passwordSet": true/);
+  assert.match(doctorReport, /"hostPasswordSet": false/);
+  assert.match(doctorReport, /"GS_PASS": "<redacted>"/);
+  assert.match(doctorReport, /"token": "<redacted>"/);
+  assert(!doctorReport.includes("configured-secret"));
+  assert.equal(captured.lastInfo, "Copied GemStone doctor report.");
   await captured.commands.get("gemstoneJs.openClassBrowser")(classItems[1]);
   assert.match(captured.webviewPanels.at(-1).webview.html, /window=classes&amp;class=Booking/);
   await captured.commands.get("gemstoneJs.copyClassName")("Booking");

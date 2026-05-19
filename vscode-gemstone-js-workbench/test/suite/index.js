@@ -32,6 +32,7 @@ async function run() {
     "gemstoneJs.openClassBrowser",
     "gemstoneJs.copyExplorerUrl",
     "gemstoneJs.copyConnectionSummary",
+    "gemstoneJs.copyDoctorReport",
     "gemstoneJs.openWorkspace",
     "gemstoneJs.openGlobals",
     "gemstoneJs.openRoots",

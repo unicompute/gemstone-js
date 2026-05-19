@@ -8,6 +8,7 @@ VS Code wrapper for the gemstone-js Explorer. The extension starts the local Exp
 - `GemStone: Open Explorer in Browser` opens the Explorer URL in the system browser.
 - `GemStone: Copy Explorer URL` copies the managed Explorer URL.
 - `GemStone: Copy Connection Summary` copies a redacted connection summary for diagnostics.
+- `GemStone: Copy Doctor Report` runs Doctor and copies a redacted diagnostics report.
 - `GemStone: Open Class Browser` opens the Explorer Class Browser focused on a class from a tree row, editor selection, or prompt.
 - `GemStone: Open Workspace`, `GemStone: Open Globals`, `GemStone: Open Roots`, `GemStone: Open Symbol List Browser`, `GemStone: Open Codegen`, and `GemStone: Open Status Log` open focused Explorer tool windows.
 - `GemStone: Inspect OOP` opens the Explorer object inspector focused on an OOP from a tree row, editor selection, or prompt.
@@ -19,7 +20,7 @@ VS Code wrapper for the gemstone-js Explorer. The extension starts the local Exp
 - `GemStone: Restart Explorer Server` restarts the managed Explorer process.
 - `GemStone: Filter Roots`, `GemStone: Filter Globals`, and `GemStone: Filter Classes` narrow tree contents.
 - `GemStone: Clear Tree Filters` clears Roots, Globals, and Classes filters together.
-- `GemStone: Doctor` runs connection/config diagnostics and writes JSON to the GemStone JS output channel.
+- `GemStone: Doctor` runs connection/config diagnostics and writes redacted JSON to the GemStone JS output channel.
 - `GemStone: Open Output` opens the GemStone JS output channel.
 - `GemStone: Evaluate Selection` sends the current selection to the Explorer session. If evaluation raises, the debugger opens automatically.
 - `GemStone: Debug Selection` starts a VS Code debug session for the current selection.

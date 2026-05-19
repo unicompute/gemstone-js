@@ -10,6 +10,7 @@
 - Added class browser deep links from class tree entries.
 - Added object inspector deep links from VS Code commands and tree entries.
 - Added redacted connection summary copying.
+- Added redacted Doctor report copying.
 - Added object-name copy support from root/global tree entries.
 - Added class-name copy support from the Classes tree and command palette.
 - Improved Open Class Browser so it can use a selected class name or prompt from the command palette.

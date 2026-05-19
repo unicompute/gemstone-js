@@ -87,6 +87,25 @@ To package a fixed local smoke-test artifact:
 npm run package:dry-run
 ```
 
+To produce the release artifact and checksum used by CI:
+
+```sh
+npm run release:package
+```
+
+Before bumping the VSIX version, add the matching entry to `CHANGELOG.md`.
+Then run:
+
+```sh
+npm run release -- 0.1.1
+```
+
+To publish from a prepared checkout with a Marketplace token:
+
+```sh
+VSCE_PAT=... npm run release:publish -- 0.1.1
+```
+
 The GitHub `VS Code Workbench` workflow builds and uploads the VSIX on changes
 under this directory. Run it manually with `publish-to-marketplace=true` to
 publish the package with the repository `VSCE_PAT` secret.

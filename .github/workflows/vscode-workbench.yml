@@ -38,14 +38,8 @@ jobs:
       - name: Install extension dependencies
         run: npm install --omit=optional
 
-      - name: Verify extension package
-        run: npm run verify
-
-      - name: Generate VSIX checksum
-        shell: bash
-        run: |
-          version="$(node -p "require('./package.json').version")"
-          shasum -a 256 "gemstone-js-workbench-${version}.vsix" > "gemstone-js-workbench-${version}.vsix.sha256"
+      - name: Build verified VSIX artifact
+        run: npm run release:package
 
       - name: Upload VSIX artifact
         uses: actions/upload-artifact@v7
@@ -80,7 +74,7 @@ jobs:
           path: vscode-gemstone-js-workbench
 
       - name: Verify downloaded VSIX
-        run: npm run verify:vsix
+        run: npm run verify:vsix:checksum
 
       - name: Check Marketplace version before publish
         id: marketplace-precheck

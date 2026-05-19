@@ -6,5 +6,6 @@ scripts/**
 .DS_Store
 media/gemstone-rs-graphic_purple.png
 *.vsix
+*.vsix.sha256
 npm-debug.log
 yarn-error.log

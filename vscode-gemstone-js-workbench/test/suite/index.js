@@ -20,6 +20,7 @@ async function run() {
     "gemstoneJs.openExplorer",
     "gemstoneJs.doctor",
     "gemstoneJs.evaluateSelection",
+    "gemstoneJs.evaluateSelectionAs",
     "gemstoneJs.debugSelection",
     "gemstoneJs.debugFile",
     "gemstoneJs.runFile",

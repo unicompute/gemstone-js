@@ -334,6 +334,7 @@ try {
     "gemstoneJs.restartExplorer",
     "gemstoneJs.doctor",
     "gemstoneJs.evaluateSelection",
+    "gemstoneJs.evaluateSelectionAs",
     "gemstoneJs.debugSelection",
     "gemstoneJs.debugFile",
     "gemstoneJs.runFile",
@@ -417,13 +418,15 @@ try {
   assert(connectionItems.some((item) => item.label === "Output"));
   assert(connectionItems.some((item) => item.label === "Clear Tree Filters"));
   assert(connectionItems.some((item) => item.label === "Inspect OOP"));
+  assert(connectionItems.some((item) => item.label === "Evaluate Selection As..."));
   assert(connectionItems.some((item) => item.label === "Stop Explorer"));
   assert(connectionItems.some((item) => item.label === "Debug File"));
   assert(connectionItems.some((item) => item.label === "Run File"));
   assert.equal(connectionProvider.getTreeItem(connectionItems[0]).iconPath.id, "warning");
 
   const fetchCalls = [];
-  global.fetch = async (url) => {
+  const evalBodies = [];
+  global.fetch = async (url, options = {}) => {
     fetchCalls.push(String(url));
     const parsed = new URL(String(url));
     if (parsed.pathname === "/api/config") return jsonResponse({ roots: ["UserGlobals", "Published"] });
@@ -439,6 +442,10 @@ try {
         },
         checks: [{ name: "smoke", status: "ok", details: { token: "configured-secret" } }],
       });
+    }
+    if (parsed.pathname === "/api/eval") {
+      evalBodies.push(JSON.parse(options.body || "{}"));
+      return jsonResponse({ ok: true, result: "evaluated" });
     }
     if (parsed.pathname === "/api/globals") return jsonResponse({ entries: [{ name: "Object", oop: "42" }], truncated: false });
     if (parsed.pathname === "/api/classes") {
@@ -508,6 +515,15 @@ try {
   assert.match(doctorReport, /"token": "<redacted>"/);
   assert(!doctorReport.includes("configured-secret"));
   assert.equal(captured.lastInfo, "Copied GemStone doctor report.");
+  captured.quickPickLabel = "Value";
+  await captured.commands.get("gemstoneJs.evaluateSelectionAs")();
+  assert.deepEqual(evalBodies.at(-1), {
+    source: "1 + 1",
+    returnKind: "value",
+    commit: false,
+  });
+  assert.equal(captured.quickPickOptions.at(-1).pickerOptions.placeHolder, "Evaluation return kind");
+  assert.equal(captured.lastInfo, "GemStone evaluation completed.");
   await captured.commands.get("gemstoneJs.openClassBrowser")(classItems[1]);
   assert.match(captured.webviewPanels.at(-1).webview.html, /window=classes&amp;class=Booking/);
   await captured.commands.get("gemstoneJs.copyClassName")("Booking");

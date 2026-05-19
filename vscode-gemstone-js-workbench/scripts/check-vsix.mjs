@@ -105,6 +105,7 @@ function assertPackagedManifest(manifest, vsixManifest) {
     "gemstoneJs.copyClassName",
     "gemstoneJs.doctor",
     "gemstoneJs.evaluateSelection",
+    "gemstoneJs.evaluateSelectionAs",
     "gemstoneJs.debugSelection",
     "gemstoneJs.debugFile",
     "gemstoneJs.runFile",
@@ -138,6 +139,7 @@ function assertPackagedManifest(manifest, vsixManifest) {
     "onCommand:gemstoneJs.copyObjectName",
     "onCommand:gemstoneJs.copyClassName",
     "onCommand:gemstoneJs.evaluateSelection",
+    "onCommand:gemstoneJs.evaluateSelectionAs",
     "onCommand:gemstoneJs.debugSelection",
     "onCommand:gemstoneJs.debugFile",
     "onCommand:gemstoneJs.runFile",
@@ -173,7 +175,7 @@ function assertPackagedManifest(manifest, vsixManifest) {
   );
   assertArrayIncludesAll(
     (manifest.contributes?.menus?.["editor/context"] || []).map((menuItem) => menuItem.command),
-    ["gemstoneJs.evaluateSelection", "gemstoneJs.debugSelection", "gemstoneJs.debugFile", "gemstoneJs.runFile"],
+    ["gemstoneJs.evaluateSelection", "gemstoneJs.evaluateSelectionAs", "gemstoneJs.debugSelection", "gemstoneJs.debugFile", "gemstoneJs.runFile"],
     "menus.editor/context",
   );
   assertArrayIncludesAll(

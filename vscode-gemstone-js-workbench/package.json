@@ -55,6 +55,7 @@
     "onCommand:gemstoneJs.openStatusLog",
     "onCommand:gemstoneJs.doctor",
     "onCommand:gemstoneJs.evaluateSelection",
+    "onCommand:gemstoneJs.evaluateSelectionAs",
     "onCommand:gemstoneJs.debugSelection",
     "onCommand:gemstoneJs.debugFile",
     "onCommand:gemstoneJs.runFile",
@@ -359,6 +360,11 @@
         "icon": "$(run)"
       },
       {
+        "command": "gemstoneJs.evaluateSelectionAs",
+        "title": "GemStone: Evaluate Selection As...",
+        "icon": "$(run)"
+      },
+      {
         "command": "gemstoneJs.debugSelection",
         "title": "GemStone: Debug Selection",
         "icon": "$(debug-alt)"
@@ -554,16 +560,20 @@
           "group": "navigation@1"
         },
         {
-          "command": "gemstoneJs.debugSelection",
+          "command": "gemstoneJs.evaluateSelectionAs",
           "group": "navigation@2"
         },
         {
-          "command": "gemstoneJs.debugFile",
+          "command": "gemstoneJs.debugSelection",
           "group": "navigation@3"
         },
         {
-          "command": "gemstoneJs.runFile",
+          "command": "gemstoneJs.debugFile",
           "group": "navigation@4"
+        },
+        {
+          "command": "gemstoneJs.runFile",
+          "group": "navigation@5"
         }
       ],
       "editor/title": [

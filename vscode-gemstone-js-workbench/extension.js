@@ -83,6 +83,7 @@ function activate(context) {
     }),
     vscode.commands.registerCommand("gemstoneJs.doctor", () => runDoctor(explorer)),
     vscode.commands.registerCommand("gemstoneJs.evaluateSelection", () => evaluateSelection(explorer)),
+    vscode.commands.registerCommand("gemstoneJs.evaluateSelectionAs", () => evaluateSelectionAs(explorer)),
     vscode.commands.registerCommand("gemstoneJs.debugSelection", () => debugSelection(explorer)),
     vscode.commands.registerCommand("gemstoneJs.debugFile", () => debugFile(explorer)),
     vscode.commands.registerCommand("gemstoneJs.runFile", () => runFile(explorer)),
@@ -593,17 +594,35 @@ async function evaluateSelection(server) {
     return;
   }
   const returnKind = server.config().defaultReturnKind;
+  await evaluateSource(server, source, returnKind, "GemStone Evaluate Selection", "GemStone evaluation");
+}
+
+async function evaluateSelectionAs(server) {
+  const source = selectedSource();
+  if (!source) {
+    vscode.window.showWarningMessage("No Smalltalk source selected.");
+    return;
+  }
+  const choice = await vscode.window.showQuickPick(returnKindChoices(), {
+    placeHolder: "Evaluation return kind",
+    ignoreFocusOut: true,
+  });
+  if (!choice) return;
+  await evaluateSource(server, source, choice.value, `GemStone Evaluate Selection (${choice.value})`, "GemStone evaluation");
+}
+
+async function evaluateSource(server, source, returnKind, outputLabel, messageLabel) {
   output.show(true);
   try {
     const result = await server.evaluate(source, returnKind);
-    output.appendLine("GemStone Evaluate Selection");
+    output.appendLine(outputLabel);
     output.appendLine(JSON.stringify(result, null, 2));
-    vscode.window.showInformationMessage("GemStone evaluation completed.");
+    vscode.window.showInformationMessage(`${messageLabel} completed.`);
     refreshViews();
   } catch (error) {
-    output.appendLine(`GemStone evaluation failed: ${error.message}`);
+    output.appendLine(`${messageLabel} failed: ${error.message}`);
     output.appendLine(JSON.stringify(error.body ?? {}, null, 2));
-    vscode.window.showErrorMessage(`GemStone evaluation failed: ${error.message}`);
+    vscode.window.showErrorMessage(`${messageLabel} failed: ${error.message}`);
     await debugSource(server, source, returnKind, true);
   }
 }
@@ -620,19 +639,7 @@ async function runFile(server) {
     return;
   }
   const returnKind = server.config().defaultReturnKind;
-  output.show(true);
-  try {
-    const result = await server.evaluate(source, returnKind);
-    output.appendLine(`GemStone Run File: ${editor.document.fileName}`);
-    output.appendLine(JSON.stringify(result, null, 2));
-    vscode.window.showInformationMessage("GemStone file run completed.");
-    refreshViews();
-  } catch (error) {
-    output.appendLine(`GemStone file run failed: ${error.message}`);
-    output.appendLine(JSON.stringify(error.body ?? {}, null, 2));
-    vscode.window.showErrorMessage(`GemStone file run failed: ${error.message}`);
-    await debugSource(server, source, returnKind, true);
-  }
+  await evaluateSource(server, source, returnKind, `GemStone Run File: ${editor.document.fileName}`, "GemStone file run");
 }
 
 async function debugSelection(server) {
@@ -1146,6 +1153,7 @@ async function connectionItems(server) {
     commandItem("Clear Tree Filters", "gemstoneJs.clearTreeFilters", "clear-all", "roots, globals, classes"),
     commandItem("Doctor", "gemstoneJs.doctor", "beaker", "run local diagnostics"),
     commandItem("Evaluate Selection", "gemstoneJs.evaluateSelection", "run", "run selected Smalltalk"),
+    commandItem("Evaluate Selection As...", "gemstoneJs.evaluateSelectionAs", "run", "choose inspect/value/OOP"),
     commandItem("Debug Selection", "gemstoneJs.debugSelection", "debug-alt", "debug selected Smalltalk"),
     commandItem("Debug File", "gemstoneJs.debugFile", "debug-alt", "debug active editor contents"),
     commandItem("Run File", "gemstoneJs.runFile", "play", "run active editor contents"),
@@ -1294,6 +1302,14 @@ function disconnectedItems(error) {
 
 function errorItems(error) {
   return [new TreeNode("Load failed", { description: error.message, icon: "error" })];
+}
+
+function returnKindChoices() {
+  return [
+    { label: "Inspect", description: "inspection payload", value: "inspect" },
+    { label: "Value", description: "marshal to JS value", value: "value" },
+    { label: "OOP", description: "return object handle", value: "oop" },
+  ];
 }
 
 function redactSecrets(value, seen = new WeakSet()) {

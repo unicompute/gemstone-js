@@ -39,6 +39,7 @@ const requiredEntries = [
   "extension/LICENSE.txt",
   "extension/media/icon.svg",
   "extension/media/icon_purple.png",
+  "extension/snippets/smalltalk.json",
   "extension/syntaxes/smalltalk.tmLanguage.json",
 ];
 const forbiddenPatterns = [
@@ -64,8 +65,10 @@ for (const entry of entries) {
 }
 
 const packagedPackageJson = JSON.parse(zipText(archive, zipEntries.get("extension/package.json")));
+const packagedSnippets = JSON.parse(zipText(archive, zipEntries.get("extension/snippets/smalltalk.json")));
 const vsixManifest = zipText(archive, zipEntries.get("extension.vsixmanifest"));
 assertPackagedManifest(packagedPackageJson, vsixManifest);
+assertPackagedSnippets(packagedSnippets);
 
 const digest = createHash("sha256").update(archive).digest("hex");
 const checksumPath = `${vsixPath}.sha256`;
@@ -135,6 +138,8 @@ function assertPackagedManifest(manifest, vsixManifest) {
   const smalltalkGrammar = (manifest.contributes?.grammars || []).find((grammar) => grammar.language === "smalltalk");
   assertEqual(smalltalkGrammar?.scopeName, "source.smalltalk.gemstone", "smalltalk grammar scopeName");
   assertEqual(smalltalkGrammar?.path, "./syntaxes/smalltalk.tmLanguage.json", "smalltalk grammar path");
+  const smalltalkSnippets = (manifest.contributes?.snippets || []).find((snippet) => snippet.language === "smalltalk");
+  assertEqual(smalltalkSnippets?.path, "./snippets/smalltalk.json", "smalltalk snippets path");
   if (!manifest.contributes?.configuration?.properties?.["gemstoneJs.nativeSessionWorker"]) {
     throw new Error("VSIX package.json is missing gemstoneJs.nativeSessionWorker setting metadata.");
   }
@@ -149,6 +154,16 @@ function assertPackagedManifest(manifest, vsixManifest) {
   }
   if (!vsixManifest.includes("VisualStudio.Code")) {
     throw new Error("extension.vsixmanifest is missing the VisualStudio.Code target.");
+  }
+}
+
+function assertPackagedSnippets(snippets) {
+  const requiredPrefixes = ["gsmethod", "gsdo", "gsondo", "gsglobal", "gsdebug"];
+  const prefixes = Object.values(snippets || {}).map((snippet) => snippet?.prefix).filter(Boolean);
+  for (const prefix of requiredPrefixes) {
+    if (!prefixes.includes(prefix)) {
+      throw new Error(`VSIX snippets/smalltalk.json is missing prefix ${prefix}.`);
+    }
   }
 }
 

@@ -84,6 +84,12 @@
         "path": "./syntaxes/smalltalk.tmLanguage.json"
       }
     ],
+    "snippets": [
+      {
+        "language": "smalltalk",
+        "path": "./snippets/smalltalk.json"
+      }
+    ],
     "configuration": {
       "title": "gemstone-js Workbench",
       "properties": {

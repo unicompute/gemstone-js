@@ -13,6 +13,7 @@ const fakeExplorerPath = join(root, "test", "fixtures", "fake-explorer.js");
 const hostTestPath = join(root, "test", "suite", "index.js");
 const hostRunnerPath = join(root, "scripts", "run-extension-host-test.mjs");
 const languageConfigurationPath = join(root, "language-configuration.json");
+const smalltalkSnippetsPath = join(root, "snippets", "smalltalk.json");
 const smalltalkGrammarPath = join(root, "syntaxes", "smalltalk.tmLanguage.json");
 const vsixCheckPath = join(root, "scripts", "check-vsix.mjs");
 const workflowPath = join(repoRoot, ".github", "workflows", "vscode-workbench.yml");
@@ -33,6 +34,7 @@ expect(packageJson.scripts?.["test:host"]?.includes("run-extension-host-test.mjs
 expect(packageJson.devDependencies?.["@vscode/test-electron"], "@vscode/test-electron must be a devDependency for extension-host smoke tests");
 expect((packageJson.contributes?.languages || []).some((language) => language.id === "smalltalk"), "package.json must contribute the smalltalk language id");
 expect((packageJson.contributes?.grammars || []).some((grammar) => grammar.language === "smalltalk"), "package.json must contribute a smalltalk grammar");
+expect((packageJson.contributes?.snippets || []).some((snippet) => snippet.language === "smalltalk"), "package.json must contribute smalltalk snippets");
 
 expect(existsSync(changelogPath), "CHANGELOG.md must exist");
 const changelog = existsSync(changelogPath) ? readFileSync(changelogPath, "utf8") : "";
@@ -52,12 +54,15 @@ expect(existsSync(hostRunnerPath), "scripts/run-extension-host-test.mjs must exi
 expect(existsSync(fakeExplorerPath), "test/fixtures/fake-explorer.js must exist");
 expect(existsSync(hostTestPath), "test/suite/index.js must exist");
 expect(existsSync(languageConfigurationPath), "language-configuration.json must exist");
+expect(existsSync(smalltalkSnippetsPath), "snippets/smalltalk.json must exist");
 expect(existsSync(smalltalkGrammarPath), "syntaxes/smalltalk.tmLanguage.json must exist");
 
 const vsixCheck = existsSync(vsixCheckPath) ? readFileSync(vsixCheckPath, "utf8") : "";
 expect(vsixCheck.includes("assertPackagedManifest"), "check-vsix.mjs must validate the packaged manifest metadata");
 expect(vsixCheck.includes("extension.vsixmanifest"), "check-vsix.mjs must inspect extension.vsixmanifest");
 expect(vsixCheck.includes("onDebugResolve:gemstone-js"), "check-vsix.mjs must validate debugger activation metadata");
+expect(vsixCheck.includes("snippets/smalltalk.json"), "check-vsix.mjs must validate smalltalk snippet metadata");
+expect(vsixCheck.includes("gsdebug"), "check-vsix.mjs must validate required smalltalk snippet prefixes");
 expect(vsixCheck.includes("source.smalltalk.gemstone"), "check-vsix.mjs must validate smalltalk grammar metadata");
 
 const workflow = existsSync(workflowPath) ? readFileSync(workflowPath, "utf8") : "";

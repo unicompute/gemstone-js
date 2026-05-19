@@ -14,6 +14,7 @@ const files = [
 const jsonFiles = [
   join(root, "package.json"),
   join(root, "language-configuration.json"),
+  ...collect(join(root, "snippets")).filter((file) => file.endsWith(".json")),
   ...collect(join(root, "syntaxes")).filter((file) => file.endsWith(".json")),
 ];
 
@@ -31,7 +32,10 @@ for (const file of files) {
 
 for (const file of jsonFiles) {
   try {
-    JSON.parse(readFileSync(file, "utf8"));
+    const parsed = JSON.parse(readFileSync(file, "utf8"));
+    if (file.includes(`${pathSeparator()}snippets${pathSeparator()}`)) {
+      validateSnippets(file, parsed);
+    }
   } catch (error) {
     throw new Error(`JSON syntax check failed: ${relative(root, file)}: ${error.message}`);
   }
@@ -57,4 +61,23 @@ function collect(dir) {
     }
   }
   return files.sort();
+}
+
+function validateSnippets(file, snippets) {
+  const requiredPrefixes = ["gsmethod", "gsdo", "gsondo", "gsglobal", "gsdebug"];
+  const prefixes = Object.values(snippets || {}).map((snippet) => snippet?.prefix).filter(Boolean);
+  for (const prefix of requiredPrefixes) {
+    if (!prefixes.includes(prefix)) {
+      throw new Error(`Snippet file ${relative(root, file)} is missing prefix ${prefix}`);
+    }
+  }
+  for (const [name, snippet] of Object.entries(snippets || {})) {
+    if (!snippet.description || !snippet.prefix || !snippet.body) {
+      throw new Error(`Snippet ${name} in ${relative(root, file)} must define description, prefix, and body.`);
+    }
+  }
+}
+
+function pathSeparator() {
+  return process.platform === "win32" ? "\\" : "/";
 }

@@ -1,0 +1,93 @@
+{
+  "GemStone Method": {
+    "prefix": "gsmethod",
+    "description": "GemStone Smalltalk method template",
+    "body": [
+      "${1:selector}",
+      "  \"${2:comment}\"",
+      "  ${3:^ self}"
+    ]
+  },
+  "Temporaries": {
+    "prefix": "gstemps",
+    "description": "Temporary variable declaration",
+    "body": [
+      "| ${1:temporary} |",
+      "${2:self}"
+    ]
+  },
+  "Collection Do": {
+    "prefix": "gsdo",
+    "description": "Iterate over a collection",
+    "body": [
+      "${1:collection} do: [ :${2:each} |",
+      "  ${3:each printString}",
+      "]"
+    ]
+  },
+  "Collection Select": {
+    "prefix": "gsselect",
+    "description": "Select matching collection items",
+    "body": [
+      "${1:collection} select: [ :${2:each} |",
+      "  ${3:each notNil}",
+      "]"
+    ]
+  },
+  "Detect If None": {
+    "prefix": "gsdetect",
+    "description": "Detect an item with an ifNone fallback",
+    "body": [
+      "${1:collection}",
+      "  detect: [ :${2:each} | ${3:each notNil} ]",
+      "  ifNone: [ ${4:nil} ]"
+    ]
+  },
+  "If Nil": {
+    "prefix": "gsifnil",
+    "description": "Nil guard",
+    "body": [
+      "${1:value} ifNil: [",
+      "  ${2:^ nil}",
+      "]"
+    ]
+  },
+  "Exception Handler": {
+    "prefix": "gsondo",
+    "description": "Exception handler using on:do:",
+    "body": [
+      "[",
+      "  ${1:self}",
+      "] on: ${2:Exception} do: [ :${3:ex} |",
+      "  ${4:ex pass}",
+      "]"
+    ]
+  },
+  "Ensure": {
+    "prefix": "gsensure",
+    "description": "Ensure cleanup block",
+    "body": [
+      "[",
+      "  ${1:self}",
+      "] ensure: [",
+      "  ${2:self cleanup}",
+      "]"
+    ]
+  },
+  "UserGlobals At Put": {
+    "prefix": "gsglobal",
+    "description": "Store a value in UserGlobals",
+    "body": [
+      "UserGlobals",
+      "  at: #${1:name}",
+      "  put: ${2:value}"
+    ]
+  },
+  "Debug Expression": {
+    "prefix": "gsdebug",
+    "description": "Expression that opens the GemStone debugger",
+    "body": [
+      "1 / 0"
+    ]
+  }
+}

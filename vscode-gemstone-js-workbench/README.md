@@ -34,7 +34,9 @@ Class rows open the Explorer Class Browser focused on that class. Root/global/cl
 
 The extension contributes the `smalltalk` language id for `.st`, `.gs`, and
 `.topaz` files, with lightweight GemStone Smalltalk syntax highlighting and
-editor pairs for strings, comments, blocks, arrays, and braces.
+editor pairs for strings, comments, blocks, arrays, and braces. It also provides
+snippets for common method, collection, exception, cleanup, globals, and debug
+expression patterns.
 
 ## Settings
 

@@ -351,6 +351,7 @@ try {
   const descriptor = factory.createDebugAdapterDescriptor();
   assert(descriptor instanceof DebugAdapterInlineImplementation);
   const adapter = descriptor.implementation;
+  assert.equal(typeof adapter.dispose, "function");
   const messages = [];
   adapter.onDidSendMessage((message) => messages.push(message));
   adapter.handleMessage({ seq: 1, type: "request", command: "initialize" });

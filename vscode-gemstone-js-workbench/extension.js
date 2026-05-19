@@ -686,6 +686,16 @@ class GemStoneDebugAdapter {
     this.sendEvent("terminated");
   }
 
+  dispose() {
+    if (this.debugSessionId) {
+      void this.server.debugAction(this.debugSessionId, "terminate", 0).catch(() => undefined);
+      this.debugSessionId = undefined;
+    }
+    if (this.eventEmitter && typeof this.eventEmitter.dispose === "function") {
+      this.eventEmitter.dispose();
+    }
+  }
+
   applyResult(result) {
     this.debugSessionId = result?.debugSessionId;
     this.frames = Array.isArray(result?.problem?.frames) ? result.problem.frames : [];

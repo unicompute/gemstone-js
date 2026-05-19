@@ -4,6 +4,7 @@
   "description": "VS Code wrapper for the gemstone-js Explorer, code runner, diagnostics, and debugger.",
   "version": "0.1.0",
   "publisher": "unicompute",
+  "icon": "media/icon_purple.png",
   "license": "MIT",
   "repository": {
     "type": "git",

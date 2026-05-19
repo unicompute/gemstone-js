@@ -3,6 +3,7 @@ node_modules/**
 .gitignore
 .vscodeignore
 .DS_Store
+media/gemstone-rs-graphic_purple.png
 *.vsix
 npm-debug.log
 yarn-error.log

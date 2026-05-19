@@ -49,7 +49,7 @@ Current plans:
 
 - `first-session`: connect, evaluate, and write/read ObjectLog entries.
 - `data-persistence`: roots, dictionaries, query helpers, bulk selector sends,
-  GStore, and migrations.
+  transparent object mapping, GStore, and migrations.
 - `typed-codegen`: manifests, decorated source, and generated wrappers.
 - `web-service`: Fetch, local explorer, route-handler, Express, Fastify, and
   Hono shapes.
@@ -109,6 +109,9 @@ decorator scanner and emits `examples/booking.decorators.generated.ts`.
 For the broader object-mapping model, including `TypedOop<T>` handles,
 generated selector wrappers, dictionary payload conversion, and value
 converters, see `docs/object-mapping.md`.
+
+`examples/object-mapping.ts` shows `mappedObject()` with async property-style
+methods, setter selectors, object selectors, and snapshots.
 
 The next planned examples should cover a mapping manifest, generated
 `BookingRef`-style classes around `TypedOop<T>`, repository helpers returning

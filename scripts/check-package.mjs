@@ -239,6 +239,7 @@ const required = [
   "examples/explorer.ts",
   "examples/gstore.ts",
   "examples/migrations.ts",
+  "examples/object-mapping.ts",
   "examples/object-log.ts",
   "examples/persistent-root.ts",
   "examples/quickstart.ts",
@@ -436,6 +437,7 @@ assertSnippets(
   objectMappingDocs,
   [
     "Object Mapping",
+    "mappedObject()",
     "TypedOop<T>",
     "Session.classRef<T>()",
     "returnKind: \"object\"",
@@ -445,7 +447,7 @@ assertSnippets(
     "Generated `*Ref` classes",
     "snapshot fields",
     "Explorer and VS Code mapping views",
-    "transparent `booking.status` property dispatch",
+    "synchronous `booking.status` property dispatch",
   ],
 );
 assertSnippets(
@@ -562,7 +564,7 @@ for (const exportName of ["SessionConfig", "SessionEnv", "SessionEnvAliasConflic
 if (!apiContract.includes("await import(moduleSpecifier)") || !apiContract.includes("missingValueExports")) {
   throw new Error("scripts/api-contract.mjs must import and compare runtime value exports.");
 }
-for (const name of ["quickstart", "gstore", "persistent-root", "query", "bulk-perform", "migrations", "object-log", "web-express", "web-fetch", "web-route-handler"]) {
+for (const name of ["quickstart", "gstore", "persistent-root", "object-mapping", "query", "bulk-perform", "migrations", "object-log", "web-express", "web-fetch", "web-route-handler"]) {
   if (!examplesCatalog.includes(name)) {
     throw new Error(`scripts/examples-catalog.mjs must include packaged example: ${name}.`);
   }

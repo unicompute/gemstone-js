@@ -25,6 +25,9 @@ Use these layers according to how much object identity you need to preserve:
   domain type.
 - **Class references**: `Session.classRef<T>()` caches class lookup and exposes
   class-side sends, allocation, and object-returning sends.
+- **Mapped object proxies**: `mappedObject()` wraps a retained handle with
+  async property-style methods such as `booking.status()` and
+  `booking.setStatus("confirmed")`, while keeping remote calls explicit.
 - **Generated wrappers**: codegen manifests and decorated source emit typed
   functions that call GemStone selectors and return values, raw OOPs, or
   retained typed handles.
@@ -63,6 +66,67 @@ This is object mapping through a retained remote handle. The `Booking` type is a
 compile-time witness for the handle; it is not a hydrated local instance.
 Selectors still make remote calls, and writes still follow the active GemStone
 transaction.
+
+## Opt-In Transparent Mapping
+
+`mappedObject()` is the safe transparent layer. It makes selector sends feel
+closer to a local object API, but every remote operation is still an async
+method call.
+
+```ts
+import { Session, mappedObject, type TypedOop } from "gemstone-js";
+
+interface Booking {
+  id: string;
+  status: string;
+}
+
+type BookingMapping = {
+  setStatus(status: string): Promise<unknown>;
+  customer(): Promise<TypedOop<{ name: string }>>;
+};
+
+const session = await Session.connect();
+const object = await session
+  .classRef<Booking>("BookingRepository")
+  .sendObject("find:", "B-1001");
+
+const booking = mappedObject<Booking, BookingMapping>(object, {
+  selectors: {
+    id: "id",
+    status: "status",
+  },
+  setters: {
+    setStatus: "status:",
+  },
+  objectSelectors: {
+    customer: "customer",
+  },
+  snapshot: ["id", "status"],
+});
+
+const before = await booking.status();
+await booking.setStatus("confirmed");
+const customer = await booking.customer();
+const payload = await booking.$snapshot();
+```
+
+The helper reserves `$`-prefixed operations for explicit remote controls:
+
+- `$object`, `$session`, and `$oop` expose the retained handle boundary.
+- `$send()`, `$sendOop()`, and `$sendObject()` send explicit selectors.
+- `$set("status", "confirmed")` sends `status:` when you do not want a typed
+  setter method.
+- `$snapshot()` reads a configured or supplied field list into plain payload
+  data.
+- `$inspect()`, `$dump()`, `$printString()`, and `$release()` delegate to the
+  retained handle.
+
+Unknown non-`$` properties become async selector functions. A zero-argument
+method such as `booking.status()` sends `status`. A one-argument method such as
+`booking.priority(3)` sends `priority:`. Multi-argument selectors must be
+configured explicitly because JavaScript method names cannot infer Smalltalk
+keyword shape safely.
 
 ## Generated Selector Wrappers
 
@@ -271,9 +335,10 @@ the remote object is a plain local value.
 
 ## Mapping Manifest Roadmap
 
-The next object-mapping step should be connector-inspired, but still explicit
-and async. The goal is to keep GemStone identity visible while giving
-application code a smaller, typed surface than raw selector sends.
+With `mappedObject()` available, the next object-mapping step should be
+connector-inspired code generation. The goal is to keep GemStone identity
+visible while giving application code a smaller, typed surface than raw
+selector sends or hand-written proxy options.
 
 1. **Mapping manifest schema**
 
@@ -317,8 +382,8 @@ application code a smaller, typed surface than raw selector sends.
 2. **Generated `*Ref` classes**
 
    The generator should emit small reference classes that wrap
-   `TypedOop<T>`. Methods remain async and selector-backed; they do not become
-   JavaScript properties.
+   `TypedOop<T>` or delegate to `mappedObject()`. Methods remain async and
+   selector-backed; they do not become JavaScript properties.
 
    ```ts
    export class BookingRef {
@@ -402,7 +467,7 @@ typed ref and snapshot path is proven against live Stone workflows.
 
 `gemstone-js` does not currently provide:
 
-- transparent `booking.status` property dispatch to GemStone selectors
+- synchronous `booking.status` property dispatch to GemStone selectors
 - automatic JS class hydration from arbitrary GemStone instances
 - a session-wide identity map for local wrapper instances
 - automatic persistence of arbitrary JavaScript object graphs

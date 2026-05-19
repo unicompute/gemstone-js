@@ -138,7 +138,8 @@ artifact verification, and the native session-thread spike.
 - Future JavaScript object mapping should stay explicit: a mapping manifest
   schema can generate async `*Ref` classes around `TypedOop<T>`, repository
   helpers returning typed refs, and bounded snapshot/dictionary helpers instead
-  of transparent property dispatch.
+  of synchronous property dispatch. The current `mappedObject()` helper is the
+  opt-in transparent layer for async property-style selector methods.
 - GemStone OOPs are represented as branded `bigint` values in TypeScript, while
   the native Node boundary uses decimal strings to avoid 64-bit precision loss.
 - Root helper names use camelCase (`sessionMethods`) rather than Python's

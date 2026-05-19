@@ -140,6 +140,25 @@ export async function findBooking(
 }
 ```
 
+For a more transparent syntax, `mappedObject()` wraps the retained handle with async property-style methods:
+
+```ts
+import { mappedObject } from "gemstone-js";
+
+const booking = mappedObject<Booking, {
+  setStatus(status: string): Promise<unknown>;
+}>(bookingObject, {
+  setters: { setStatus: "status:" },
+  snapshot: ["id", "status"],
+});
+
+const before = await booking.status();
+await booking.setStatus("confirmed");
+const payload = await booking.$snapshot();
+```
+
+That is intentionally not `await booking.status` or `booking.status = "confirmed"`. JavaScript property access is synchronous, but GemStone selector sends are remote and transaction-bound.
+
 For payload-style mapping, class instances can be converted explicitly into GemStone dictionaries:
 
 ```ts
@@ -205,10 +224,10 @@ The API names do real work here. `Value` methods marshal back to JavaScript valu
 
 This is the same bias as the rest of the project: preserve GemStone identity and transaction semantics, but make the JavaScript boundary typed, repeatable, and easy to review.
 
-The next mapping step should borrow the useful part of the Pharo bridge connector model without copying its transparent synchronization semantics. The shape is straightforward:
+With `mappedObject()` in place, the next mapping step should borrow the useful part of the Pharo bridge connector model without copying its transparent synchronization semantics. The shape is straightforward:
 
 - mapping manifest schema for class name, TypeScript type, selectors, setters, repository selectors, and snapshot fields
-- generated `BookingRef`-style classes wrapping `TypedOop<T>`
+- generated `BookingRef`-style classes wrapping `TypedOop<T>` or delegating to `mappedObject()`
 - repository helpers returning typed refs
 - bounded `snapshot()` and dictionary helpers for UI/API payloads
 - Explorer and VS Code mapping views over committed manifests and generated files

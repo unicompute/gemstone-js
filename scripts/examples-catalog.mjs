@@ -21,6 +21,13 @@ export const exampleCatalog = [
     command: "node --experimental-strip-types examples/persistent-root.ts",
   },
   {
+    name: "object-mapping",
+    path: "examples/object-mapping.ts",
+    kind: "data",
+    description: "Transparent-ish mapped object helper with async property methods, object selectors, and snapshots.",
+    command: "node --experimental-strip-types examples/object-mapping.ts",
+  },
+  {
     name: "query",
     path: "examples/query.ts",
     kind: "query",
@@ -137,7 +144,7 @@ export const examplePlans = [
     name: "data-persistence",
     title: "Data Persistence",
     description: "Work through roots, dictionaries, query helpers, GStore, and migrations.",
-    examples: ["persistent-root", "query", "bulk-perform", "gstore", "migrations"],
+    examples: ["persistent-root", "object-mapping", "query", "bulk-perform", "gstore", "migrations"],
   },
   {
     name: "typed-codegen",

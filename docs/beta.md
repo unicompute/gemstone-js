@@ -100,12 +100,11 @@ Use `examples/codegen.manifest.json` for manifest-driven wrappers and
 cover typed arguments, array and dictionary argument marshalling, value returns,
 raw OOP returns, and retained typed-object returns.
 
-The object-mapping roadmap is intentionally outside the current beta support
-boundary. The planned shape is a mapping manifest schema, generated `*Ref`
-classes wrapping `TypedOop<T>`, repository helpers returning typed refs,
-bounded snapshot/dictionary helpers for UI/API payloads, and optional
-Explorer/VS Code mapping views. Until that lands, use explicit `TypedOop<T>`,
-`GsDict`, `PersistentRoot`, and generated selector wrappers.
+The current object-mapping support is explicit: use `TypedOop<T>`, `GsDict`,
+`PersistentRoot`, generated selector wrappers, and the opt-in `mappedObject()`
+helper for async property-style methods and bounded snapshots. The larger
+connector-style mapping manifest, generated `*Ref` classes, repository helpers,
+and Explorer/VS Code mapping views remain outside the beta support boundary.
 
 ## Installed Package Proof
 
@@ -143,8 +142,8 @@ Deno and Bun FFI adapters are scaffolded and useful for continued porting work,
 but they should be treated as experimental until live platform coverage catches
 up. Visual tooling and a VS Code extension should remain out of the beta
 critical path until the package, native worker backend, and release workflow
-settle. The same applies to connector-style object mapping: it is a good next
-product-polish track, not a beta-critical runtime contract.
+settle. The same applies to generated connector-style object mapping: it is a
+good next product-polish track, not a beta-critical runtime contract.
 
 ## Troubleshooting
 

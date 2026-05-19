@@ -175,6 +175,17 @@ export {
   type ObjectToDictionaryOptions,
   type ValueConverterOptions,
 } from "./converters.ts";
+export {
+  mappedObject,
+  type MappedObject,
+  type MappedObjectControls,
+  type MappedObjectOptions,
+  type MappedSelectorSpec,
+  type MappedSnapshotField,
+  type MappedSnapshotKind,
+  type MappedSnapshotOptions,
+  type MappedSnapshotSpec,
+} from "./object-mapping.ts";
 export { PersistentRoot } from "./persistent-root.ts";
 export { GsDict, type DictionaryReadbackOptions, type KeyedReadbackOptions } from "./gsdict.ts";
 export { OrderedCollection } from "./ordered-collection.ts";

@@ -59,7 +59,8 @@ Use `gemstone-rs` when:
 For the JavaScript ecosystem, typed mapping should use a similar explicit
 contract: mapping manifests, generated `*Ref` classes around `TypedOop<T>`,
 repository helpers, and bounded snapshot/dictionary output rather than
-transparent property dispatch.
+transparent synchronous property dispatch. The JS runtime now has
+`mappedObject()` as an opt-in async property-style bridge.
 
 ## Remaining Work
 

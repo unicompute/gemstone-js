@@ -529,6 +529,10 @@
       "from": "./benchmark-baselines.ts"
     },
     {
+      "name": "mappedObject",
+      "from": "./object-mapping.ts"
+    },
+    {
       "name": "marshalImmediateOop",
       "from": "./oop.ts"
     },
@@ -1041,6 +1045,38 @@
     {
       "name": "LoginOptions",
       "from": "./types.ts"
+    },
+    {
+      "name": "MappedObject",
+      "from": "./object-mapping.ts"
+    },
+    {
+      "name": "MappedObjectControls",
+      "from": "./object-mapping.ts"
+    },
+    {
+      "name": "MappedObjectOptions",
+      "from": "./object-mapping.ts"
+    },
+    {
+      "name": "MappedSelectorSpec",
+      "from": "./object-mapping.ts"
+    },
+    {
+      "name": "MappedSnapshotField",
+      "from": "./object-mapping.ts"
+    },
+    {
+      "name": "MappedSnapshotKind",
+      "from": "./object-mapping.ts"
+    },
+    {
+      "name": "MappedSnapshotOptions",
+      "from": "./object-mapping.ts"
+    },
+    {
+      "name": "MappedSnapshotSpec",
+      "from": "./object-mapping.ts"
     },
     {
       "name": "MarshalledArray",

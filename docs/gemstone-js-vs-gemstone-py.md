@@ -17,7 +17,9 @@ For object mapping, the projects should intentionally differ. `gemstone-py`
 can lean on Python's dynamic proxy style, while `gemstone-js` should prefer a
 connector-inspired mapping manifest that generates explicit async `*Ref`
 classes, repository helpers, and snapshot/dictionary helpers around
-`TypedOop<T>`.
+`TypedOop<T>`. The lightweight `mappedObject()` helper is the current
+transparent layer: property-style async methods without synchronous property
+dispatch.
 
 ## Quick Commands
 

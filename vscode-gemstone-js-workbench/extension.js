@@ -87,7 +87,9 @@ function activate(context) {
     vscode.commands.registerCommand("gemstoneJs.debugSelection", () => debugSelection(explorer)),
     vscode.commands.registerCommand("gemstoneJs.debugFile", () => debugFile(explorer)),
     vscode.commands.registerCommand("gemstoneJs.runFile", () => runFile(explorer)),
+    vscode.commands.registerCommand("gemstoneJs.runFileAs", () => runFileAs(explorer)),
     vscode.commands.registerCommand("gemstoneJs.configureConnection", () => configureConnection(explorer)),
+    vscode.commands.registerCommand("gemstoneJs.setDefaultReturnKind", () => setDefaultReturnKind(explorer)),
     vscode.commands.registerCommand("gemstoneJs.setPassword", () => setPassword(explorer)),
     vscode.commands.registerCommand("gemstoneJs.clearPassword", () => clearPassword(explorer)),
     vscode.commands.registerCommand("gemstoneJs.openSettings", () =>
@@ -611,6 +613,18 @@ async function evaluateSelectionAs(server) {
   await evaluateSource(server, source, choice.value, `GemStone Evaluate Selection (${choice.value})`, "GemStone evaluation");
 }
 
+async function setDefaultReturnKind(server) {
+  const current = server.config().defaultReturnKind;
+  const choice = await vscode.window.showQuickPick(returnKindChoices(current), {
+    placeHolder: `Default return kind (${current})`,
+    ignoreFocusOut: true,
+  });
+  if (!choice) return;
+  await vscode.workspace.getConfiguration("gemstoneJs").update("defaultReturnKind", choice.value, configurationTarget());
+  vscode.window.showInformationMessage(`GemStone default return kind set to ${choice.value}.`);
+  refreshViews();
+}
+
 async function evaluateSource(server, source, returnKind, outputLabel, messageLabel) {
   output.show(true);
   try {
@@ -640,6 +654,25 @@ async function runFile(server) {
   }
   const returnKind = server.config().defaultReturnKind;
   await evaluateSource(server, source, returnKind, `GemStone Run File: ${editor.document.fileName}`, "GemStone file run");
+}
+
+async function runFileAs(server) {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor) {
+    vscode.window.showWarningMessage("No active editor.");
+    return;
+  }
+  const source = editor.document.getText();
+  if (!source.trim()) {
+    vscode.window.showWarningMessage("Active file is empty.");
+    return;
+  }
+  const choice = await vscode.window.showQuickPick(returnKindChoices(server.config().defaultReturnKind), {
+    placeHolder: "File return kind",
+    ignoreFocusOut: true,
+  });
+  if (!choice) return;
+  await evaluateSource(server, source, choice.value, `GemStone Run File (${choice.value}): ${editor.document.fileName}`, "GemStone file run");
 }
 
 async function debugSelection(server) {
@@ -1157,11 +1190,13 @@ async function connectionItems(server) {
     commandItem("Debug Selection", "gemstoneJs.debugSelection", "debug-alt", "debug selected Smalltalk"),
     commandItem("Debug File", "gemstoneJs.debugFile", "debug-alt", "debug active editor contents"),
     commandItem("Run File", "gemstoneJs.runFile", "play", "run active editor contents"),
+    commandItem("Run File As...", "gemstoneJs.runFileAs", "play", "choose inspect/value/OOP"),
     commandItem("Inspect OOP", "gemstoneJs.inspectOop", "search", "open object inspector"),
     commandItem("Stop Explorer", "gemstoneJs.stopExplorer", "debug-stop", `${config.explorerHost}:${config.explorerPort}`),
     commandItem("Restart Explorer", "gemstoneJs.restartExplorer", "debug-restart", `${config.explorerHost}:${config.explorerPort}`),
     commandItem("Set Password", "gemstoneJs.setPassword", "key", "store password in SecretStorage"),
     commandItem("Clear Password", "gemstoneJs.clearPassword", "trash", "clear SecretStorage password"),
+    commandItem("Set Default Return Kind", "gemstoneJs.setDefaultReturnKind", "settings-gear", config.defaultReturnKind),
   ];
   try {
     const status = await server.status(false);
@@ -1304,12 +1339,16 @@ function errorItems(error) {
   return [new TreeNode("Load failed", { description: error.message, icon: "error" })];
 }
 
-function returnKindChoices() {
-  return [
+function returnKindChoices(current) {
+  const choices = [
     { label: "Inspect", description: "inspection payload", value: "inspect" },
     { label: "Value", description: "marshal to JS value", value: "value" },
     { label: "OOP", description: "return object handle", value: "oop" },
   ];
+  if (!current) return choices;
+  return choices.map((choice) => choice.value === current
+    ? { ...choice, description: `${choice.description} (current)` }
+    : choice);
 }
 
 function redactSecrets(value, seen = new WeakSet()) {

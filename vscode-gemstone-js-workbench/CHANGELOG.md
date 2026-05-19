@@ -6,6 +6,7 @@
 - Added Explorer lifecycle commands, embedded webview support, and external browser opening.
 - Added GemStone Doctor, Evaluate Selection, Debug Selection, and Run File commands.
 - Added Evaluate Selection As for one-off inspect/value/OOP return-kind selection.
+- Added Run File As and Set Default Return Kind return-kind controls.
 - Added a thin `gemstone-js` debug adapter over the Explorer debugger API.
 - Added Connection, Roots, Globals, and Classes tree views.
 - Added class browser deep links from class tree entries.

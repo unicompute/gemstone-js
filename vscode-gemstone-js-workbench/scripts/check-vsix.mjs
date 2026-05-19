@@ -109,7 +109,9 @@ function assertPackagedManifest(manifest, vsixManifest) {
     "gemstoneJs.debugSelection",
     "gemstoneJs.debugFile",
     "gemstoneJs.runFile",
+    "gemstoneJs.runFileAs",
     "gemstoneJs.configureConnection",
+    "gemstoneJs.setDefaultReturnKind",
     "gemstoneJs.setPassword",
     "gemstoneJs.clearPassword",
     "gemstoneJs.openSettings",
@@ -143,7 +145,9 @@ function assertPackagedManifest(manifest, vsixManifest) {
     "onCommand:gemstoneJs.debugSelection",
     "onCommand:gemstoneJs.debugFile",
     "onCommand:gemstoneJs.runFile",
+    "onCommand:gemstoneJs.runFileAs",
     "onCommand:gemstoneJs.configureConnection",
+    "onCommand:gemstoneJs.setDefaultReturnKind",
     "onCommand:gemstoneJs.openSettings",
     "onCommand:gemstoneJs.clearTreeFilters",
     "onCommand:gemstoneJs.openOutput",
@@ -175,7 +179,7 @@ function assertPackagedManifest(manifest, vsixManifest) {
   );
   assertArrayIncludesAll(
     (manifest.contributes?.menus?.["editor/context"] || []).map((menuItem) => menuItem.command),
-    ["gemstoneJs.evaluateSelection", "gemstoneJs.evaluateSelectionAs", "gemstoneJs.debugSelection", "gemstoneJs.debugFile", "gemstoneJs.runFile"],
+    ["gemstoneJs.evaluateSelection", "gemstoneJs.evaluateSelectionAs", "gemstoneJs.debugSelection", "gemstoneJs.debugFile", "gemstoneJs.runFile", "gemstoneJs.runFileAs"],
     "menus.editor/context",
   );
   assertArrayIncludesAll(

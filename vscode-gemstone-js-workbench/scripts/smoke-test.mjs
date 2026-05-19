@@ -338,7 +338,9 @@ try {
     "gemstoneJs.debugSelection",
     "gemstoneJs.debugFile",
     "gemstoneJs.runFile",
+    "gemstoneJs.runFileAs",
     "gemstoneJs.configureConnection",
+    "gemstoneJs.setDefaultReturnKind",
     "gemstoneJs.setPassword",
     "gemstoneJs.clearPassword",
     "gemstoneJs.openSettings",
@@ -422,6 +424,8 @@ try {
   assert(connectionItems.some((item) => item.label === "Stop Explorer"));
   assert(connectionItems.some((item) => item.label === "Debug File"));
   assert(connectionItems.some((item) => item.label === "Run File"));
+  assert(connectionItems.some((item) => item.label === "Run File As..."));
+  assert(connectionItems.some((item) => item.label === "Set Default Return Kind"));
   assert.equal(connectionProvider.getTreeItem(connectionItems[0]).iconPath.id, "warning");
 
   const fetchCalls = [];
@@ -524,6 +528,25 @@ try {
   });
   assert.equal(captured.quickPickOptions.at(-1).pickerOptions.placeHolder, "Evaluation return kind");
   assert.equal(captured.lastInfo, "GemStone evaluation completed.");
+  captured.quickPickLabel = "OOP";
+  await captured.commands.get("gemstoneJs.runFileAs")();
+  assert.deepEqual(evalBodies.at(-1), {
+    source: "self error: 'whole document'",
+    returnKind: "oop",
+    commit: false,
+  });
+  assert.equal(captured.quickPickOptions.at(-1).pickerOptions.placeHolder, "File return kind");
+  assert.equal(captured.lastInfo, "GemStone file run completed.");
+  captured.quickPickLabel = "Value";
+  await captured.commands.get("gemstoneJs.setDefaultReturnKind")();
+  assert.equal(configValues.defaultReturnKind, "value");
+  assert(captured.updatedSettings.some((entry) =>
+    entry.key === "defaultReturnKind" &&
+    entry.value === "value" &&
+    entry.target === vscode.ConfigurationTarget.Workspace
+  ));
+  assert.equal(captured.quickPickOptions.at(-1).pickerOptions.placeHolder, "Default return kind (inspect)");
+  assert.equal(captured.lastInfo, "GemStone default return kind set to value.");
   await captured.commands.get("gemstoneJs.openClassBrowser")(classItems[1]);
   assert.match(captured.webviewPanels.at(-1).webview.html, /window=classes&amp;class=Booking/);
   await captured.commands.get("gemstoneJs.copyClassName")("Booking");

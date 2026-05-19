@@ -59,7 +59,9 @@
     "onCommand:gemstoneJs.debugSelection",
     "onCommand:gemstoneJs.debugFile",
     "onCommand:gemstoneJs.runFile",
+    "onCommand:gemstoneJs.runFileAs",
     "onCommand:gemstoneJs.configureConnection",
+    "onCommand:gemstoneJs.setDefaultReturnKind",
     "onCommand:gemstoneJs.setPassword",
     "onCommand:gemstoneJs.clearPassword",
     "onCommand:gemstoneJs.openSettings",
@@ -380,8 +382,18 @@
         "icon": "$(play)"
       },
       {
+        "command": "gemstoneJs.runFileAs",
+        "title": "GemStone: Run File As...",
+        "icon": "$(play)"
+      },
+      {
         "command": "gemstoneJs.configureConnection",
         "title": "GemStone: Configure Connection"
+      },
+      {
+        "command": "gemstoneJs.setDefaultReturnKind",
+        "title": "GemStone: Set Default Return Kind",
+        "icon": "$(settings-gear)"
       },
       {
         "command": "gemstoneJs.setPassword",
@@ -574,6 +586,10 @@
         {
           "command": "gemstoneJs.runFile",
           "group": "navigation@5"
+        },
+        {
+          "command": "gemstoneJs.runFileAs",
+          "group": "navigation@6"
         }
       ],
       "editor/title": [

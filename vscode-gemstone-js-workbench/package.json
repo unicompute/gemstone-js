@@ -47,6 +47,17 @@
     "onCommand:gemstoneJs.setPassword",
     "onCommand:gemstoneJs.clearPassword",
     "onCommand:gemstoneJs.refreshViews",
+    "onCommand:gemstoneJs.refreshConnection",
+    "onCommand:gemstoneJs.refreshRoots",
+    "onCommand:gemstoneJs.refreshGlobals",
+    "onCommand:gemstoneJs.refreshClasses",
+    "onCommand:gemstoneJs.filterRoots",
+    "onCommand:gemstoneJs.filterGlobals",
+    "onCommand:gemstoneJs.filterClasses",
+    "onCommand:gemstoneJs.clearRootsFilter",
+    "onCommand:gemstoneJs.clearGlobalsFilter",
+    "onCommand:gemstoneJs.clearClassesFilter",
+    "onCommand:gemstoneJs.openClassBrowser",
     "onDebugResolve:gemstone-js"
   ],
   "main": "./extension.js",
@@ -150,12 +161,66 @@
         "icon": "$(refresh)"
       },
       {
+        "command": "gemstoneJs.refreshConnection",
+        "title": "GemStone: Refresh Connection",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "gemstoneJs.refreshRoots",
+        "title": "GemStone: Refresh Roots",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "gemstoneJs.refreshGlobals",
+        "title": "GemStone: Refresh Globals",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "gemstoneJs.refreshClasses",
+        "title": "GemStone: Refresh Classes",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "gemstoneJs.filterRoots",
+        "title": "GemStone: Filter Roots",
+        "icon": "$(filter)"
+      },
+      {
+        "command": "gemstoneJs.filterGlobals",
+        "title": "GemStone: Filter Globals",
+        "icon": "$(filter)"
+      },
+      {
+        "command": "gemstoneJs.filterClasses",
+        "title": "GemStone: Filter Classes",
+        "icon": "$(filter)"
+      },
+      {
+        "command": "gemstoneJs.clearRootsFilter",
+        "title": "GemStone: Clear Roots Filter",
+        "icon": "$(clear-all)"
+      },
+      {
+        "command": "gemstoneJs.clearGlobalsFilter",
+        "title": "GemStone: Clear Globals Filter",
+        "icon": "$(clear-all)"
+      },
+      {
+        "command": "gemstoneJs.clearClassesFilter",
+        "title": "GemStone: Clear Classes Filter",
+        "icon": "$(clear-all)"
+      },
+      {
         "command": "gemstoneJs.openExplorer",
         "title": "GemStone: Open Explorer"
       },
       {
         "command": "gemstoneJs.openExplorerExternal",
         "title": "GemStone: Open Explorer in Browser"
+      },
+      {
+        "command": "gemstoneJs.openClassBrowser",
+        "title": "GemStone: Open Class Browser"
       },
       {
         "command": "gemstoneJs.startExplorer",
@@ -291,9 +356,39 @@
     "menus": {
       "view/title": [
         {
-          "command": "gemstoneJs.refreshViews",
-          "when": "view == gemstoneJs.connectionView || view == gemstoneJs.rootsView || view == gemstoneJs.globalsView || view == gemstoneJs.classesView",
+          "command": "gemstoneJs.refreshConnection",
+          "when": "view == gemstoneJs.connectionView",
           "group": "navigation"
+        },
+        {
+          "command": "gemstoneJs.refreshRoots",
+          "when": "view == gemstoneJs.rootsView",
+          "group": "navigation"
+        },
+        {
+          "command": "gemstoneJs.filterRoots",
+          "when": "view == gemstoneJs.rootsView",
+          "group": "navigation@2"
+        },
+        {
+          "command": "gemstoneJs.refreshGlobals",
+          "when": "view == gemstoneJs.globalsView",
+          "group": "navigation"
+        },
+        {
+          "command": "gemstoneJs.filterGlobals",
+          "when": "view == gemstoneJs.globalsView",
+          "group": "navigation@2"
+        },
+        {
+          "command": "gemstoneJs.refreshClasses",
+          "when": "view == gemstoneJs.classesView",
+          "group": "navigation"
+        },
+        {
+          "command": "gemstoneJs.filterClasses",
+          "when": "view == gemstoneJs.classesView",
+          "group": "navigation@2"
         }
       ],
       "editor/context": [

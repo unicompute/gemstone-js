@@ -3474,6 +3474,25 @@ function explorerHtml(): string {
         isWindowOpen("classes") && !state.classBrowser.dictionary ? loadClassBrowserDictionaries() : Promise.resolve(),
       ]);
     }
+    async function applyStartupFocus() {
+      const params = new URLSearchParams(window.location.search);
+      const windowName = params.get("window") || "";
+      const className = params.get("class") || "";
+      const dictionary = params.get("dictionary") || "";
+      if (className) {
+        focusWindow("classes");
+        if (!state.classBrowser.dictionary) await loadClassBrowserDictionaries();
+        if (dictionary && dictionary !== state.classBrowser.dictionary) {
+          await selectClassBrowserDictionary(dictionary, { confirm: false });
+        }
+        await selectClassBrowserClass(className, { confirm: false });
+        return;
+      }
+      if (windowName) {
+        focusWindow(windowName);
+        await loadWindowData(windowName);
+      }
+    }
     function recordStatus(entry) {
       state.statusHistory.unshift({
         time: new Date().toISOString(),
@@ -4616,6 +4635,7 @@ function explorerHtml(): string {
       .then(async () => {
         await refreshStatus();
         await loadInitialData();
+        await applyStartupFocus();
       })
       .catch((error) => setStatus(false, error.message));
   </script>

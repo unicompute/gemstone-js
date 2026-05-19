@@ -10,29 +10,34 @@ const PASSWORD_SECRET_KEY = "gemstoneJs.password";
 let explorer;
 let output;
 let providers = [];
+let providerByKey = {};
 let statusBar;
+const treeFilters = {
+  roots: "",
+  globals: "",
+  classes: "",
+};
 
 function activate(context) {
   output = vscode.window.createOutputChannel("GemStone JS");
   explorer = new ExplorerServer(context, output);
   statusBar = new GemStoneStatusBar(explorer);
 
-  providers = [
-    new WorkbenchTreeProvider(() => connectionItems(explorer)),
-    new WorkbenchTreeProvider(() => rootsItems(explorer)),
-    new WorkbenchTreeProvider(() => globalsItems(explorer)),
-    new WorkbenchTreeProvider(() => classesItems(explorer)),
-  ];
+  providerByKey = {
+    connection: new WorkbenchTreeProvider(() => connectionItems(explorer)),
+    roots: new WorkbenchTreeProvider(() => rootsItems(explorer)),
+    globals: new WorkbenchTreeProvider(() => globalsItems(explorer)),
+    classes: new WorkbenchTreeProvider(() => classesItems(explorer)),
+  };
+  providers = Object.values(providerByKey);
 
-  const viewIds = [
-    "gemstoneJs.connectionView",
-    "gemstoneJs.rootsView",
-    "gemstoneJs.globalsView",
-    "gemstoneJs.classesView",
-  ];
-
-  for (let index = 0; index < viewIds.length; index += 1) {
-    context.subscriptions.push(vscode.window.registerTreeDataProvider(viewIds[index], providers[index]));
+  for (const [key, viewId] of Object.entries({
+    connection: "gemstoneJs.connectionView",
+    roots: "gemstoneJs.rootsView",
+    globals: "gemstoneJs.globalsView",
+    classes: "gemstoneJs.classesView",
+  })) {
+    context.subscriptions.push(vscode.window.registerTreeDataProvider(viewId, providerByKey[key]));
   }
 
   context.subscriptions.push(
@@ -40,8 +45,19 @@ function activate(context) {
     explorer,
     statusBar,
     vscode.commands.registerCommand("gemstoneJs.refreshViews", refreshViews),
+    vscode.commands.registerCommand("gemstoneJs.refreshConnection", () => refreshProvider("connection")),
+    vscode.commands.registerCommand("gemstoneJs.refreshRoots", () => refreshProvider("roots")),
+    vscode.commands.registerCommand("gemstoneJs.refreshGlobals", () => refreshProvider("globals")),
+    vscode.commands.registerCommand("gemstoneJs.refreshClasses", () => refreshProvider("classes")),
+    vscode.commands.registerCommand("gemstoneJs.filterRoots", () => promptTreeFilter("roots", "Roots and entries")),
+    vscode.commands.registerCommand("gemstoneJs.filterGlobals", () => promptTreeFilter("globals", "Globals")),
+    vscode.commands.registerCommand("gemstoneJs.filterClasses", () => promptTreeFilter("classes", "Classes")),
+    vscode.commands.registerCommand("gemstoneJs.clearRootsFilter", () => clearTreeFilter("roots")),
+    vscode.commands.registerCommand("gemstoneJs.clearGlobalsFilter", () => clearTreeFilter("globals")),
+    vscode.commands.registerCommand("gemstoneJs.clearClassesFilter", () => clearTreeFilter("classes")),
     vscode.commands.registerCommand("gemstoneJs.openExplorer", () => openExplorer(explorer)),
     vscode.commands.registerCommand("gemstoneJs.openExplorerExternal", () => openExplorerExternal(explorer)),
+    vscode.commands.registerCommand("gemstoneJs.openClassBrowser", (className) => openClassBrowser(explorer, className)),
     vscode.commands.registerCommand("gemstoneJs.startExplorer", async () => {
       await explorer.ensureStarted();
       refreshViews();
@@ -311,25 +327,43 @@ async function requestJson(url, options = {}) {
   return body;
 }
 
-async function openExplorer(server) {
+async function openExplorer(server, options = {}) {
   const config = server.config();
-  if (config.openMode === "external") return openExplorerExternal(server);
+  if (config.openMode === "external") return openExplorerExternal(server, options);
   const baseUrl = await server.ensureStarted();
+  const url = explorerUrl(baseUrl, options);
   const panel = vscode.window.createWebviewPanel(
     "gemstoneJsExplorer",
-    "GemStone Explorer",
+    options.className ? `GemStone Explorer: ${options.className}` : "GemStone Explorer",
     vscode.ViewColumn.One,
     {
       enableScripts: true,
       retainContextWhenHidden: true,
     },
   );
-  panel.webview.html = explorerWebviewHtml(`${baseUrl}/`);
+  panel.webview.html = explorerWebviewHtml(url);
 }
 
-async function openExplorerExternal(server) {
+async function openExplorerExternal(server, options = {}) {
   const baseUrl = await server.ensureStarted();
-  await vscode.env.openExternal(vscode.Uri.parse(`${baseUrl}/`));
+  await vscode.env.openExternal(vscode.Uri.parse(explorerUrl(baseUrl, options)));
+}
+
+async function openClassBrowser(server, className) {
+  const name = String(className || "").trim();
+  if (!name) {
+    await openExplorer(server, { window: "classes" });
+    return;
+  }
+  await openExplorer(server, { window: "classes", className: name });
+}
+
+function explorerUrl(baseUrl, options = {}) {
+  const url = new URL(`${baseUrl}/`);
+  if (options.window) url.searchParams.set("window", String(options.window));
+  if (options.className) url.searchParams.set("class", String(options.className));
+  if (options.dictionary) url.searchParams.set("dictionary", String(options.dictionary));
+  return url.toString();
 }
 
 function explorerWebviewHtml(explorerUrl) {
@@ -851,10 +885,13 @@ async function connectionItems(server) {
 async function rootsItems(server) {
   try {
     const config = await server.get("/api/config");
-    return (config.roots || []).map((root) => new TreeNode(root, {
+    return [
+      ...filterHeaderItems("roots", "Roots/entries"),
+      ...(config.roots || []).map((root) => new TreeNode(root, {
       icon: "root-folder",
       childrenFactory: () => rootEntryItems(server, root),
-    }));
+      })),
+    ];
   } catch (error) {
     return disconnectedItems(error);
   }
@@ -862,7 +899,8 @@ async function rootsItems(server) {
 
 async function rootEntryItems(server, root) {
   try {
-    const result = await server.get(`/api/roots?root=${encodeURIComponent(root)}&limit=80`);
+    const filter = treeFilters.roots;
+    const result = await server.get(`/api/roots?root=${encodeURIComponent(root)}&limit=80${filterQuery(filter)}`);
     const rows = (result.entries || []).map((entry) => oopItem(entry.name, entry.oop));
     if (result.truncated) rows.push(new TreeNode("More entries available", { description: "filter in Explorer", icon: "ellipsis" }));
     return rows;
@@ -873,8 +911,12 @@ async function rootEntryItems(server, root) {
 
 async function globalsItems(server) {
   try {
-    const result = await server.get("/api/globals?limit=120");
-    const rows = (result.entries || []).map((entry) => oopItem(entry.name, entry.oop));
+    const filter = treeFilters.globals;
+    const result = await server.get(`/api/globals?limit=120${filterQuery(filter)}`);
+    const rows = [
+      ...filterHeaderItems("globals", "Globals"),
+      ...(result.entries || []).map((entry) => oopItem(entry.name, entry.oop)),
+    ];
     if (result.truncated) rows.push(new TreeNode("More globals available", { description: "filter in Explorer", icon: "ellipsis" }));
     return rows;
   } catch (error) {
@@ -884,12 +926,17 @@ async function globalsItems(server) {
 
 async function classesItems(server) {
   try {
-    const result = await server.get("/api/classes?limit=120");
-    const rows = (result.classes || []).map((name) => new TreeNode(name, {
+    const filter = treeFilters.classes;
+    const result = await server.get(`/api/classes?limit=120${prefixQuery(filter)}`);
+    const rows = [
+      ...filterHeaderItems("classes", "Classes"),
+      ...(result.classes || []).map((name) => new TreeNode(name, {
       icon: "symbol-class",
-      command: "gemstoneJs.openExplorer",
+      command: "gemstoneJs.openClassBrowser",
+      arguments: [name],
       tooltip: "Open Explorer Class Browser",
-    }));
+      })),
+    ];
     if (result.truncated) rows.push(new TreeNode("More classes available", { description: "filter in Explorer", icon: "ellipsis" }));
     return rows;
   } catch (error) {
@@ -909,6 +956,32 @@ function oopItem(label, oop) {
 
 function commandItem(label, command, icon, description) {
   return new TreeNode(label, { command, icon, description });
+}
+
+function filterHeaderItems(key, label) {
+  const filter = treeFilters[key];
+  if (!filter) return [];
+  const clearCommand = {
+    roots: "gemstoneJs.clearRootsFilter",
+    globals: "gemstoneJs.clearGlobalsFilter",
+    classes: "gemstoneJs.clearClassesFilter",
+  }[key];
+  return [
+    new TreeNode(`Filter: ${filter}`, {
+      description: label,
+      icon: "filter",
+      command: clearCommand,
+      tooltip: "Click to clear this tree filter.",
+    }),
+  ];
+}
+
+function filterQuery(filter) {
+  return filter ? `&filter=${encodeURIComponent(filter)}` : "";
+}
+
+function prefixQuery(prefix) {
+  return prefix ? `&prefix=${encodeURIComponent(prefix)}` : "";
 }
 
 function disconnectedItems(error) {
@@ -932,6 +1005,27 @@ class TreeNode {
 function refreshViews() {
   for (const provider of providers) provider.refresh();
   refreshStatusBar();
+}
+
+function refreshProvider(key) {
+  providerByKey[key]?.refresh();
+  refreshStatusBar();
+}
+
+async function promptTreeFilter(key, label) {
+  const value = await vscode.window.showInputBox({
+    prompt: `Filter ${label}`,
+    value: treeFilters[key],
+    placeHolder: key === "classes" ? "Class name prefix" : "Name contains",
+  });
+  if (value === undefined) return;
+  treeFilters[key] = value.trim();
+  refreshProvider(key);
+}
+
+function clearTreeFilter(key) {
+  treeFilters[key] = "";
+  refreshProvider(key);
 }
 
 function refreshStatusBar() {
@@ -1049,6 +1143,7 @@ module.exports = {
   _test: {
     GemStoneDebugAdapter,
     explorerWebviewHtml,
+    explorerUrl,
     readConfig,
     resolveRepoPath,
     selectedSource,

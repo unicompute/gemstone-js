@@ -6,9 +6,11 @@ VS Code wrapper for the gemstone-js Explorer. The extension starts the local Exp
 
 - `GemStone: Open Explorer` starts the JS Explorer server and opens it in a VS Code webview.
 - `GemStone: Open Explorer in Browser` opens the Explorer URL in the system browser.
+- `GemStone: Open Class Browser` opens the Explorer Class Browser focused on a class.
 - `GemStone: Start Explorer Server` starts the Explorer without opening a UI.
 - `GemStone: Stop Explorer Server` stops the managed Explorer process.
 - `GemStone: Restart Explorer Server` restarts the managed Explorer process.
+- `GemStone: Filter Roots`, `GemStone: Filter Globals`, and `GemStone: Filter Classes` narrow tree contents.
 - `GemStone: Doctor` runs connection/config diagnostics and writes JSON to the GemStone JS output channel.
 - `GemStone: Evaluate Selection` sends the current selection to the Explorer session. If evaluation raises, the debugger opens automatically.
 - `GemStone: Debug Selection` starts a VS Code debug session for the current selection.
@@ -26,6 +28,7 @@ The GemStone activity bar contributes:
 - Classes
 
 Roots, globals, and classes load from the Explorer API. OOP-backed items can be inspected from the tree.
+Class rows open the Explorer Class Browser focused on that class. Root/global/class views have their own refresh and filter actions.
 
 ## Settings
 

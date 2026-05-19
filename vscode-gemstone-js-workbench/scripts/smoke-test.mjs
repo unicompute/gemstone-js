@@ -16,6 +16,7 @@ const captured = {
   openedExternal: [],
   statusBars: [],
   treeProviders: new Map(),
+  webviewPanels: [],
 };
 
 const configValues = {
@@ -129,7 +130,9 @@ const vscode = {
       };
     },
     createWebviewPanel() {
-      return { webview: { html: "" } };
+      const panel = { webview: { html: "" } };
+      captured.webviewPanels.push(panel);
+      return panel;
     },
     createStatusBarItem(alignment, priority) {
       const item = {
@@ -240,6 +243,10 @@ try {
   assert.equal(extension._test.selectedSource(), "1 + 1");
   assert.deepEqual(extension._test.sourceLocationForOffset("a\nbc", 4), { line: 2, column: 2 });
   assert.match(extension._test.explorerWebviewHtml("http://127.0.0.1:3117/?q=<x>"), /frame-src http:\/\/127\.0\.0\.1:3117/);
+  assert.equal(
+    extension._test.explorerUrl("http://127.0.0.1:3117", { window: "classes", className: "Object" }),
+    "http://127.0.0.1:3117/?window=classes&class=Object",
+  );
 
   extension.activate(context);
   activated = true;
@@ -251,8 +258,19 @@ try {
 
   for (const command of [
     "gemstoneJs.refreshViews",
+    "gemstoneJs.refreshConnection",
+    "gemstoneJs.refreshRoots",
+    "gemstoneJs.refreshGlobals",
+    "gemstoneJs.refreshClasses",
+    "gemstoneJs.filterRoots",
+    "gemstoneJs.filterGlobals",
+    "gemstoneJs.filterClasses",
+    "gemstoneJs.clearRootsFilter",
+    "gemstoneJs.clearGlobalsFilter",
+    "gemstoneJs.clearClassesFilter",
     "gemstoneJs.openExplorer",
     "gemstoneJs.openExplorerExternal",
+    "gemstoneJs.openClassBrowser",
     "gemstoneJs.startExplorer",
     "gemstoneJs.stopExplorer",
     "gemstoneJs.restartExplorer",
@@ -298,6 +316,37 @@ try {
   assert(connectionItems.some((item) => item.label === "Start Explorer"));
   assert.equal(connectionProvider.getTreeItem(connectionItems[0]).iconPath.id, "warning");
 
+  const fetchCalls = [];
+  global.fetch = async (url) => {
+    fetchCalls.push(String(url));
+    const parsed = new URL(String(url));
+    if (parsed.pathname === "/api/config") return jsonResponse({ roots: ["UserGlobals", "Published"] });
+    if (parsed.pathname === "/api/status") return jsonResponse({ stone: "gs64stone", sessionId: "smoke" });
+    if (parsed.pathname === "/api/classes") {
+      const prefix = parsed.searchParams.get("prefix") || "";
+      if (treeFilterExpected()) assert.equal(prefix, "Book");
+      return jsonResponse({ classes: ["Booking", "BookingLine"], truncated: false });
+    }
+    throw new Error(`unexpected fetch: ${url}`);
+  };
+  captured.inputBoxValue = "Book";
+  await captured.commands.get("gemstoneJs.filterClasses")();
+  const classProvider = captured.treeProviders.get("gemstoneJs.classesView");
+  const classItems = await classProvider.getChildren();
+  assert.equal(classItems[0].label, "Filter: Book");
+  assert.equal(classItems[1].label, "Booking");
+  const classTreeItem = classProvider.getTreeItem(classItems[1]);
+  assert.equal(classTreeItem.command.command, "gemstoneJs.openClassBrowser");
+  assert.deepEqual(classTreeItem.command.arguments, ["Booking"]);
+  assert(fetchCalls.some((url) => url.includes("/api/classes?limit=120&prefix=Book")));
+
+  await captured.commands.get("gemstoneJs.openClassBrowser")("Booking");
+  assert.match(captured.webviewPanels.at(-1).webview.html, /window=classes&amp;class=Booking/);
+  captured.inputBoxValue = "";
+  await captured.commands.get("gemstoneJs.clearClassesFilter")();
+  const clearedItems = await classProvider.getChildren();
+  assert.notEqual(clearedItems[0].label, "Filter: Book");
+
   const factory = captured.debugFactories.get("gemstone-js");
   const descriptor = factory.createDebugAdapterDescriptor();
   assert(descriptor instanceof DebugAdapterInlineImplementation);
@@ -315,6 +364,20 @@ try {
 } finally {
   if (activated) await extension.deactivate().catch(() => undefined);
   Module._load = originalLoad;
+}
+
+function treeFilterExpected() {
+  return captured.inputBoxValue === "Book";
+}
+
+function jsonResponse(body) {
+  return {
+    ok: true,
+    status: 200,
+    async text() {
+      return JSON.stringify(body);
+    },
+  };
 }
 
 async function smokeDebugAdapter(GemStoneDebugAdapter) {

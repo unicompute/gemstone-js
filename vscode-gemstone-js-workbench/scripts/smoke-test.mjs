@@ -373,6 +373,7 @@ try {
   assert(connectionItems.some((item) => item.label === "Codegen"));
   assert(connectionItems.some((item) => item.label === "Status Log"));
   assert(connectionItems.some((item) => item.label === "Inspect OOP"));
+  assert(connectionItems.some((item) => item.label === "Run File"));
   assert.equal(connectionProvider.getTreeItem(connectionItems[0]).iconPath.id, "warning");
 
   const fetchCalls = [];

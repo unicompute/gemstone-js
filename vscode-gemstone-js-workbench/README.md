@@ -78,7 +78,7 @@ The `gemstone-js` debug type wraps the Explorer debugger API. It supports:
 - Step out
 - Restart
 
-The extension contributes launch configuration snippets for debugging the current selection or an inline Smalltalk expression. Evaluate and Debug commands are also available from the editor title area and editor context menu.
+The extension contributes launch configuration snippets for debugging the current selection or an inline Smalltalk expression. Evaluate, Debug, and Run File commands are also available from the editor title area and editor context menu.
 
 The debugger is intentionally thin in this first version; session semantics remain owned by the Explorer server.
 

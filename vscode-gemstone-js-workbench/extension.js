@@ -991,6 +991,7 @@ async function connectionItems(server) {
     commandItem("Doctor", "gemstoneJs.doctor", "beaker", "run local diagnostics"),
     commandItem("Evaluate Selection", "gemstoneJs.evaluateSelection", "run", "run selected Smalltalk"),
     commandItem("Debug Selection", "gemstoneJs.debugSelection", "debug-alt", "debug selected Smalltalk"),
+    commandItem("Run File", "gemstoneJs.runFile", "play", "run active editor contents"),
     commandItem("Inspect OOP", "gemstoneJs.inspectOop", "search", "open object inspector"),
     commandItem("Restart Explorer", "gemstoneJs.restartExplorer", "debug-restart", `${config.explorerHost}:${config.explorerPort}`),
     commandItem("Set Password", "gemstoneJs.setPassword", "key", "store password in SecretStorage"),

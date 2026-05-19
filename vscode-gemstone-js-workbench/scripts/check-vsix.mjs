@@ -127,6 +127,7 @@ function assertPackagedManifest(manifest, vsixManifest) {
     "onCommand:gemstoneJs.copyOop",
     "onCommand:gemstoneJs.evaluateSelection",
     "onCommand:gemstoneJs.debugSelection",
+    "onCommand:gemstoneJs.runFile",
     "onCommand:gemstoneJs.configureConnection",
     "onDebugResolve:gemstone-js",
     "onView:gemstoneJs.connectionView",
@@ -153,6 +154,16 @@ function assertPackagedManifest(manifest, vsixManifest) {
     (manifest.contributes?.menus?.["view/item/context"] || []).map((menuItem) => menuItem.command),
     ["gemstoneJs.inspectOop", "gemstoneJs.copyOop", "gemstoneJs.openClassBrowser"],
     "menus.view/item/context",
+  );
+  assertArrayIncludesAll(
+    (manifest.contributes?.menus?.["editor/context"] || []).map((menuItem) => menuItem.command),
+    ["gemstoneJs.evaluateSelection", "gemstoneJs.debugSelection", "gemstoneJs.runFile"],
+    "menus.editor/context",
+  );
+  assertArrayIncludesAll(
+    (manifest.contributes?.menus?.["editor/title"] || []).map((menuItem) => menuItem.command),
+    ["gemstoneJs.evaluateSelection", "gemstoneJs.debugSelection", "gemstoneJs.runFile"],
+    "menus.editor/title",
   );
   assertArrayIncludesAll((manifest.contributes?.views?.gemstoneJs || []).map((view) => view.id), expectedViews, "views.gemstoneJs");
   assertArrayIncludesAll((manifest.contributes?.debuggers || []).map((debuggerEntry) => debuggerEntry.type), ["gemstone-js"], "debuggers");

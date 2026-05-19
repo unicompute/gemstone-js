@@ -327,7 +327,8 @@
       },
       {
         "command": "gemstoneJs.runFile",
-        "title": "GemStone: Run File"
+        "title": "GemStone: Run File",
+        "icon": "$(play)"
       },
       {
         "command": "gemstoneJs.configureConnection",
@@ -497,6 +498,10 @@
         {
           "command": "gemstoneJs.debugSelection",
           "group": "navigation@2"
+        },
+        {
+          "command": "gemstoneJs.runFile",
+          "group": "navigation@3"
         }
       ],
       "editor/title": [
@@ -509,6 +514,11 @@
           "command": "gemstoneJs.debugSelection",
           "when": "editorTextFocus",
           "group": "navigation@2"
+        },
+        {
+          "command": "gemstoneJs.runFile",
+          "when": "editorTextFocus",
+          "group": "navigation@3"
         }
       ]
     }

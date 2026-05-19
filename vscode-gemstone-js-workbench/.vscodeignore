@@ -1,0 +1,8 @@
+node_modules/**
+.vscode-test/**
+.gitignore
+.vscodeignore
+.DS_Store
+*.vsix
+npm-debug.log
+yarn-error.log

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="GemStone JS">
+  <path fill="#0f172a" d="M32 4 58 20 50 54H14L6 20 32 4Z"/>
+  <path fill="#22c55e" d="M32 10 50 22 44 48H20L14 22 32 10Z"/>
+  <path fill="#ecfeff" d="M22 24h20l-4 18H26l-4-18Z"/>
+  <path fill="#0f172a" d="M27 24h10l-2 18h-6l-2-18Z"/>
+</svg>

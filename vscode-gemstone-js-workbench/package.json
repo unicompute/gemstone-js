@@ -1,0 +1,281 @@
+{
+  "name": "gemstone-js-workbench",
+  "displayName": "gemstone-js Workbench",
+  "description": "VS Code wrapper for the gemstone-js Explorer, code runner, diagnostics, and debugger.",
+  "version": "0.1.0",
+  "publisher": "unicompute",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/unicompute/gemstone-js.git",
+    "directory": "vscode-gemstone-js-workbench"
+  },
+  "keywords": [
+    "gemstone",
+    "smalltalk",
+    "javascript",
+    "typescript",
+    "database",
+    "debugger"
+  ],
+  "extensionKind": [
+    "workspace"
+  ],
+  "engines": {
+    "vscode": "^1.91.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Debuggers",
+    "Other"
+  ],
+  "activationEvents": [
+    "onView:gemstoneJs.connectionView",
+    "onView:gemstoneJs.rootsView",
+    "onView:gemstoneJs.globalsView",
+    "onView:gemstoneJs.classesView",
+    "onCommand:gemstoneJs.openExplorer",
+    "onCommand:gemstoneJs.openExplorerExternal",
+    "onCommand:gemstoneJs.startExplorer",
+    "onCommand:gemstoneJs.stopExplorer",
+    "onCommand:gemstoneJs.restartExplorer",
+    "onCommand:gemstoneJs.doctor",
+    "onCommand:gemstoneJs.evaluateSelection",
+    "onCommand:gemstoneJs.debugSelection",
+    "onCommand:gemstoneJs.runFile",
+    "onCommand:gemstoneJs.refreshViews",
+    "onDebugResolve:gemstone-js"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "configuration": {
+      "title": "gemstone-js Workbench",
+      "properties": {
+        "gemstoneJs.repoPath": {
+          "type": "string",
+          "default": "",
+          "description": "Local gemstone-js repository path. Leave empty to use the parent of this extension when developing in the gemstone-js checkout, or the current workspace folder."
+        },
+        "gemstoneJs.nodePath": {
+          "type": "string",
+          "default": "node",
+          "description": "Node.js executable used to launch the gemstone-js Explorer."
+        },
+        "gemstoneJs.explorerScriptPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to examples/explorer.ts. Leave empty to resolve it from gemstoneJs.repoPath."
+        },
+        "gemstoneJs.explorerHost": {
+          "type": "string",
+          "default": "127.0.0.1",
+          "description": "Host used when launching the gemstone-js Explorer."
+        },
+        "gemstoneJs.explorerPort": {
+          "type": "number",
+          "default": 3117,
+          "description": "Port used when launching the gemstone-js Explorer."
+        },
+        "gemstoneJs.openMode": {
+          "type": "string",
+          "enum": [
+            "webview",
+            "external"
+          ],
+          "default": "webview",
+          "description": "Where GemStone: Open Explorer opens the running Explorer."
+        },
+        "gemstoneJs.user": {
+          "type": "string",
+          "default": "DataCurator",
+          "description": "GemStone user name. Exported as GS_USER and GS_USERNAME."
+        },
+        "gemstoneJs.password": {
+          "type": "string",
+          "default": "",
+          "description": "GemStone password. Exported as GS_PASS and GS_PASSWORD."
+        },
+        "gemstoneJs.stone": {
+          "type": "string",
+          "default": "gs64stone",
+          "description": "GemStone stone name. Exported as GS_STONE and GS_STONE_NAME."
+        },
+        "gemstoneJs.netldiHost": {
+          "type": "string",
+          "default": "localhost",
+          "description": "NetLDI host. Exported as GS_NETLDI_HOST and GS_HOST."
+        },
+        "gemstoneJs.netldiNameOrPort": {
+          "type": "string",
+          "default": "netldi",
+          "description": "NetLDI name or port. Exported as GS_NETLDI_NAME_OR_PORT and GS_NETLDI."
+        },
+        "gemstoneJs.gemService": {
+          "type": "string",
+          "default": "gemnetobject",
+          "description": "Gem service. Exported as GS_GEM_SERVICE."
+        },
+        "gemstoneJs.nativeSessionWorker": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable GS_NATIVE_SESSION_WORKER for Explorer sessions."
+        },
+        "gemstoneJs.extraEnv": {
+          "type": "object",
+          "default": {},
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Additional environment variables passed to the Explorer process."
+        },
+        "gemstoneJs.defaultReturnKind": {
+          "type": "string",
+          "enum": [
+            "inspect",
+            "value",
+            "oop"
+          ],
+          "default": "inspect",
+          "description": "Default return kind for GemStone: Evaluate Selection and debug launch configurations."
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "gemstoneJs.refreshViews",
+        "title": "GemStone: Refresh Views",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "gemstoneJs.openExplorer",
+        "title": "GemStone: Open Explorer"
+      },
+      {
+        "command": "gemstoneJs.openExplorerExternal",
+        "title": "GemStone: Open Explorer in Browser"
+      },
+      {
+        "command": "gemstoneJs.startExplorer",
+        "title": "GemStone: Start Explorer"
+      },
+      {
+        "command": "gemstoneJs.stopExplorer",
+        "title": "GemStone: Stop Explorer"
+      },
+      {
+        "command": "gemstoneJs.restartExplorer",
+        "title": "GemStone: Restart Explorer"
+      },
+      {
+        "command": "gemstoneJs.doctor",
+        "title": "GemStone: Doctor"
+      },
+      {
+        "command": "gemstoneJs.evaluateSelection",
+        "title": "GemStone: Evaluate Selection"
+      },
+      {
+        "command": "gemstoneJs.debugSelection",
+        "title": "GemStone: Debug Selection"
+      },
+      {
+        "command": "gemstoneJs.runFile",
+        "title": "GemStone: Run File"
+      }
+    ],
+    "debuggers": [
+      {
+        "type": "gemstone-js",
+        "label": "GemStone JS",
+        "languages": [
+          "smalltalk"
+        ],
+        "configurationAttributes": {
+          "launch": {
+            "required": [],
+            "properties": {
+              "source": {
+                "type": "string",
+                "description": "Smalltalk source to debug. Leave empty to use the active editor selection or document text.",
+                "default": ""
+              },
+              "returnKind": {
+                "type": "string",
+                "enum": [
+                  "inspect",
+                  "value",
+                  "oop"
+                ],
+                "default": "inspect"
+              }
+            }
+          }
+        },
+        "initialConfigurations": [
+          {
+            "type": "gemstone-js",
+            "request": "launch",
+            "name": "Debug GemStone Selection",
+            "source": "",
+            "returnKind": "inspect"
+          }
+        ]
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "gemstoneJs",
+          "title": "GemStone JS",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "gemstoneJs": [
+        {
+          "id": "gemstoneJs.connectionView",
+          "name": "Connection"
+        },
+        {
+          "id": "gemstoneJs.rootsView",
+          "name": "Roots"
+        },
+        {
+          "id": "gemstoneJs.globalsView",
+          "name": "Globals"
+        },
+        {
+          "id": "gemstoneJs.classesView",
+          "name": "Classes"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "gemstoneJs.refreshViews",
+          "when": "view == gemstoneJs.connectionView || view == gemstoneJs.rootsView || view == gemstoneJs.globalsView || view == gemstoneJs.classesView",
+          "group": "navigation"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "gemstoneJs.evaluateSelection",
+          "group": "navigation@1"
+        },
+        {
+          "command": "gemstoneJs.debugSelection",
+          "group": "navigation@2"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "check": "node --check extension.js",
+    "package:dry-run": "npx @vscode/vsce package --no-dependencies --out gemstone-js-workbench.vsix"
+  },
+  "devDependencies": {
+    "@vscode/vsce": "^3.9.1"
+  }
+}

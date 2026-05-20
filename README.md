@@ -37,10 +37,12 @@ native package; the TypeScript package can be tested locally with a mock runtime
   mapping layers and the current non-ORM boundary.
 - `mappedObject()` provides an opt-in transparent mapping layer around
   `TypedOop<T>`: async property-style methods, explicit `$send*()` controls,
-  setters, object/raw selector modes, and bounded snapshots. The planned
-  connector-inspired track extends this with a mapping manifest schema,
-  generated `*Ref` classes, repository helpers, and Explorer/VS Code mapping
-  views.
+  setters, object/raw selector modes, relationship handles, dictionary
+  snapshot fields, and bounded snapshots. The object-mapping guide now includes
+  a layer-selection table, selector configuration examples, relationship
+  mapping, and a production checklist. The planned connector-inspired track
+  extends this with a mapping manifest schema, generated `*Ref` classes,
+  repository helpers, and Explorer/VS Code mapping views.
 - `Session.classRef()` gives an explicit typed class handle for class-side
   sends, object-returning sends, allocation, and wrapping returned OOPs without
   hiding async remote calls behind JavaScript property access. Class names use

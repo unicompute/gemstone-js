@@ -159,6 +159,31 @@ const payload = await booking.$snapshot();
 
 That is intentionally not `await booking.status` or `booking.status = "confirmed"`. JavaScript property access is synchronous, but GemStone selector sends are remote and transaction-bound.
 
+For relationships and richer payloads, the same proxy can distinguish value, object, raw OOP, and dictionary readback explicitly:
+
+```ts
+import { mappedObject, type Oop, type TypedOop } from "gemstone-js";
+
+const booking = mappedObject<Booking, {
+  customer(): Promise<TypedOop<Customer>>;
+  customerOop(): Promise<Oop>;
+}>(bookingObject, {
+  objectSelectors: { customer: "customer" },
+  oopSelectors: { customerOop: "customer" },
+  snapshot: {
+    id: "id",
+    status: "status",
+    customer: { selector: "customer", kind: "oop" },
+    details: { selector: "details", kind: "dict", maxEntries: 100 },
+  },
+});
+
+const customer = await booking.customer();
+const payload = await booking.$snapshot();
+```
+
+That gives the application a clear choice: keep a retained handle when it wants GemStone-side behavior, use a raw OOP when identity is enough, or produce a bounded snapshot when sending data to a UI or API.
+
 For payload-style mapping, class instances can be converted explicitly into GemStone dictionaries:
 
 ```ts

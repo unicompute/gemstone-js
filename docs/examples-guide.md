@@ -111,7 +111,10 @@ generated selector wrappers, dictionary payload conversion, and value
 converters, see `docs/object-mapping.md`.
 
 `examples/object-mapping.ts` shows `mappedObject()` with async property-style
-methods, setter selectors, object selectors, and snapshots.
+methods, setter selectors, object selectors, and snapshots. The guide expands
+that example into a mapping decision table, explicit selector configuration,
+relationship handle mapping, dictionary-backed snapshot fields, and a
+production checklist for live Stone usage.
 
 The next planned examples should cover a mapping manifest, generated
 `BookingRef`-style classes around `TypedOop<T>`, repository helpers returning

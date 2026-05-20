@@ -38,6 +38,30 @@ Use these layers according to how much object identity you need to preserve:
   scalar values such as `Date` without changing the default persistence
   contract.
 
+## Choosing a Mapping Style
+
+Start with the smallest layer that preserves the semantics you need:
+
+| Need | Use | Result shape |
+| --- | --- | --- |
+| Call one selector with simple values | `performWith()` or `classRef().send()` | Marshalled JavaScript value |
+| Keep GemStone identity | `TypedOop<T>` | Retained object handle |
+| Make selector sends read like domain methods | `mappedObject()` | Async proxy around a retained handle |
+| Share selector contracts across a codebase | Codegen manifest or decorators | Reviewable typed wrapper functions |
+| Persist keyed payload data | `GsDict`, `PersistentRoot`, dictionary helpers | Explicit dictionary values or handles |
+| Return UI/API payloads | `$snapshot()`, `snapshot()` wrappers, bounded readback | Plain JavaScript data |
+
+The usual progression is:
+
+1. Use `classRef().sendObject()` or generated wrapper functions to find the
+   GemStone object.
+2. Wrap the result in `mappedObject()` or a generated `*Ref` class when the
+   selector set is reused.
+3. Use snapshots or dictionaries only at process boundaries such as HTTP
+   responses, job payloads, logs, and UI panes.
+4. Commit generated wrappers and mapping manifests so selector behavior can be
+   reviewed like normal source.
+
 ## Typed Object Handles
 
 Use `TypedOop<T>` when a GemStone selector returns a live object and you want
@@ -111,6 +135,15 @@ const customer = await booking.customer();
 const payload = await booking.$snapshot();
 ```
 
+The transparent part is the method name, not the execution model. The call
+still crosses a GemStone session boundary:
+
+```ts
+await booking.status();          // sends status
+await booking.priority(3);       // sends priority:
+await booking.setStatus("held"); // sends status:
+```
+
 The helper reserves `$`-prefixed operations for explicit remote controls:
 
 - `$object`, `$session`, and `$oop` expose the retained handle boundary.
@@ -127,6 +160,75 @@ method such as `booking.status()` sends `status`. A one-argument method such as
 `booking.priority(3)` sends `priority:`. Multi-argument selectors must be
 configured explicitly because JavaScript method names cannot infer Smalltalk
 keyword shape safely.
+
+### Selector Configuration
+
+Use explicit selector configuration whenever the JavaScript method name differs
+from the GemStone selector or the selector has more than one keyword.
+
+```ts
+import { mappedObject, type Oop, type TypedOop } from "gemstone-js";
+
+interface Customer {
+  name: string;
+}
+
+type BookingMapping = {
+  updateStatus(status: string, reason: string): Promise<unknown>;
+  customer(): Promise<TypedOop<Customer>>;
+  customerOop(): Promise<Oop>;
+};
+
+const booking = mappedObject<Booking, BookingMapping>(object, {
+  selectors: {
+    updateStatus: "status:reason:",
+  },
+  objectSelectors: {
+    customer: "customer",
+  },
+  oopSelectors: {
+    customerOop: "customer",
+  },
+});
+
+await booking.updateStatus("confirmed", "deposit received");
+const customer = await booking.customer();
+const rawCustomer = await booking.customerOop();
+```
+
+Use `objectSelectors` when the selector returns a live GemStone object that
+should be retained as `TypedOop<T>`. Use `oopSelectors` when the caller wants
+raw identity and will decide later whether to retain, inspect, or pass the OOP
+back into GemStone.
+
+### Snapshots
+
+Snapshots are explicit readback payloads. They are useful at UI/API boundaries
+where plain data is safer than exposing a retained object handle.
+
+```ts
+const booking = mappedObject<Booking>(object, {
+  snapshot: {
+    id: "id",
+    status: "status",
+    customer: { selector: "customer", kind: "oop" },
+    details: { selector: "details", kind: "dict", maxEntries: 100 },
+  },
+});
+
+const payload = await booking.$snapshot();
+```
+
+Snapshot field kinds are:
+
+- `value`: call `send()` and marshal the result back to JavaScript.
+- `oop`: call `sendOop()` and return raw object identity.
+- `object`: call `sendObject()` and return a retained `TypedOop<T>`.
+- `dict`: call `sendOop()` and read a `StringKeyValueDictionary` back into a
+  bounded JavaScript object.
+
+Prefer snapshots for outbound data. Prefer retained handles for continued
+GemStone-side behavior.
 
 ## Generated Selector Wrappers
 
@@ -286,6 +388,41 @@ Dictionaries are a good mapping target for configuration, indexes, metadata,
 API payload snapshots, and small keyed aggregates. Prefer class references and
 typed object handles when the GemStone object has behavior that should remain
 on the GemStone side.
+
+## Mapping Relationships
+
+Model relationships as selector methods that return handles, then decide at the
+call site whether to keep the handle or snapshot it.
+
+```ts
+import { mappedObject, type Oop, type TypedOop } from "gemstone-js";
+
+interface Customer {
+  name: string;
+}
+
+type BookingMapping = {
+  customer(): Promise<TypedOop<Customer>>;
+  customerOop(): Promise<Oop>;
+};
+
+const booking = mappedObject<Booking, BookingMapping>(bookingObject, {
+  objectSelectors: {
+    customer: "customer",
+  },
+  oopSelectors: {
+    customerOop: "customer",
+  },
+});
+
+const customer = await booking.customer();
+const name = await customer.send<string>("name");
+const rawCustomer = await booking.customerOop();
+```
+
+For UI payloads, snapshot the relationship by OOP, by nested dictionary, or by a
+small generated `CustomerRef.snapshot()` method. Avoid recursively hydrating an
+unbounded object graph unless the caller provides depth and item bounds.
 
 ## Value Converters
 
@@ -462,6 +599,21 @@ closer to the useful parts of the Pharo bridge connector model: reviewable class
 pair metadata, generated accessors, repository entry points, and inspectable
 mapping state. It avoids automatic local/GemStone synchronization until the
 typed ref and snapshot path is proven against live Stone workflows.
+
+## Production Checklist
+
+Before relying on a mapping in application code:
+
+- Keep selectors, setters, and snapshot fields in one reviewed place.
+- Prefer generated wrappers or a small `*Ref` class when a mapping is reused.
+- Use `objectSelectors` for relationship handles and `oopSelectors` for raw
+  identity.
+- Put `maxEntries`, `maxDepth`, and `maxItems` bounds on readback paths.
+- Release retained handles with `await object.release()` or `await using`.
+- Commit generated files and run `npm run examples:check` plus
+  `npm run public-surface:check` when adding public mapping helpers.
+- Run `GS_RUN_LIVE=1 npm run test:live` before treating a new mapping as
+  Stone-compatible.
 
 ## What Is Not Automatic
 

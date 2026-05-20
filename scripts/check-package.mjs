@@ -244,6 +244,7 @@ const required = [
   "examples/persistent-root.ts",
   "examples/quickstart.ts",
   "examples/query.ts",
+  "examples/transparent-object-mapping.ts",
   "examples/web-express.ts",
   "examples/web-fastify.ts",
   "examples/web-fetch.ts",
@@ -439,8 +440,11 @@ assertSnippets(
     "Object Mapping",
     "Choosing a Mapping Style",
     "mappedObject()",
+    "transparentObject()",
+    "TransparentObjectMapper",
     "TypedOop<T>",
     "Session.classRef<T>()",
+    "Awaitable Transparent Mapping",
     "Selector Configuration",
     "`mappedObject()` API Reference",
     "Migration Path",
@@ -455,6 +459,7 @@ assertSnippets(
     "snapshot fields",
     "Production Checklist",
     "Explorer and VS Code mapping views",
+    "await booking.status",
     "synchronous `booking.status` property dispatch",
   ],
 );
@@ -572,7 +577,7 @@ for (const exportName of ["SessionConfig", "SessionEnv", "SessionEnvAliasConflic
 if (!apiContract.includes("await import(moduleSpecifier)") || !apiContract.includes("missingValueExports")) {
   throw new Error("scripts/api-contract.mjs must import and compare runtime value exports.");
 }
-for (const name of ["quickstart", "gstore", "persistent-root", "object-mapping", "query", "bulk-perform", "migrations", "object-log", "web-express", "web-fetch", "web-route-handler"]) {
+for (const name of ["quickstart", "gstore", "persistent-root", "object-mapping", "transparent-object-mapping", "query", "bulk-perform", "migrations", "object-log", "web-express", "web-fetch", "web-route-handler"]) {
   if (!examplesCatalog.includes(name)) {
     throw new Error(`scripts/examples-catalog.mjs must include packaged example: ${name}.`);
   }

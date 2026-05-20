@@ -118,6 +118,11 @@ production checklist for live Stone usage. It also documents root/global
 mapping, retained-handle lifetime rules, and the migration path from direct
 `TypedOop<T>.send()` calls to proxy options and generated `*Ref` classes.
 
+`examples/transparent-object-mapping.ts` shows the higher-transparency proxy:
+`await booking.status`, callable selector accessors, relationship handles,
+queued writes through `$assign()`/`$flush()`, bounded snapshots, and
+request-scoped identity reuse through the same mapping API.
+
 The next planned examples should cover a mapping manifest, generated
 `BookingRef`-style classes around `TypedOop<T>`, repository helpers returning
 typed refs, and bounded snapshot/dictionary payload helpers. Those examples

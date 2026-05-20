@@ -17,9 +17,12 @@ For object mapping, the projects should intentionally differ. `gemstone-py`
 can lean on Python's dynamic proxy style, while `gemstone-js` should prefer a
 connector-inspired mapping manifest that generates explicit async `*Ref`
 classes, repository helpers, and snapshot/dictionary helpers around
-`TypedOop<T>`. The lightweight `mappedObject()` helper is the current
-transparent layer: property-style async methods without synchronous property
-dispatch.
+`TypedOop<T>`. The runtime now has two bridge layers: `mappedObject()` for
+method-shaped selector sends such as `booking.status()`, and
+`transparentObject()` for the closer Python-like shape, including
+`await booking.status`, callable selector accessors, queued assignment writes,
+optional per-proxy caching, and request-scoped identity reuse through
+`TransparentObjectMapper`.
 
 ## Quick Commands
 
@@ -90,10 +93,11 @@ JS/Python product parity:
 5. Documentation and release polish
 6. Cross-project alignment
 
-The most useful post-beta API polish batch is object mapping maturity: publish
-a mapping manifest schema, generate `*Ref` classes wrapping `TypedOop<T>`, add
-repository helpers returning typed refs, generate bounded snapshots for UI/API
-payloads, and surface the mapping catalog in Explorer or the VS Code workbench.
+The most useful post-beta API polish batch is generated object mapping
+maturity: publish a mapping manifest schema, generate `*Ref` classes wrapping
+`TypedOop<T>` or delegating to `transparentObject()`, add repository helpers
+returning typed refs, generate bounded snapshots for UI/API payloads, and
+surface the mapping catalog in Explorer or the VS Code workbench.
 
 For a narrower conservative JavaScript beta, `--scope beta` now tracks one
 remaining validation batch, roughly **4-8 hours**: run the release candidate

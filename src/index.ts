@@ -177,6 +177,8 @@ export {
 } from "./converters.ts";
 export {
   mappedObject,
+  transparentObject,
+  TransparentObjectMapper,
   type MappedObject,
   type MappedObjectControls,
   type MappedObjectOptions,
@@ -185,6 +187,10 @@ export {
   type MappedSnapshotKind,
   type MappedSnapshotOptions,
   type MappedSnapshotSpec,
+  type TransparentMappedProperty,
+  type TransparentObject,
+  type TransparentObjectControls,
+  type TransparentObjectOptions,
 } from "./object-mapping.ts";
 export { PersistentRoot } from "./persistent-root.ts";
 export { GsDict, type DictionaryReadbackOptions, type KeyedReadbackOptions } from "./gsdict.ts";

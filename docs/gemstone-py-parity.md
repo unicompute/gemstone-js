@@ -133,13 +133,16 @@ artifact verification, and the native session-thread spike.
 - `Session` is async-first because Node must eventually move GCI work onto a
   dedicated native session thread.
 - Unknown object results stay explicit as raw `Oop` values or retained
-  `TypedOop<T>` handles; JavaScript does not use gemstone-py's dynamic
-  attribute dispatch proxy.
+  `TypedOop<T>` handles; JavaScript now offers an opt-in dynamic proxy through
+  `transparentObject()` rather than making every object result implicitly
+  transparent.
 - Future JavaScript object mapping should stay explicit: a mapping manifest
   schema can generate async `*Ref` classes around `TypedOop<T>`, repository
   helpers returning typed refs, and bounded snapshot/dictionary helpers instead
-  of synchronous property dispatch. The current `mappedObject()` helper is the
-  opt-in transparent layer for async property-style selector methods.
+  of synchronous property dispatch. `mappedObject()` remains the method-shaped
+  bridge, while `transparentObject()` adds `await booking.status`, callable
+  selector accessors, queued writes, optional caching, and identity-aware proxy
+  reuse.
 - GemStone OOPs are represented as branded `bigint` values in TypeScript, while
   the native Node boundary uses decimal strings to avoid 64-bit precision loss.
 - Root helper names use camelCase (`sessionMethods`) rather than Python's

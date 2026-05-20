@@ -28,6 +28,13 @@ export const exampleCatalog = [
     command: "node --experimental-strip-types examples/object-mapping.ts",
   },
   {
+    name: "transparent-object-mapping",
+    path: "examples/transparent-object-mapping.ts",
+    kind: "data",
+    description: "Awaitable property proxy with relationship handles, queued writes, and bounded snapshots.",
+    command: "node --experimental-strip-types examples/transparent-object-mapping.ts",
+  },
+  {
     name: "query",
     path: "examples/query.ts",
     kind: "query",
@@ -144,7 +151,7 @@ export const examplePlans = [
     name: "data-persistence",
     title: "Data Persistence",
     description: "Work through roots, dictionaries, query helpers, GStore, and migrations.",
-    examples: ["persistent-root", "object-mapping", "query", "bulk-perform", "gstore", "migrations"],
+    examples: ["persistent-root", "object-mapping", "transparent-object-mapping", "query", "bulk-perform", "gstore", "migrations"],
   },
   {
     name: "typed-codegen",

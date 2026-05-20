@@ -159,6 +159,27 @@ const payload = await booking.$snapshot();
 
 That is intentionally not `await booking.status` or `booking.status = "confirmed"`. JavaScript property access is synchronous, but GemStone selector sends are remote and transaction-bound.
 
+The newer `transparentObject()` layer goes further and matches gemstone-py's proxy shape more closely. Reads become awaitable properties, while callable accessors and explicit flush points keep JavaScript's async boundary visible:
+
+```ts
+import { transparentObject } from "gemstone-js";
+
+const booking = transparentObject<Booking, {
+  updateStatus(status: string, reason: string): Promise<string>;
+}>(bookingObject, {
+  selectors: { updateStatus: "status:reason:" },
+  snapshot: ["id", "status"],
+});
+
+const before = await booking.status;
+await booking.updateStatus("confirmed", "deposit received");
+await booking.$assign({ status: "confirmed" });
+await booking.$flush();
+const payload = await booking.$snapshot();
+```
+
+Runtime assignment syntax is also supported by the proxy, but writes are queued because JavaScript setters cannot be async. Typed code can prefer `$assign()`, and UI/editor code can use assignment followed by `$flush()` when that reads better.
+
 For relationships and richer payloads, the same proxy can distinguish value, object, raw OOP, and dictionary readback explicitly:
 
 ```ts

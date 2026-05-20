@@ -45,6 +45,12 @@ native package; the TypeScript package can be tested locally with a mock runtime
   checklist. The planned connector-inspired track extends this with a mapping
   manifest schema, generated `*Ref` classes, repository helpers, and
   Explorer/VS Code mapping views.
+- `transparentObject()` is the higher-transparency object mapping layer:
+  `await booking.status` sends a GemStone selector, accessor properties remain
+  callable as methods, runtime assignment queues setter sends for `$flush()`,
+  `$assign()` gives typed write batching, optional per-proxy caching supports
+  `$refresh()`/`$clearCache()`, and `TransparentObjectMapper` reuses proxies by
+  session/OOP for request-scoped identity.
 - `Session.classRef()` gives an explicit typed class handle for class-side
   sends, object-returning sends, allocation, and wrapping returned OOPs without
   hiding async remote calls behind JavaScript property access. Class names use

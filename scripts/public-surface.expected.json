@@ -301,6 +301,10 @@
       "from": "./scope.ts"
     },
     {
+      "name": "TransparentObjectMapper",
+      "from": "./object-mapping.ts"
+    },
+    {
       "name": "TypedOop",
       "from": "./client.ts"
     },
@@ -723,6 +727,10 @@
     {
       "name": "summarizeObjectLogEntries",
       "from": "./object-log.ts"
+    },
+    {
+      "name": "transparentObject",
+      "from": "./object-mapping.ts"
     },
     {
       "name": "upgrade",
@@ -1337,6 +1345,22 @@
     {
       "name": "TransactionWork",
       "from": "./transactions.ts"
+    },
+    {
+      "name": "TransparentMappedProperty",
+      "from": "./object-mapping.ts"
+    },
+    {
+      "name": "TransparentObject",
+      "from": "./object-mapping.ts"
+    },
+    {
+      "name": "TransparentObjectControls",
+      "from": "./object-mapping.ts"
+    },
+    {
+      "name": "TransparentObjectOptions",
+      "from": "./object-mapping.ts"
     },
     {
       "name": "ValidateBenchmarkArtifactsOptions",

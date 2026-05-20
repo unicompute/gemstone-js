@@ -28,6 +28,10 @@ Use these layers according to how much object identity you need to preserve:
 - **Mapped object proxies**: `mappedObject()` wraps a retained handle with
   async property-style methods such as `booking.status()` and
   `booking.setStatus("confirmed")`, while keeping remote calls explicit.
+- **Transparent object proxies**: `transparentObject()` wraps a retained handle
+  with awaitable properties such as `await booking.status`, callable selector
+  accessors, queued assignment writes, optional read caching, and identity-aware
+  proxy reuse through `TransparentObjectMapper`.
 - **Generated wrappers**: codegen manifests and decorated source emit typed
   functions that call GemStone selectors and return values, raw OOPs, or
   retained typed handles.
@@ -49,6 +53,9 @@ Start with the smallest layer that preserves the semantics you need:
   Use `TypedOop<T>`. The result is a retained object handle.
 - Make selector sends read like domain methods:
   Use `mappedObject()`. The result is an async proxy around a retained handle.
+- Make selector reads look like object properties:
+  Use `transparentObject()`. The result is an awaitable proxy with queued write
+  support.
 - Share selector contracts across a codebase:
   Use a codegen manifest or decorators. The result is reviewable typed wrapper
   source.
@@ -63,8 +70,8 @@ The usual progression is:
 
 1. Use `classRef().sendObject()` or generated wrapper functions to find the
    GemStone object.
-2. Wrap the result in `mappedObject()` or a generated `*Ref` class when the
-   selector set is reused.
+2. Wrap the result in `mappedObject()`, `transparentObject()`, or a generated
+   `*Ref` class when the selector set is reused.
 3. Use snapshots or dictionaries only at process boundaries such as HTTP
    responses, job payloads, logs, and UI panes.
 4. Commit generated wrappers and mapping manifests so selector behavior can be
@@ -168,6 +175,134 @@ method such as `booking.status()` sends `status`. A one-argument method such as
 `booking.priority(3)` sends `priority:`. Multi-argument selectors must be
 configured explicitly because JavaScript method names cannot infer Smalltalk
 keyword shape safely.
+
+## Awaitable Transparent Mapping
+
+`transparentObject()` is the closest JavaScript equivalent to gemstone-py's
+`booking.proxy().status` model. JavaScript cannot synchronously block a
+property read on a remote GemStone selector, so the transparent read shape is
+`await booking.status`.
+
+```ts
+import {
+  transparentObject,
+  type Oop,
+  type TypedOop,
+} from "gemstone-js";
+
+interface Booking {
+  id: string;
+  status: string;
+}
+
+interface Customer {
+  name: string;
+}
+
+type BookingTransparentMethods = {
+  updateStatus(status: string, reason: string): Promise<string>;
+  customer: PromiseLike<TypedOop<Customer>>;
+  rawCustomer: PromiseLike<Oop>;
+};
+
+const booking = transparentObject<Booking, BookingTransparentMethods>(object, {
+  selectors: {
+    updateStatus: "status:reason:",
+  },
+  objectSelectors: {
+    customer: "customer",
+  },
+  oopSelectors: {
+    rawCustomer: "customer",
+  },
+  snapshot: {
+    id: "id",
+    status: "status",
+    customer: { selector: "customer", kind: "oop" },
+    details: { selector: "details", kind: "dict", maxEntries: 100 },
+  },
+});
+
+const before = await booking.status;
+await booking.updateStatus("confirmed", "deposit received");
+const customer = await booking.customer;
+const rawCustomer = await booking.rawCustomer;
+const payload = await booking.$snapshot();
+```
+
+Every non-`$` property is an awaitable selector accessor. The same accessor can
+also be called like a method:
+
+```ts
+const status = await booking.status;
+const sameStatus = await booking.status();
+const rawStatus = await booking.status.oop();
+```
+
+This keeps the Python-like shape for reads while preserving JavaScript's async
+boundary.
+
+### Queued Assignment
+
+Runtime property assignment is supported by the proxy. Because JavaScript
+setters cannot be `async`, assignments queue writes and callers flush them at a
+clear boundary.
+
+```ts
+(booking as unknown as { status: string }).status = "confirmed";
+await booking.$flush();
+await booking.$session.commit();
+```
+
+For fully typed application code, use `$assign()`:
+
+```ts
+await booking.$assign({ status: "confirmed" });
+await booking.$session.commit();
+```
+
+If a queued write fails, `$flush()` or the next read reports the error. This
+avoids unhandled promise rejections from assignment syntax while still making
+write failures observable.
+
+### Cache and Refresh
+
+By default, transparent property reads send to GemStone each time. Enable
+`cache: true` when a request wants local repeated reads:
+
+```ts
+const booking = transparentObject<Booking>(object, {
+  cache: true,
+});
+
+const first = await booking.status;
+const cached = await booking.status;
+const fresh = await booking.status.refresh();
+
+booking.$clearCache("status");
+```
+
+Cached values are per proxy and per session. They are not a global identity map
+and they do not replace GemStone transaction visibility.
+
+### Identity-Aware Proxy Reuse
+
+`TransparentObjectMapper` reuses proxies by session and OOP so repeated wrapping
+of the same object can preserve local cache and UI identity.
+
+```ts
+import { TransparentObjectMapper } from "gemstone-js";
+
+const mapper = new TransparentObjectMapper();
+const first = mapper.wrap<Booking>(bookingHandle);
+const second = mapper.wrap<Booking>(bookingHandle);
+
+first === second; // true
+```
+
+Use a mapper inside request scopes, Explorer panes, or VS Code views where
+stable local wrapper identity is useful. Clear the mapper when the owning
+session closes.
 
 ### Selector Configuration
 
@@ -358,6 +493,15 @@ const bookingRef = mappedObject<Booking, BookingMethods>(booking, {
 });
 
 await bookingRef.setStatus("confirmed");
+```
+
+or a more transparent awaitable proxy:
+
+```ts
+const bookingRef = transparentObject<Booking>(booking);
+
+const status = await bookingRef.status;
+await bookingRef.$assign({ status: "confirmed" });
 ```
 
 and later become generated source:
@@ -784,6 +928,10 @@ Before relying on a mapping in application code:
 
 - Keep selectors, setters, and snapshot fields in one reviewed place.
 - Prefer generated wrappers or a small `*Ref` class when a mapping is reused.
+- Use `transparentObject()` when you want `await booking.status` style reads
+  and queued writes without generating a wrapper yet.
+- Use `TransparentObjectMapper` only within the lifetime of its owning session
+  or request scope.
 - Use `objectSelectors` for relationship handles and `oopSelectors` for raw
   identity.
 - Put `maxEntries`, `maxDepth`, and `maxItems` bounds on readback paths.
@@ -798,6 +946,9 @@ Before relying on a mapping in application code:
 `gemstone-js` does not currently provide:
 
 - synchronous `booking.status` property dispatch to GemStone selectors
+- TypeScript-native asynchronous assignment syntax; runtime assignment is
+  queued and must be observed with `$flush()`, while typed code can use
+  `$assign()`
 - automatic JS class hydration from arbitrary GemStone instances
 - a session-wide identity map for local wrapper instances
 - automatic persistence of arbitrary JavaScript object graphs

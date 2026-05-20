@@ -60,7 +60,9 @@ For the JavaScript ecosystem, typed mapping should use a similar explicit
 contract: mapping manifests, generated `*Ref` classes around `TypedOop<T>`,
 repository helpers, and bounded snapshot/dictionary output rather than
 transparent synchronous property dispatch. The JS runtime now has
-`mappedObject()` as an opt-in async property-style bridge.
+`mappedObject()` as an opt-in method-shaped bridge and `transparentObject()`
+for awaitable properties, queued writes, optional caching, and identity-aware
+proxy reuse.
 
 ## Remaining Work
 

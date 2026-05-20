@@ -42,14 +42,22 @@ Use these layers according to how much object identity you need to preserve:
 
 Start with the smallest layer that preserves the semantics you need:
 
-| Need | Use | Result shape |
-| --- | --- | --- |
-| Call one selector with simple values | `performWith()` or `classRef().send()` | Marshalled JavaScript value |
-| Keep GemStone identity | `TypedOop<T>` | Retained object handle |
-| Make selector sends read like domain methods | `mappedObject()` | Async proxy around a retained handle |
-| Share selector contracts across a codebase | Codegen manifest or decorators | Reviewable typed wrapper functions |
-| Persist keyed payload data | `GsDict`, `PersistentRoot`, dictionary helpers | Explicit dictionary values or handles |
-| Return UI/API payloads | `$snapshot()`, `snapshot()` wrappers, bounded readback | Plain JavaScript data |
+- Call one selector with simple values:
+  Use `performWith()` or `classRef().send()`. The result is a marshalled
+  JavaScript value.
+- Keep GemStone identity:
+  Use `TypedOop<T>`. The result is a retained object handle.
+- Make selector sends read like domain methods:
+  Use `mappedObject()`. The result is an async proxy around a retained handle.
+- Share selector contracts across a codebase:
+  Use a codegen manifest or decorators. The result is reviewable typed wrapper
+  source.
+- Persist keyed payload data:
+  Use `GsDict`, `PersistentRoot`, or dictionary helpers. The result is explicit
+  dictionary values or handles.
+- Return UI/API payloads:
+  Use `$snapshot()`, generated `snapshot()` wrappers, or bounded readback. The
+  result is plain JavaScript data.
 
 The usual progression is:
 
@@ -261,22 +269,27 @@ const booking = mappedObject<Booking, BookingMethods>(object, {
 
 The options map directly to send behavior:
 
-| Option | Purpose | Example |
-| --- | --- | --- |
-| `selectors` | Override selector inference for value-returning methods | `{ updateStatus: "status:reason:" }` |
-| `setters` | Bind named setter methods to write selectors | `{ setStatus: "status:" }` |
-| `objectSelectors` | Mark methods that return retained `TypedOop<T>` handles | `{ customer: "customer" }` |
-| `oopSelectors` | Mark methods that return raw `Oop` identity | `{ rawCustomer: "customer" }` |
-| `snapshot` | Configure default `$snapshot()` fields | `{ status: "status" }` |
+- `selectors`:
+  Override selector inference for value-returning methods, for example
+  `{ updateStatus: "status:reason:" }`.
+- `setters`:
+  Bind named setter methods to write selectors, for example
+  `{ setStatus: "status:" }`.
+- `objectSelectors`:
+  Mark methods that return retained `TypedOop<T>` handles, for example
+  `{ customer: "customer" }`.
+- `oopSelectors`:
+  Mark methods that return raw `Oop` identity, for example
+  `{ rawCustomer: "customer" }`.
+- `snapshot`:
+  Configure default `$snapshot()` fields, for example `{ status: "status" }`.
 
 Selector inference is intentionally narrow:
 
-| JavaScript call | Inferred GemStone selector |
-| --- | --- |
-| `booking.status()` | `status` |
-| `booking.priority(3)` | `priority:` |
-| `booking.setStatus("held")` | `status:` |
-| `booking.updateStatus("held", "reason")` | Must be configured |
+- `booking.status()` sends `status`.
+- `booking.priority(3)` sends `priority:`.
+- `booking.setStatus("held")` sends `status:`.
+- `booking.updateStatus("held", "reason")` must be configured explicitly.
 
 The proxy itself does not own a separate identity map. It delegates to the
 underlying retained object, so releasing either the proxy through `$release()`
@@ -666,7 +679,11 @@ selector sends or hand-written proxy options.
            { "name": "status", "selector": "status", "returnType": "string" }
          ],
          "setters": [
-           { "name": "setStatus", "selector": "status:", "args": [{ "name": "status", "type": "string" }] }
+           {
+             "name": "setStatus",
+             "selector": "status:",
+             "args": [{ "name": "status", "type": "string" }]
+           }
          ],
          "snapshot": [
            { "name": "id", "selector": "id", "type": "string" },

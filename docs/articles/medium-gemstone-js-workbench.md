@@ -199,6 +199,60 @@ const arraySize = await array.size;
 
 This is deliberately an opt-in tool and scripting layer. Stable application code can still use generated wrappers or `Session.classRef()`, while the Explorer and VS Code workbench can use the bridge for Smalltalk-like navigation and evaluation.
 
+The project also includes a small compatibility facade for developers coming from `GemStone-Pharo-Bridge` and its MagLev branch examples. The goal is not to re-create Pharo in JavaScript, but to make the familiar session shape recognizable while using the same underlying `Session` and `PersistentRoot` APIs.
+
+The classic example from `MAGLEV-BRANCH-USAGE.md` maps closely:
+
+```ts
+import { gbsSessionParameters } from "gemstone-js";
+
+const session = await gbsSessionParameters()
+  .name("Simple Session")
+  .gemStoneName("gs64stone")
+  .username("DataCurator")
+  .password(process.env.GS_PASSWORD ?? "swordfish")
+  .login();
+
+try {
+  await session.userGlobals.atPut("MyTestDict", {
+    name: "Tariq",
+    amount: 100,
+    currency: "GBP",
+  });
+
+  await session.commit();
+} finally {
+  await session.disconnect();
+}
+```
+
+The MagLev-oriented version keeps the same preference as the Pharo bridge guide: use `bridgeRoot` and explicit transaction behavior:
+
+```ts
+const session = await gbsSessionParameters()
+  .name("MagLev Session")
+  .gemStoneName("gs64stone")
+  .username("DataCurator")
+  .password(process.env.GS_PASSWORD ?? "swordfish")
+  .netldiHostOrIp(process.env.GS_NETLDI_HOST ?? "localhost")
+  .netldiNameOrPort(process.env.GS_NETLDI_NAME_OR_PORT ?? "50377")
+  .login();
+
+try {
+  await session.bridgeRoot.atPut("MyTestDict", {
+    name: "Tariq",
+    amount: 100,
+    currency: "GBP",
+  });
+
+  await session.commitTransactionOrSignalConflict();
+} finally {
+  await session.disconnect();
+}
+```
+
+The runnable packaged version is `examples/maglev-branch-usage.ts`. It preserves the original names, including `GbsSessionParameters`, `userGlobals`, `bridgeRoot`, `commit`, `commitTransactionOrSignalConflict`, and `disconnect`, while still allowing new code to move toward direct `Session`, `PersistentRoot`, generated wrapper, and transparent-object APIs.
+
 For relationships and richer payloads, the same proxy can distinguish value, object, raw OOP, and dictionary readback explicitly:
 
 ```ts

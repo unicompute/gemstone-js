@@ -116,6 +116,15 @@ export {
   type PerformWithCallInput,
 } from "./client.ts";
 export {
+  GbsSession,
+  GbsSessionParameters,
+  GbsSymbolDictionary,
+  gbsSession,
+  gbsSessionParameters,
+  type GbsSessionOptions,
+  type GbsSessionParametersOptions,
+} from "./gbs-session.ts";
+export {
   SESSION_ENV_ALIAS_GROUPS,
   sessionConfigFromEnv,
   sessionEnvAliasConflicts,

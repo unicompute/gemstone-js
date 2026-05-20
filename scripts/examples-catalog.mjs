@@ -7,6 +7,13 @@ export const exampleCatalog = [
     command: "node --experimental-strip-types examples/quickstart.ts",
   },
   {
+    name: "maglev-branch-usage",
+    path: "examples/maglev-branch-usage.ts",
+    kind: "basic",
+    description: "GemStone-Pharo-Bridge MagLev branch session examples translated to GBS-style JavaScript.",
+    command: "node --experimental-strip-types examples/maglev-branch-usage.ts",
+  },
+  {
     name: "gstore",
     path: "examples/gstore.ts",
     kind: "data",
@@ -152,7 +159,7 @@ export const examplePlans = [
     name: "first-session",
     title: "First Session",
     description: "Connect, evaluate a simple expression, and inspect ObjectLog behavior.",
-    examples: ["quickstart", "object-log"],
+    examples: ["quickstart", "maglev-branch-usage", "object-log"],
   },
   {
     name: "data-persistence",

@@ -47,7 +47,8 @@ gemstone-js-examples --json --plan web-service
 
 Current plans:
 
-- `first-session`: connect, evaluate, and write/read ObjectLog entries.
+- `first-session`: connect, run the MagLev branch compatibility session
+  example, evaluate, and write/read ObjectLog entries.
 - `data-persistence`: roots, dictionaries, query helpers, bulk selector sends,
   transparent object mapping, GStore, and migrations.
 - `typed-codegen`: manifests, decorated source, and generated wrappers.
@@ -90,6 +91,16 @@ GStore, query helpers, and migrations.
 
 Use `npm run test:live:worker` to run the same opt-in live suite with
 `GS_NATIVE_SESSION_WORKER=1`.
+
+## MagLev Branch Example
+
+`examples/maglev-branch-usage.ts` mirrors the session examples from
+`GemStone-Pharo-Bridge/doc/MAGLEV-BRANCH-USAGE.md` in JavaScript form. It uses
+`GbsSessionParameters`, `session.userGlobals`, `session.bridgeRoot`,
+`session.commit()`, `session.commitTransactionOrSignalConflict()`, and
+`session.disconnect()` so existing GemStone-Pharo-Bridge users can see the
+closest equivalent shape before moving to lower-level `Session` and
+`PersistentRoot` APIs.
 
 ## Codegen Examples
 

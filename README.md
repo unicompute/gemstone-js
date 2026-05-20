@@ -63,6 +63,11 @@ native package; the TypeScript package can be tested locally with a mock runtime
   hiding async remote calls behind JavaScript property access. Class names use
   the same simple GemStone global-name validation policy as source-rendered
   helpers.
+- `GbsSessionParameters`/`GbsSession` provide a small
+  GemStone-Pharo-Bridge compatibility facade for MagLev branch examples:
+  `login()`, `userGlobals`, `bridgeRoot`, `commit()`,
+  `commitTransactionOrSignalConflict()`, retry-count commits with a work
+  callback, and `disconnect()`.
 - Runtime adapters: Node (`@gemstone-js/native`), Deno FFI starter, Bun FFI
   starter, and a mock runtime for tests.
 - Runtime library discovery follows `libPath`, `GS_LIB_PATH`, `GS_LIB`, then

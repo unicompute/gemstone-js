@@ -238,6 +238,7 @@ const required = [
   "examples/codegen.manifest.json",
   "examples/explorer.ts",
   "examples/gstore.ts",
+  "examples/maglev-branch-usage.ts",
   "examples/migrations.ts",
   "examples/object-mapping.ts",
   "examples/object-log.ts",
@@ -300,6 +301,7 @@ const required = [
   "src/bootstrap.ts",
   "src/client.ts",
   "src/doctor.ts",
+  "src/gbs-session.ts",
   "src/gstore.ts",
   "src/inspection-cli.ts",
   "src/migrations.ts",
@@ -431,6 +433,7 @@ assertSnippets(
     "npm run live:check",
     "npm run test:live:worker",
     "examples/web-route-handler.ts",
+    "examples/maglev-branch-usage.ts",
     "GS_NETLDI_NAME_OR_PORT",
     "GS_NATIVE_SESSION_WORKER",
   ],
@@ -570,12 +573,12 @@ if (
 ) {
   throw new Error("scripts/check-public-surface.mjs must report stable checks and regeneration guidance.");
 }
-for (const exportName of ["Session", "SessionPool", "RequestScope", "GemStoneError", "SESSION_ENV_ALIAS_GROUPS", "sessionConfigFromEnv", "sessionEnvAliasConflicts", "smalltalkBridge", "smalltalkObject", "smalltalkSelectorForProperty"]) {
+for (const exportName of ["Session", "SessionPool", "RequestScope", "GemStoneError", "SESSION_ENV_ALIAS_GROUPS", "sessionConfigFromEnv", "sessionEnvAliasConflicts", "smalltalkBridge", "smalltalkObject", "smalltalkSelectorForProperty", "GbsSession", "GbsSessionParameters", "GbsSymbolDictionary", "gbsSession", "gbsSessionParameters"]) {
   if (!publicSurfaceContract.values?.some((entry) => entry.name === exportName)) {
     throw new Error(`scripts/public-surface.expected.json is missing value export: ${exportName}`);
   }
 }
-for (const exportName of ["SessionConfig", "SessionEnv", "SessionEnvAliasConflict", "SessionEnvAliasField", "GciRuntime", "TransactionPolicy", "ValueConverterOptions", "PerformCall", "PerformCallInput", "PerformWithCall", "PerformWithCallInput", "GemStoneOopHandle", "DictionaryReadbackOptions", "KeyedReadbackOptions", "GStoreReadOptions", "ObjectLogReadOptions", "ObjectLogFormatOptions", "ObjectLogSummary", "SmalltalkBridge", "SmalltalkBridgeControls", "SmalltalkBridgeOptions", "SmalltalkObject", "SmalltalkObjectControls", "SmalltalkSelectorDispatch"]) {
+for (const exportName of ["SessionConfig", "SessionEnv", "SessionEnvAliasConflict", "SessionEnvAliasField", "GciRuntime", "TransactionPolicy", "ValueConverterOptions", "PerformCall", "PerformCallInput", "PerformWithCall", "PerformWithCallInput", "GemStoneOopHandle", "DictionaryReadbackOptions", "KeyedReadbackOptions", "GStoreReadOptions", "ObjectLogReadOptions", "ObjectLogFormatOptions", "ObjectLogSummary", "SmalltalkBridge", "SmalltalkBridgeControls", "SmalltalkBridgeOptions", "SmalltalkObject", "SmalltalkObjectControls", "SmalltalkSelectorDispatch", "GbsSessionOptions", "GbsSessionParametersOptions"]) {
   if (!publicSurfaceContract.types?.some((entry) => entry.name === exportName)) {
     throw new Error(`scripts/public-surface.expected.json is missing type export: ${exportName}`);
   }
@@ -583,7 +586,7 @@ for (const exportName of ["SessionConfig", "SessionEnv", "SessionEnvAliasConflic
 if (!apiContract.includes("await import(moduleSpecifier)") || !apiContract.includes("missingValueExports")) {
   throw new Error("scripts/api-contract.mjs must import and compare runtime value exports.");
 }
-for (const name of ["quickstart", "gstore", "persistent-root", "object-mapping", "transparent-object-mapping", "smalltalk-bridge", "query", "bulk-perform", "migrations", "object-log", "web-express", "web-fetch", "web-route-handler"]) {
+for (const name of ["quickstart", "maglev-branch-usage", "gstore", "persistent-root", "object-mapping", "transparent-object-mapping", "smalltalk-bridge", "query", "bulk-perform", "migrations", "object-log", "web-express", "web-fetch", "web-route-handler"]) {
   if (!examplesCatalog.includes(name)) {
     throw new Error(`scripts/examples-catalog.mjs must include packaged example: ${name}.`);
   }

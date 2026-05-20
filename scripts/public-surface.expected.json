@@ -126,6 +126,18 @@
       "from": "./gstore.ts"
     },
     {
+      "name": "GbsSession",
+      "from": "./gbs-session.ts"
+    },
+    {
+      "name": "GbsSessionParameters",
+      "from": "./gbs-session.ts"
+    },
+    {
+      "name": "GbsSymbolDictionary",
+      "from": "./gbs-session.ts"
+    },
+    {
       "name": "GemStoneClass",
       "from": "./codegen.ts"
     },
@@ -475,6 +487,14 @@
     {
       "name": "formatObjectLogEntry",
       "from": "./object-log.ts"
+    },
+    {
+      "name": "gbsSession",
+      "from": "./gbs-session.ts"
+    },
+    {
+      "name": "gbsSessionParameters",
+      "from": "./gbs-session.ts"
     },
     {
       "name": "gemstoneExpress",
@@ -965,6 +985,14 @@
     {
       "name": "GStoreTransactionOptions",
       "from": "./gstore.ts"
+    },
+    {
+      "name": "GbsSessionOptions",
+      "from": "./gbs-session.ts"
+    },
+    {
+      "name": "GbsSessionParametersOptions",
+      "from": "./gbs-session.ts"
     },
     {
       "name": "GciErrorInfo",

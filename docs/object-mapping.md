@@ -262,12 +262,15 @@ import { smalltalkBridge } from "gemstone-js";
 const st = smalltalkBridge(session);
 
 const objectClassName = await st.Object.name;
-const array = await st.Array.new_.object<unknown[]>(3);
-const arraySize = await array.send<number>("size");
+const array = await st.Array.new_.transparent<
+  Record<string, unknown>,
+  { size: PromiseLike<number> }
+>(3);
+const arraySize = await array.size;
 await st.UserGlobals.at_put_("GemStoneJsBridgeDemo", 42);
 const storedValue = await st.UserGlobals.at_("GemStoneJsBridgeDemo");
 
-await array.release();
+await array.$release();
 ```
 
 Selector property names are converted with `smalltalkSelectorForProperty()`:
@@ -286,11 +289,22 @@ const rawOop = await st.Array.$sendOop("new:", 3);
 const object = await st.Object.$sendObject("new");
 ```
 
-Bridge object proxies can also become transparent retained-object proxies:
+Selector dispatches that return objects can create transparent proxies directly.
+Use `transparent()` when default selector inference is enough and
+`transparentWith()` when the proxy needs explicit selectors, object selectors,
+or snapshot policy.
 
 ```ts
-const objectClass = await st.Object.$transparent<{ name: string }>();
-const name = await objectClass.name;
+const booking = await st.BookingRepository.find_.transparentWith<
+  Booking,
+  { updateStatus(status: string, reason: string): Promise<string> }
+>(
+  { selectors: { updateStatus: "status:reason:" } },
+  "B-1001",
+);
+
+await booking.updateStatus("confirmed", "deposit received");
+await booking.$release();
 ```
 
 In production domain code, prefer generated wrappers or `Session.classRef()`

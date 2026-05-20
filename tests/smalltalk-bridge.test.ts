@@ -72,6 +72,54 @@ test("smalltalkBridge supports raw and retained object result modes", async () =
   await session.logout();
 });
 
+test("smalltalkBridge can wrap selector object results as transparent proxies", async () => {
+  let runtime: MockGciRuntime;
+  const bookingOop = 0x7100n as Oop;
+  runtime = new MockGciRuntime({
+    perform(_receiver, selector, args) {
+      if (selector === "find:") {
+        assert.deepEqual(args, [runtime.strings.get("B-1001") as Oop]);
+        return bookingOop;
+      }
+      if (selector === "status") return runtime.strings.get("held") as Oop;
+      if (selector === "status:reason:") {
+        assert.deepEqual(args, [
+          runtime.strings.get("confirmed") as Oop,
+          runtime.strings.get("deposit received") as Oop,
+        ]);
+        return runtime.strings.get("confirmed") as Oop;
+      }
+      return runtime.strings.get("unknown") as Oop;
+    },
+  });
+  const session = await Session.connect({ username: "u", password: "p", runtime });
+  await session.newString("B-1001");
+  await session.newString("held");
+  await session.newString("confirmed");
+  await session.newString("deposit received");
+  await session.newString("unknown");
+
+  type BookingMethods = {
+    updateStatus(status: string, reason: string): Promise<string>;
+  };
+  const st = smalltalkBridge(session);
+  const booking = await st.BookingRepository.find_.transparent<{ status: string }>("B-1001");
+  const bookingWithMethods = await st.BookingRepository.find_.transparentWith<
+    { status: string },
+    BookingMethods
+  >(
+    { selectors: { updateStatus: "status:reason:" } },
+    "B-1001",
+  );
+
+  assert.equal(await booking.status, "held");
+  assert.equal(await bookingWithMethods.updateStatus("confirmed", "deposit received"), "confirmed");
+
+  await booking.$release();
+  await bookingWithMethods.$release();
+  await session.logout();
+});
+
 test("smalltalkBridge caches globals and can clear cache", async () => {
   const runtime = new MockGciRuntime();
   const session = await Session.connect({ username: "u", password: "p", runtime });

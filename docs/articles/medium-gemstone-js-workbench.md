@@ -188,9 +188,13 @@ import { smalltalkBridge } from "gemstone-js";
 const st = smalltalkBridge(session);
 
 const objectClassName = await st.Object.name;
-const array = await st.Array.new_.object<unknown[]>(3);
+const array = await st.Array.new_.transparent<
+  Record<string, unknown>,
+  { size: PromiseLike<number> }
+>(3);
 await st.UserGlobals.at_put_("GemStoneJsBridgeDemo", 42);
 const storedValue = await st.UserGlobals.at_("GemStoneJsBridgeDemo");
+const arraySize = await array.size;
 ```
 
 This is deliberately an opt-in tool and scripting layer. Stable application code can still use generated wrappers or `Session.classRef()`, while the Explorer and VS Code workbench can use the bridge for Smalltalk-like navigation and evaluation.

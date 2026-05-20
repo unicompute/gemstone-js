@@ -13,6 +13,13 @@ export interface SmalltalkSelectorDispatch<R = MarshalledValue> extends PromiseL
   value(...args: GemStoneArgument[]): Promise<R>;
   oop(...args: GemStoneArgument[]): Promise<Oop>;
   object<T = unknown>(...args: GemStoneArgument[]): Promise<TypedOop<T>>;
+  transparent<TShape = Record<string, unknown>, TMethods extends object = object>(
+    ...args: GemStoneArgument[]
+  ): Promise<TransparentObject<TShape, TMethods>>;
+  transparentWith<TShape = Record<string, unknown>, TMethods extends object = object>(
+    options: TransparentObjectOptions<TShape>,
+    ...args: GemStoneArgument[]
+  ): Promise<TransparentObject<TShape, TMethods>>;
 }
 
 export interface SmalltalkObjectControls {
@@ -204,6 +211,23 @@ function selectorDispatch(
     object: {
       value(...args: GemStoneArgument[]) {
         return object.$sendObject(selector, ...args);
+      },
+    },
+    transparent: {
+      async value<TShape = Record<string, unknown>, TMethods extends object = object>(
+        ...args: GemStoneArgument[]
+      ): Promise<TransparentObject<TShape, TMethods>> {
+        const handle = await object.$sendObject<TShape>(selector, ...args);
+        return transparentObject<TShape, TMethods>(handle);
+      },
+    },
+    transparentWith: {
+      async value<TShape = Record<string, unknown>, TMethods extends object = object>(
+        options: TransparentObjectOptions<TShape>,
+        ...args: GemStoneArgument[]
+      ): Promise<TransparentObject<TShape, TMethods>> {
+        const handle = await object.$sendObject<TShape>(selector, ...args);
+        return transparentObject<TShape, TMethods>(handle, options);
       },
     },
   });

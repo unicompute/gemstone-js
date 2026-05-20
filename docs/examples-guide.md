@@ -126,7 +126,7 @@ request-scoped identity reuse through the same mapping API.
 `examples/smalltalk-bridge.ts` shows the Python-style dynamic bridge:
 `smalltalkBridge(session)`, lazy global proxies, awaitable selector properties,
 `st.Array.new_(3)` underscore-to-colon selector dispatch, exact `$send*()`
-controls, and retained object results.
+controls, and selector object results wrapped directly as transparent proxies.
 
 The next planned examples should cover a mapping manifest, generated
 `BookingRef`-style classes around `TypedOop<T>`, repository helpers returning

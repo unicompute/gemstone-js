@@ -446,6 +446,7 @@ assertSnippets(
     "smalltalkBridge()",
     "Smalltalk-Style Bridge",
     "st.Array.new_(3)",
+    "transparentWith()",
     "TransparentObjectMapper",
     "TypedOop<T>",
     "Session.classRef<T>()",

@@ -54,8 +54,10 @@ native package; the TypeScript package can be tested locally with a mock runtime
 - `smalltalkBridge()` provides a gemstone-py-style dynamic Smalltalk bridge for
   exploratory and tool code: globals resolve lazily from properties,
   JavaScript-friendly names such as `new_` and `at_put_` map to `new:` and
-  `at:put:`, selector accessors are awaitable or callable, and `$send*()` plus
-  `$transparent()` keep exact-selector and retained-handle paths available.
+  `at:put:`, selector accessors are awaitable or callable, selector object
+  results can go straight to `transparent()`/`transparentWith()` proxies, and
+  `$send*()` plus `$transparent()` keep exact-selector and retained-handle
+  paths available.
 - `Session.classRef()` gives an explicit typed class handle for class-side
   sends, object-returning sends, allocation, and wrapping returned OOPs without
   hiding async remote calls behind JavaScript property access. Class names use

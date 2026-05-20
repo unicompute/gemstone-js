@@ -230,6 +230,58 @@ Snapshot field kinds are:
 Prefer snapshots for outbound data. Prefer retained handles for continued
 GemStone-side behavior.
 
+### `mappedObject()` API Reference
+
+The runtime helper has one required argument, the retained object handle, plus
+an optional mapping description:
+
+```ts
+const booking = mappedObject<Booking, BookingMethods>(object, {
+  selectors: {
+    displayStatus: "status",
+    updateStatus: "status:reason:",
+  },
+  setters: {
+    setStatus: "status:",
+  },
+  objectSelectors: {
+    customer: "customer",
+  },
+  oopSelectors: {
+    rawCustomer: "customer",
+  },
+  snapshot: {
+    id: "id",
+    status: "status",
+    customer: { selector: "customer", kind: "oop" },
+    details: { selector: "details", kind: "dict", maxEntries: 100 },
+  },
+});
+```
+
+The options map directly to send behavior:
+
+| Option | Purpose | Example |
+| --- | --- | --- |
+| `selectors` | Override selector inference for value-returning methods | `{ updateStatus: "status:reason:" }` |
+| `setters` | Bind named setter methods to write selectors | `{ setStatus: "status:" }` |
+| `objectSelectors` | Mark methods that return retained `TypedOop<T>` handles | `{ customer: "customer" }` |
+| `oopSelectors` | Mark methods that return raw `Oop` identity | `{ rawCustomer: "customer" }` |
+| `snapshot` | Configure default `$snapshot()` fields | `{ status: "status" }` |
+
+Selector inference is intentionally narrow:
+
+| JavaScript call | Inferred GemStone selector |
+| --- | --- |
+| `booking.status()` | `status` |
+| `booking.priority(3)` | `priority:` |
+| `booking.setStatus("held")` | `status:` |
+| `booking.updateStatus("held", "reason")` | Must be configured |
+
+The proxy itself does not own a separate identity map. It delegates to the
+underlying retained object, so releasing either the proxy through `$release()`
+or the original `TypedOop<T>` releases the same retained handle.
+
 ## Generated Selector Wrappers
 
 Generated wrappers are the most ergonomic mapping layer for application code.
@@ -266,6 +318,47 @@ export async function findBooking(
 
 Use `returnKind: "value"` for simple marshalled values, `returnKind: "oop"` for
 raw object identity, and `returnKind: "object"` for retained typed handles.
+
+## Migration Path
+
+Move toward mapping incrementally. A direct selector send:
+
+```ts
+const booking = await session
+  .classRef<Booking>("BookingRepository")
+  .sendObject("find:", "B-1001");
+
+await booking.send("status:", "confirmed");
+```
+
+can first become a local proxy:
+
+```ts
+type BookingMethods = {
+  setStatus(status: string): Promise<unknown>;
+};
+
+const bookingRef = mappedObject<Booking, BookingMethods>(booking, {
+  setters: {
+    setStatus: "status:",
+  },
+});
+
+await bookingRef.setStatus("confirmed");
+```
+
+and later become generated source:
+
+```ts
+const bookings = new BookingRepository(session);
+const bookingRef = await bookings.find("B-1001");
+
+await bookingRef.setStatus("confirmed");
+```
+
+Each step keeps the same remote operation visible. The change is where selector
+names and return policies live: inline call site, proxy options, or committed
+generated code.
 
 ## Explicit Dictionary Payloads
 
@@ -389,6 +482,41 @@ API payload snapshots, and small keyed aggregates. Prefer class references and
 typed object handles when the GemStone object has behavior that should remain
 on the GemStone side.
 
+## Root and Global Mapping
+
+Roots and globals should usually store handles, dictionaries, or small payloads
+rather than hydrated JavaScript instances. This keeps transaction behavior
+visible and avoids implicit synchronization.
+
+```ts
+import { PersistentRoot, mappedObject, type TypedOop } from "gemstone-js";
+
+interface Booking {
+  id: string;
+  status: string;
+}
+
+type BookingMethods = {
+  setStatus(status: string): Promise<unknown>;
+};
+
+const root = PersistentRoot.userGlobals(session);
+const bookingHandle: TypedOop<Booking> = await root.requireObject<Booking>("LastBooking");
+const booking = mappedObject<Booking, BookingMethods>(bookingHandle, {
+  setters: {
+    setStatus: "status:",
+  },
+  snapshot: ["id", "status"],
+});
+
+await booking.setStatus("confirmed");
+const payload = await booking.$snapshot();
+```
+
+Use this pattern when the root or global is an entry point into the GemStone
+object graph. Use `root.requireDict()` or `session.globalRequireDict()` when
+the entry itself is the mapped payload.
+
 ## Mapping Relationships
 
 Model relationships as selector methods that return handles, then decide at the
@@ -423,6 +551,39 @@ const rawCustomer = await booking.customerOop();
 For UI payloads, snapshot the relationship by OOP, by nested dictionary, or by a
 small generated `CustomerRef.snapshot()` method. Avoid recursively hydrating an
 unbounded object graph unless the caller provides depth and item bounds.
+
+## Lifetime and Transactions
+
+Mapping helpers do not change GemStone transaction rules:
+
+- Reads observe the current session's transaction view.
+- Writes through setters or `$set()` are normal GemStone selector sends.
+- Call `session.commit()` to persist successful changes.
+- Call `session.abort()` to discard uncommitted changes.
+- Release retained object handles when they are no longer needed.
+
+```ts
+const booking = mappedObject<Booking, BookingMethods>(object, {
+  setters: {
+    setStatus: "status:",
+  },
+});
+
+try {
+  await booking.setStatus("confirmed");
+  await booking.$session.commit();
+} catch (error) {
+  await booking.$session.abort().catch(() => undefined);
+  throw error;
+} finally {
+  await booking.$release();
+}
+```
+
+When an application already uses `RequestScope`, `TransactionScope`, or a pool,
+keep mapping objects scoped to the borrowed session. Do not cache a
+`mappedObject()` proxy beyond the lifetime of the session that created its
+underlying `TypedOop<T>`.
 
 ## Value Converters
 

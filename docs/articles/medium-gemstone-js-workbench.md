@@ -184,6 +184,30 @@ const payload = await booking.$snapshot();
 
 That gives the application a clear choice: keep a retained handle when it wants GemStone-side behavior, use a raw OOP when identity is enough, or produce a bounded snapshot when sending data to a UI or API.
 
+The same rule applies when a root or global is the entry point. Read a retained handle from the root, wrap it for domain methods, commit or abort through the same session, and release the handle when the request is done:
+
+```ts
+import { PersistentRoot, mappedObject } from "gemstone-js";
+
+const root = PersistentRoot.userGlobals(session);
+const object = await root.requireObject<Booking>("LastBooking");
+const booking = mappedObject<Booking, {
+  setStatus(status: string): Promise<unknown>;
+}>(object, {
+  setters: { setStatus: "status:" },
+  snapshot: ["id", "status"],
+});
+
+try {
+  await booking.setStatus("confirmed");
+  await booking.$session.commit();
+} finally {
+  await booking.$release();
+}
+```
+
+The practical migration path is to start with `TypedOop<T>.send()`, move repeated selector sets into `mappedObject()` options, then generate `BookingRef` classes when the mapping becomes shared API.
+
 For payload-style mapping, class instances can be converted explicitly into GemStone dictionaries:
 
 ```ts

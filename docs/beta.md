@@ -102,9 +102,11 @@ raw OOP returns, and retained typed-object returns.
 
 The current object-mapping support is explicit: use `TypedOop<T>`, `GsDict`,
 `PersistentRoot`, generated selector wrappers, and the opt-in `mappedObject()`
-helper for async property-style methods and bounded snapshots. The larger
-connector-style mapping manifest, generated `*Ref` classes, repository helpers,
-and Explorer/VS Code mapping views remain outside the beta support boundary.
+helper for async property-style methods, relationship handles, root/global
+entry points, retained-handle lifetime control, and bounded snapshots. The
+larger connector-style mapping manifest, generated `*Ref` classes, repository
+helpers, and Explorer/VS Code mapping views remain outside the beta support
+boundary.
 
 ## Installed Package Proof
 

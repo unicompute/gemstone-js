@@ -114,7 +114,9 @@ converters, see `docs/object-mapping.md`.
 methods, setter selectors, object selectors, and snapshots. The guide expands
 that example into a mapping decision table, explicit selector configuration,
 relationship handle mapping, dictionary-backed snapshot fields, and a
-production checklist for live Stone usage.
+production checklist for live Stone usage. It also documents root/global
+mapping, retained-handle lifetime rules, and the migration path from direct
+`TypedOop<T>.send()` calls to proxy options and generated `*Ref` classes.
 
 The next planned examples should cover a mapping manifest, generated
 `BookingRef`-style classes around `TypedOop<T>`, repository helpers returning

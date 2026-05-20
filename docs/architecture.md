@@ -171,14 +171,15 @@ The first implementation slice follows `../plan.js.txt`:
   with `--check --out`.
 - The planned object-mapping layer should build on the same reviewable codegen
   discipline. The runtime now exposes `mappedObject()` for opt-in async
-  property-style selector sends over a retained handle. The next layer is a
+  property-style selector sends over a retained handle, with explicit selector,
+  setter, object-return, raw-OOP, and snapshot policy. The next layer is a
   mapping manifest schema for GemStone class names, TypeScript types,
-  selectors, setters, repository selectors, and snapshot fields; generated
-  `*Ref` classes that wrap `TypedOop<T>` or delegate to `mappedObject()`;
-  repository helpers that return typed refs; and bounded snapshot/dictionary
-  helpers for UI/API payloads. Explorer and VS Code mapping views should read
-  committed mapping manifests and generated files rather than hiding an
-  automatic runtime mapper.
+  selectors, setters, repository selectors, lifetime rules, and snapshot
+  fields; generated `*Ref` classes that wrap `TypedOop<T>` or delegate to
+  `mappedObject()`; repository helpers that return typed refs; and bounded
+  snapshot/dictionary helpers for UI/API payloads. Explorer and VS Code mapping
+  views should read committed mapping manifests and generated files rather than
+  hiding an automatic runtime mapper.
 - `scripts/check-public-surface.mjs` parses `src/index.ts` with the TypeScript
   compiler API and compares value/type exports, source modules, and aliases
   against `scripts/public-surface.expected.json`. This keeps the public barrel

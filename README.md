@@ -40,9 +40,11 @@ native package; the TypeScript package can be tested locally with a mock runtime
   setters, object/raw selector modes, relationship handles, dictionary
   snapshot fields, and bounded snapshots. The object-mapping guide now includes
   a layer-selection table, selector configuration examples, relationship
-  mapping, and a production checklist. The planned connector-inspired track
-  extends this with a mapping manifest schema, generated `*Ref` classes,
-  repository helpers, and Explorer/VS Code mapping views.
+  mapping, root/global mapping, lifetime and transaction rules, migration
+  guidance from raw `TypedOop<T>` sends to generated refs, and a production
+  checklist. The planned connector-inspired track extends this with a mapping
+  manifest schema, generated `*Ref` classes, repository helpers, and
+  Explorer/VS Code mapping views.
 - `Session.classRef()` gives an explicit typed class handle for class-side
   sends, object-returning sends, allocation, and wrapping returned OOPs without
   hiding async remote calls behind JavaScript property access. Class names use

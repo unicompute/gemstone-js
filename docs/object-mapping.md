@@ -32,6 +32,9 @@ Use these layers according to how much object identity you need to preserve:
   with awaitable properties such as `await booking.status`, callable selector
   accessors, queued assignment writes, optional read caching, and identity-aware
   proxy reuse through `TransparentObjectMapper`.
+- **Smalltalk-style bridge**: `smalltalkBridge()` resolves GemStone globals
+  lazily from JavaScript properties and maps names such as `new_` or `at_put_`
+  to Smalltalk selectors such as `new:` and `at:put:`.
 - **Generated wrappers**: codegen manifests and decorated source emit typed
   functions that call GemStone selectors and return values, raw OOPs, or
   retained typed handles.
@@ -56,6 +59,9 @@ Start with the smallest layer that preserves the semantics you need:
 - Make selector reads look like object properties:
   Use `transparentObject()`. The result is an awaitable proxy with queued write
   support.
+- Explore globals and class-side selectors dynamically:
+  Use `smalltalkBridge()`. The result is a Python-style bridge with lazy global
+  proxies and underscore-to-colon selector names.
 - Share selector contracts across a codebase:
   Use a codegen manifest or decorators. The result is reviewable typed wrapper
   source.
@@ -241,6 +247,55 @@ const rawStatus = await booking.status.oop();
 
 This keeps the Python-like shape for reads while preserving JavaScript's async
 boundary.
+
+## Smalltalk-Style Bridge
+
+`smalltalkBridge()` is the most transparent runtime layer. It is intended for
+explorers, scripts, notebooks, and migration work where gemstone-py's dynamic
+Smalltalk bridge style is useful. Globals are properties, selectors are
+properties, and selector dispatches can be awaited directly or called like
+functions.
+
+```ts
+import { smalltalkBridge } from "gemstone-js";
+
+const st = smalltalkBridge(session);
+
+const objectClassName = await st.Object.name;
+const array = await st.Array.new_.object<unknown[]>(3);
+const arraySize = await array.send<number>("size");
+await st.UserGlobals.at_put_("GemStoneJsBridgeDemo", 42);
+const storedValue = await st.UserGlobals.at_("GemStoneJsBridgeDemo");
+
+await array.release();
+```
+
+Selector property names are converted with `smalltalkSelectorForProperty()`:
+
+- `size` sends `size`.
+- `new_` sends `new:`, so `st.Array.new_(3)` sends `Array new: 3`.
+- `at_put_` sends `at:put:`.
+- `removeKey_ifAbsent_` sends `removeKey:ifAbsent:`.
+
+When a selector cannot be represented clearly as a JavaScript property, keep it
+exact with `$send()`, `$sendOop()`, or `$sendObject()`:
+
+```ts
+const value = await st.$send("UserGlobals", "at:", "GemStoneJsBridgeDemo");
+const rawOop = await st.Array.$sendOop("new:", 3);
+const object = await st.Object.$sendObject("new");
+```
+
+Bridge object proxies can also become transparent retained-object proxies:
+
+```ts
+const objectClass = await st.Object.$transparent<{ name: string }>();
+const name = await objectClass.name;
+```
+
+In production domain code, prefer generated wrappers or `Session.classRef()`
+for stable selector contracts. Use the bridge when dynamic Smalltalk ergonomics
+matter more than static discoverability.
 
 ### Queued Assignment
 

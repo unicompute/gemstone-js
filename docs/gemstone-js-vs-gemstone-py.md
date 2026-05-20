@@ -22,7 +22,10 @@ method-shaped selector sends such as `booking.status()`, and
 `transparentObject()` for the closer Python-like shape, including
 `await booking.status`, callable selector accessors, queued assignment writes,
 optional per-proxy caching, and request-scoped identity reuse through
-`TransparentObjectMapper`.
+`TransparentObjectMapper`. For exploratory tooling, `smalltalkBridge()` now
+closes more of gemstone-py's dynamic bridge gap with lazy global proxies,
+awaitable selector properties, underscore-to-colon keyword dispatch, exact
+`$send*()` controls, and retained-object handoff into transparent proxies.
 
 ## Quick Commands
 
@@ -69,6 +72,8 @@ the current full and beta batch totals.
   reports, checksums, release artifact checks, and installed package probes
 - bulk selector sends for raw OOPs, marshalled JS values, mixed calls, and
   object-returning retained handles
+- opt-in transparent mapping through `transparentObject()` and dynamic
+  Smalltalk-style global/selector dispatch through `smalltalkBridge()`
 - a small dependency-free browser explorer for status, OOP inspection,
   roots/globals, workspace eval, class browsing, and codegen preview
 

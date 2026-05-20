@@ -244,6 +244,7 @@ const required = [
   "examples/persistent-root.ts",
   "examples/quickstart.ts",
   "examples/query.ts",
+  "examples/smalltalk-bridge.ts",
   "examples/transparent-object-mapping.ts",
   "examples/web-express.ts",
   "examples/web-fastify.ts",
@@ -308,6 +309,7 @@ const required = [
   "src/runtime/node.ts",
   "src/runtime/library-discovery.ts",
   "src/session-env.ts",
+  "src/smalltalk-bridge.ts",
   "src/testing/mock-runtime.ts",
   "src/adapters/index.ts",
   "src/adapters/express.ts",
@@ -441,6 +443,9 @@ assertSnippets(
     "Choosing a Mapping Style",
     "mappedObject()",
     "transparentObject()",
+    "smalltalkBridge()",
+    "Smalltalk-Style Bridge",
+    "st.Array.new_(3)",
     "TransparentObjectMapper",
     "TypedOop<T>",
     "Session.classRef<T>()",
@@ -564,12 +569,12 @@ if (
 ) {
   throw new Error("scripts/check-public-surface.mjs must report stable checks and regeneration guidance.");
 }
-for (const exportName of ["Session", "SessionPool", "RequestScope", "GemStoneError", "SESSION_ENV_ALIAS_GROUPS", "sessionConfigFromEnv", "sessionEnvAliasConflicts"]) {
+for (const exportName of ["Session", "SessionPool", "RequestScope", "GemStoneError", "SESSION_ENV_ALIAS_GROUPS", "sessionConfigFromEnv", "sessionEnvAliasConflicts", "smalltalkBridge", "smalltalkObject", "smalltalkSelectorForProperty"]) {
   if (!publicSurfaceContract.values?.some((entry) => entry.name === exportName)) {
     throw new Error(`scripts/public-surface.expected.json is missing value export: ${exportName}`);
   }
 }
-for (const exportName of ["SessionConfig", "SessionEnv", "SessionEnvAliasConflict", "SessionEnvAliasField", "GciRuntime", "TransactionPolicy", "ValueConverterOptions", "PerformCall", "PerformCallInput", "PerformWithCall", "PerformWithCallInput", "GemStoneOopHandle", "DictionaryReadbackOptions", "KeyedReadbackOptions", "GStoreReadOptions", "ObjectLogReadOptions", "ObjectLogFormatOptions", "ObjectLogSummary"]) {
+for (const exportName of ["SessionConfig", "SessionEnv", "SessionEnvAliasConflict", "SessionEnvAliasField", "GciRuntime", "TransactionPolicy", "ValueConverterOptions", "PerformCall", "PerformCallInput", "PerformWithCall", "PerformWithCallInput", "GemStoneOopHandle", "DictionaryReadbackOptions", "KeyedReadbackOptions", "GStoreReadOptions", "ObjectLogReadOptions", "ObjectLogFormatOptions", "ObjectLogSummary", "SmalltalkBridge", "SmalltalkBridgeControls", "SmalltalkBridgeOptions", "SmalltalkObject", "SmalltalkObjectControls", "SmalltalkSelectorDispatch"]) {
   if (!publicSurfaceContract.types?.some((entry) => entry.name === exportName)) {
     throw new Error(`scripts/public-surface.expected.json is missing type export: ${exportName}`);
   }
@@ -577,7 +582,7 @@ for (const exportName of ["SessionConfig", "SessionEnv", "SessionEnvAliasConflic
 if (!apiContract.includes("await import(moduleSpecifier)") || !apiContract.includes("missingValueExports")) {
   throw new Error("scripts/api-contract.mjs must import and compare runtime value exports.");
 }
-for (const name of ["quickstart", "gstore", "persistent-root", "object-mapping", "transparent-object-mapping", "query", "bulk-perform", "migrations", "object-log", "web-express", "web-fetch", "web-route-handler"]) {
+for (const name of ["quickstart", "gstore", "persistent-root", "object-mapping", "transparent-object-mapping", "smalltalk-bridge", "query", "bulk-perform", "migrations", "object-log", "web-express", "web-fetch", "web-route-handler"]) {
   if (!examplesCatalog.includes(name)) {
     throw new Error(`scripts/examples-catalog.mjs must include packaged example: ${name}.`);
   }

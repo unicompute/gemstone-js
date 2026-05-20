@@ -725,6 +725,18 @@
       "from": "./oop.ts"
     },
     {
+      "name": "smalltalkBridge",
+      "from": "./smalltalk-bridge.ts"
+    },
+    {
+      "name": "smalltalkObject",
+      "from": "./smalltalk-bridge.ts"
+    },
+    {
+      "name": "smalltalkSelectorForProperty",
+      "from": "./smalltalk-bridge.ts"
+    },
+    {
       "name": "summarizeObjectLogEntries",
       "from": "./object-log.ts"
     },
@@ -1297,6 +1309,30 @@
     {
       "name": "SessionEnvAliasField",
       "from": "./session-env.ts"
+    },
+    {
+      "name": "SmalltalkBridge",
+      "from": "./smalltalk-bridge.ts"
+    },
+    {
+      "name": "SmalltalkBridgeControls",
+      "from": "./smalltalk-bridge.ts"
+    },
+    {
+      "name": "SmalltalkBridgeOptions",
+      "from": "./smalltalk-bridge.ts"
+    },
+    {
+      "name": "SmalltalkObject",
+      "from": "./smalltalk-bridge.ts"
+    },
+    {
+      "name": "SmalltalkObjectControls",
+      "from": "./smalltalk-bridge.ts"
+    },
+    {
+      "name": "SmalltalkSelectorDispatch",
+      "from": "./smalltalk-bridge.ts"
     },
     {
       "name": "Span",

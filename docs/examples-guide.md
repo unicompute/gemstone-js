@@ -123,6 +123,11 @@ mapping, retained-handle lifetime rules, and the migration path from direct
 queued writes through `$assign()`/`$flush()`, bounded snapshots, and
 request-scoped identity reuse through the same mapping API.
 
+`examples/smalltalk-bridge.ts` shows the Python-style dynamic bridge:
+`smalltalkBridge(session)`, lazy global proxies, awaitable selector properties,
+`st.Array.new_(3)` underscore-to-colon selector dispatch, exact `$send*()`
+controls, and retained object results.
+
 The next planned examples should cover a mapping manifest, generated
 `BookingRef`-style classes around `TypedOop<T>`, repository helpers returning
 typed refs, and bounded snapshot/dictionary payload helpers. Those examples

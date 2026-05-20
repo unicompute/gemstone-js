@@ -192,6 +192,17 @@ export {
   type TransparentObjectControls,
   type TransparentObjectOptions,
 } from "./object-mapping.ts";
+export {
+  smalltalkBridge,
+  smalltalkObject,
+  smalltalkSelectorForProperty,
+  type SmalltalkBridge,
+  type SmalltalkBridgeControls,
+  type SmalltalkBridgeOptions,
+  type SmalltalkObject,
+  type SmalltalkObjectControls,
+  type SmalltalkSelectorDispatch,
+} from "./smalltalk-bridge.ts";
 export { PersistentRoot } from "./persistent-root.ts";
 export { GsDict, type DictionaryReadbackOptions, type KeyedReadbackOptions } from "./gsdict.ts";
 export { OrderedCollection } from "./ordered-collection.ts";

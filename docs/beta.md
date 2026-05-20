@@ -146,8 +146,10 @@ Deno and Bun FFI adapters are scaffolded and useful for continued porting work,
 but they should be treated as experimental until live platform coverage catches
 up. Visual tooling and a VS Code extension should remain out of the beta
 critical path until the package, native worker backend, and release workflow
-settle. The same applies to generated connector-style object mapping: it is a
-good next product-polish track, not a beta-critical runtime contract.
+settle. `smalltalkBridge()` and `transparentObject()` are supported opt-in
+mapping conveniences for tools and application code that accept explicit async
+remote calls. Generated connector-style mapping is still a good next
+product-polish track, not a beta-critical runtime contract.
 
 ## Troubleshooting
 

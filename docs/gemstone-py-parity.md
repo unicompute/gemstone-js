@@ -135,14 +135,17 @@ artifact verification, and the native session-thread spike.
 - Unknown object results stay explicit as raw `Oop` values or retained
   `TypedOop<T>` handles; JavaScript now offers an opt-in dynamic proxy through
   `transparentObject()` rather than making every object result implicitly
-  transparent.
+  transparent. `smalltalkBridge()` adds a separate gemstone-py-style bridge for
+  tools and scripts where lazy global lookup and underscore-to-colon selector
+  dispatch are useful.
 - Future JavaScript object mapping should stay explicit: a mapping manifest
   schema can generate async `*Ref` classes around `TypedOop<T>`, repository
   helpers returning typed refs, and bounded snapshot/dictionary helpers instead
   of synchronous property dispatch. `mappedObject()` remains the method-shaped
   bridge, while `transparentObject()` adds `await booking.status`, callable
   selector accessors, queued writes, optional caching, and identity-aware proxy
-  reuse.
+  reuse. `smalltalkBridge()` fills the dynamic exploratory gap without
+  replacing generated contracts.
 - GemStone OOPs are represented as branded `bigint` values in TypeScript, while
   the native Node boundary uses decimal strings to avoid 64-bit precision loss.
 - Root helper names use camelCase (`sessionMethods`) rather than Python's

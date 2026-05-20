@@ -175,7 +175,11 @@ The first implementation slice follows `../plan.js.txt`:
   setter, object-return, raw-OOP, and snapshot policy. It also exposes
   `transparentObject()` for awaitable selector properties, queued assignment
   writes, optional per-proxy caching, and request-scoped identity reuse through
-  `TransparentObjectMapper`. The next layer is a mapping manifest schema for
+  `TransparentObjectMapper`. `smalltalkBridge()` adds a more gemstone-py-like
+  dynamic layer for tools and exploratory code: lazy global proxies,
+  underscore-to-colon selector dispatch, exact `$send*()` controls, and
+  retained-object handoff into `transparentObject()`. The next layer is a
+  mapping manifest schema for
   GemStone class names, TypeScript types, selectors, setters, repository
   selectors, lifetime rules, and snapshot fields; generated `*Ref` classes
   that wrap `TypedOop<T>` or delegate to the runtime mapping helpers;

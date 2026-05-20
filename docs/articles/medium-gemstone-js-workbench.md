@@ -180,6 +180,21 @@ const payload = await booking.$snapshot();
 
 Runtime assignment syntax is also supported by the proxy, but writes are queued because JavaScript setters cannot be async. Typed code can prefer `$assign()`, and UI/editor code can use assignment followed by `$flush()` when that reads better.
 
+For explorer and migration workflows, `smalltalkBridge()` is closer to the dynamic bridge style in gemstone-py. Globals resolve lazily from properties, and JavaScript-friendly method names map underscores to Smalltalk keyword colons:
+
+```ts
+import { smalltalkBridge } from "gemstone-js";
+
+const st = smalltalkBridge(session);
+
+const objectClassName = await st.Object.name;
+const array = await st.Array.new_.object<unknown[]>(3);
+await st.UserGlobals.at_put_("GemStoneJsBridgeDemo", 42);
+const storedValue = await st.UserGlobals.at_("GemStoneJsBridgeDemo");
+```
+
+This is deliberately an opt-in tool and scripting layer. Stable application code can still use generated wrappers or `Session.classRef()`, while the Explorer and VS Code workbench can use the bridge for Smalltalk-like navigation and evaluation.
+
 For relationships and richer payloads, the same proxy can distinguish value, object, raw OOP, and dictionary readback explicitly:
 
 ```ts

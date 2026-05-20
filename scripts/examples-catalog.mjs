@@ -35,6 +35,13 @@ export const exampleCatalog = [
     command: "node --experimental-strip-types examples/transparent-object-mapping.ts",
   },
   {
+    name: "smalltalk-bridge",
+    path: "examples/smalltalk-bridge.ts",
+    kind: "data",
+    description: "Python-style Smalltalk bridge with lazy globals and underscore-to-colon selector dispatch.",
+    command: "node --experimental-strip-types examples/smalltalk-bridge.ts",
+  },
+  {
     name: "query",
     path: "examples/query.ts",
     kind: "query",
@@ -151,7 +158,7 @@ export const examplePlans = [
     name: "data-persistence",
     title: "Data Persistence",
     description: "Work through roots, dictionaries, query helpers, GStore, and migrations.",
-    examples: ["persistent-root", "object-mapping", "transparent-object-mapping", "query", "bulk-perform", "gstore", "migrations"],
+    examples: ["persistent-root", "object-mapping", "transparent-object-mapping", "smalltalk-bridge", "query", "bulk-perform", "gstore", "migrations"],
   },
   {
     name: "typed-codegen",

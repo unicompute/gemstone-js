@@ -10,6 +10,178 @@ GemStone/S has always rewarded developers who are comfortable living close to th
 
 This article walks through the current shape of the project and the decisions behind the workbench.
 
+## What GemStone/S Gives JavaScript Teams
+
+GemStone/S 64 is an object database and application server for Smalltalk systems. It stores live objects, lets many sessions work concurrently, and lets clients send Smalltalk messages directly to objects in the Stone. The important difference from a relational database is that the primary unit is object identity, not a row.
+
+That matters for JavaScript because modern services often want a typed, package-managed, CI-friendly way to reach those live objects. `gemstone-js` is not trying to turn GemStone into a SQL-shaped store. It gives TypeScript code a clear way to connect, send selectors, retain remote object handles, build dictionaries and arrays, inspect objects, and keep those interactions testable.
+
+## The Architecture
+
+The shape mirrors the same split used by `gemstone-rs`: isolate low-level GCI work, keep the application API higher level, and make tools use the same tested core.
+
+```text
+TypeScript application, Explorer, or VS Code workbench
+      |
+      v
+gemstone-js                         async TypeScript API
+      |
+      v
+@gemstone-js/native                 optional Node native package
+      |
+      v
+raw Gci binding or GciSessionWorker native backend
+      |
+      v
+GCI C library                       ships with GemStone/S
+      |
+      v
+GemStone stone
+```
+
+The layers have different jobs:
+
+- `gemstone-js` provides `Session`, `TypedOop<T>`, persistent roots,
+  dictionaries, arrays, queries, migrations, web adapters, codegen, and release
+  checks.
+- `@gemstone-js/native` loads and calls the GemStone GCI library from Node,
+  including the session-worker backend.
+- `GciSessionWorker` queues calls for one session through a dedicated native
+  worker boundary.
+- The Explorer provides local browser UI for doctor checks, evaluation,
+  inspection, class browsing, debugging, and codegen preview.
+- The VS Code workbench adds editor commands and tree views that wrap the
+  Explorer and the same session API.
+
+Keeping those boundaries separate makes the project easier to ship. Mock-runtime tests can run without a Stone, installed examples can be verified from an npm package, and live tests can be enabled only when `GS_RUN_LIVE=1` is set.
+
+## Install and First Check
+
+For local TypeScript development:
+
+```sh
+npm install gemstone-js
+```
+
+For real GemStone/S access from Node, install the optional native package as well:
+
+```sh
+npm install gemstone-js @gemstone-js/native
+```
+
+The native package is optional so docs builds, mock-runtime tests, and browser-adjacent tooling can install `gemstone-js` without a GemStone client library. A production Node process that talks to a Stone should pin both package versions together.
+
+The standard environment is:
+
+```sh
+export GS_STONE=gs64stone
+export GS_NETLDI=netldi
+export GS_HOST=localhost
+export GS_USERNAME=DataCurator
+export GS_PASSWORD=swordfish
+```
+
+Existing GemStone bridge shells can keep using aliases such as `GS_USER`, `GS_PASS`, `GS_NETLDI_HOST`, `GS_NETLDI_NAME_OR_PORT`, and `GS_SERVICE`. The canonical JavaScript names win if both are present.
+
+Run the setup check before writing code:
+
+```sh
+gemstone-js-doctor
+gemstone-js-doctor --live
+gemstone-js-doctor --live --json
+```
+
+The non-live doctor checks runtime configuration, credentials presence, native package importability, and worker-backend shape. The live doctor logs in and evaluates `1 + 1`. JSON output masks secrets, which makes it usable in diagnostics and CI logs.
+
+Installed examples are discoverable too:
+
+```sh
+gemstone-js-examples --commands
+gemstone-js-examples --plan first-session
+gemstone-js-examples --plan typed-codegen
+```
+
+## First Login
+
+The smallest live program is intentionally plain TypeScript:
+
+```ts
+import { Session } from "gemstone-js";
+
+await using session = await Session.connect(Session.configFromEnv());
+
+const value = await session.eval("3 + 4");
+console.log(value);
+// 7n
+```
+
+`Session.configFromEnv()` reads the same `GS_*` variables used by the doctor, examples, Explorer, and VS Code workbench. The `await using` form logs out at the end of the block in runtimes that support explicit resource management; calling `await session.logout()` directly is also fine.
+
+## OOPs, Values, and Handles
+
+GemStone objects are identified by OOPs. `gemstone-js` keeps that visible instead of hiding it behind a generic ORM.
+
+```ts
+import { Session, type TypedOop } from "gemstone-js";
+
+interface Booking {
+  id: string;
+  status: string;
+}
+
+await using session = await Session.connect(Session.configFromEnv());
+
+const booking: TypedOop<Booking> = await session
+  .classRef<Booking>("Booking")
+  .sendObject("find:", "B-1001");
+
+const printString = await booking.printString();
+const status = await booking.sendValue<string>("status");
+await booking.release();
+```
+
+The mapping is explicit:
+
+- `nil` comes back as `null`.
+- `true` and `false` come back as JavaScript booleans.
+- `SmallInteger` comes back as `bigint`.
+- `Character`, fetched `String`, and fetched `Symbol` values come back as
+  strings.
+- `Array` readback uses bounded JavaScript arrays through `arrayOopToValues()`.
+- `Dictionary` readback uses `GsDict` handles or plain snapshots through
+  dictionary helpers.
+- Other live objects come back as raw `Oop` values or retained
+  `TypedOop<T>` handles.
+
+That gives callers a choice. Use `performValueWith()` when a marshalled JavaScript value is enough, `performWith()` when raw identity matters, and `performObjectWith()` or `classRef().sendObject()` when the result should be retained as a typed handle.
+
+## Transactions and Request Lifetimes
+
+GemStone sessions are transactional. At the lowest level, the API gives direct control:
+
+```ts
+await session.commit();
+await session.abort();
+const dirty = await session.needsCommit();
+const active = await session.inTransaction();
+```
+
+For application work that should retry on commit conflicts, use the transaction helper:
+
+```ts
+import { PersistentRoot, runTransactionWithRetry, Session } from "gemstone-js";
+
+await runTransactionWithRetry(async (session) => {
+  const root = PersistentRoot.userGlobals(session);
+  await root.setValue("GemStoneJsArticleCounter", Date.now());
+}, {
+  config: Session.configFromEnv(),
+  attempts: 3,
+});
+```
+
+For web services, request scopes and adapters make the session lifetime explicit. Express, Fastify, Hono, and Fetch adapters can commit, abort, or leave transaction control manual according to the route's policy. That keeps the GemStone transaction boundary aligned with the JavaScript request boundary.
+
 ## The Goal
 
 The goal is not to hide GemStone behind a generic ORM. GemStone is an object database, and the API should preserve that reality.
@@ -98,6 +270,95 @@ When evaluating Smalltalk, developers often need different result shapes:
 - `oop` for a raw object handle
 
 The workbench has a default return kind, but the `As...` commands let developers choose per action. That avoids a noisy settings loop when switching between quick checks, object inspection, and wrapper development.
+
+## Codegen and Reviewable APIs
+
+The Rust article emphasizes checked-in generated wrappers, and the same idea is central in `gemstone-js`. A selector boundary should not live forever as hand-written stringly typed calls scattered through a service. Once a call becomes application API, put the selector spelling, argument names, return kind, and TypeScript imports in a manifest or decorated source file.
+
+The manifest path is JSON and has a schema for editor validation:
+
+```json
+{
+  "$schema": "../schemas/codegen-manifest.schema.json",
+  "imports": [
+    {
+      "from": "gemstone-js",
+      "typeNames": ["Session", "TypedOop"]
+    },
+    {
+      "from": "./booking.ts",
+      "typeSpecifiers": [{ "name": "Booking" }]
+    }
+  ],
+  "functions": [
+    {
+      "exportedName": "findBookingObject",
+      "className": "Booking",
+      "selector": "find:",
+      "argNames": ["id"],
+      "argTypes": ["string"],
+      "sessionType": "Session",
+      "returnType": "TypedOop<Booking>",
+      "returnKind": "object"
+    }
+  ]
+}
+```
+
+That renders a normal TypeScript function:
+
+```ts
+export async function findBookingObject(
+  session: Session,
+  id: string,
+): Promise<TypedOop<Booking>> {
+  return session.classRef("Booking").sendObject("find:", id);
+}
+```
+
+The check commands keep generated output current:
+
+```sh
+npm run codegen -- examples/codegen.manifest.json
+npm run codegen:check
+npm run codegen:scan:check
+```
+
+The scanner path lets a TypeScript source file describe the same boundary with decorators:
+
+```ts
+import { GemStoneClass, GemStoneSelector, type Session, type TypedOop } from "gemstone-js";
+import type { Booking } from "./booking.ts";
+
+@GemStoneClass("Booking")
+class BookingModel {
+  @GemStoneSelector("find:")
+  static findBookingObject(session: Session, id: string): Promise<TypedOop<Booking>> {
+    throw new Error("Decorator source is scanned for codegen only.");
+  }
+}
+```
+
+The generated file is checked in. That is the important part: reviewers see exactly which selectors are exposed, which arguments are marshalled, and whether the result is a value, raw OOP, or retained typed handle.
+
+## Browser and Explorer Workflows
+
+The Explorer is the UI expression of those same APIs. It can preview generated wrappers from a manifest, inspect object structure, browse classes and methods, edit method source, and open the debugger when evaluation raises. It is local tooling, not a separate application framework.
+
+From a checkout, the browser UI starts as an installed example:
+
+```sh
+node --experimental-strip-types examples/explorer.ts
+```
+
+The example catalog prints the same command, so installed-package checks do not have to assume checkout-relative paths:
+
+```sh
+gemstone-js-examples --commands
+gemstone-js-examples --show explorer
+```
+
+This is why the VS Code extension wraps the Explorer first. The workbench gets command-palette actions, tree views, SecretStorage, and debugger integration, while the tested Explorer still owns the browser UI and GemStone session operations.
 
 ## Object Mapping Without an ORM
 
@@ -257,6 +518,7 @@ try {
 
   const stored = await session.bridgeRoot.atDict("MyTestDict");
   console.log(stored ? await stored.toObject() : null);
+  // { name: "Tariq", amount: 100, currency: "GBP" }
 } finally {
   await session.disconnect();
 }

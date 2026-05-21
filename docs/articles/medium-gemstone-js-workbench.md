@@ -221,10 +221,18 @@ try {
   });
 
   await session.commit();
+
+  const stored = await session.userGlobals.atDict("MyTestDict");
+  console.log(stored ? await stored.toObject() : null);
+  // { name: "Tariq", amount: 100, currency: "GBP" }
 } finally {
   await session.disconnect();
 }
 ```
+
+That same root lookup works in a later session too. `atDict()` returns a `GsDict`
+handle, so the caller can either keep sending GemStone messages to the
+dictionary or call `toObject()` for a plain JavaScript snapshot.
 
 The MagLev-oriented version keeps the same preference as the Pharo bridge guide: use `bridgeRoot` and explicit transaction behavior:
 
@@ -246,6 +254,9 @@ try {
   });
 
   await session.commitTransactionOrSignalConflict();
+
+  const stored = await session.bridgeRoot.atDict("MyTestDict");
+  console.log(stored ? await stored.toObject() : null);
 } finally {
   await session.disconnect();
 }

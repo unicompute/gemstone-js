@@ -134,15 +134,21 @@ mapping, retained-handle lifetime rules, and the migration path from direct
 queued writes through `$assign()`/`$flush()`, bounded snapshots, and
 request-scoped identity reuse through the same mapping API.
 
+`examples/object-mapping.manifest.json` is the first committed mapping
+manifest. It describes a `BookingRef`, selector methods, a setter, bounded
+snapshot fields, and a repository method returning a typed ref. The manifest is
+schema-backed by `schemas/object-mapping-manifest.schema.json`; generated
+`BookingRef` output is the next step.
+
 `examples/smalltalk-bridge.ts` shows the Python-style dynamic bridge:
 `smalltalkBridge(session)`, lazy global proxies, awaitable selector properties,
 `st.Array.new_(3)` underscore-to-colon selector dispatch, exact `$send*()`
 controls, and selector object results wrapped directly as transparent proxies.
 
-The next planned examples should cover a mapping manifest, generated
-`BookingRef`-style classes around `TypedOop<T>`, repository helpers returning
-typed refs, and bounded snapshot/dictionary payload helpers. Those examples
-should remain generated and committed so mapping behavior is reviewable in CI.
+The next planned examples should cover generated `BookingRef`-style classes
+around `TypedOop<T>`, repository helpers returning typed refs, and bounded
+snapshot/dictionary payload helpers. Those examples should remain generated
+and committed so mapping behavior is reviewable in CI.
 
 ## Web Examples
 

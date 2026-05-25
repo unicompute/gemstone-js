@@ -1,0 +1,99 @@
+{
+  "$schema": "../schemas/object-mapping-manifest.schema.json",
+  "imports": [
+    {
+      "from": "gemstone-js",
+      "typeNames": ["Oop", "Session", "TypedOop"]
+    },
+    {
+      "from": "./booking.ts",
+      "typeSpecifiers": [
+        {
+          "name": "Booking"
+        }
+      ]
+    }
+  ],
+  "classes": [
+    {
+      "name": "Booking",
+      "gemStoneClass": "Booking",
+      "typeName": "Booking",
+      "refName": "BookingRef",
+      "snapshotTypeName": "BookingSnapshot",
+      "doc": "Typed reference wrapper for a live Booking object.",
+      "selectors": [
+        {
+          "name": "id",
+          "selector": "id",
+          "returnType": "string",
+          "returnKind": "value"
+        },
+        {
+          "name": "status",
+          "selector": "status",
+          "returnType": "string",
+          "returnKind": "value"
+        },
+        {
+          "name": "customerOop",
+          "selector": "customer",
+          "returnType": "Oop",
+          "returnKind": "oop"
+        }
+      ],
+      "setters": [
+        {
+          "name": "setStatus",
+          "selector": "status:",
+          "args": [
+            {
+              "name": "status",
+              "type": "string"
+            }
+          ],
+          "returnType": "this"
+        }
+      ],
+      "snapshot": [
+        {
+          "name": "id",
+          "selector": "id",
+          "type": "string",
+          "kind": "value"
+        },
+        {
+          "name": "status",
+          "selector": "status",
+          "type": "string",
+          "kind": "value"
+        },
+        {
+          "name": "details",
+          "selector": "details",
+          "type": "Record<string, unknown>",
+          "kind": "dict",
+          "maxEntries": 100
+        }
+      ],
+      "repository": {
+        "name": "BookingRepository",
+        "gemStoneClass": "Booking",
+        "methods": [
+          {
+            "name": "find",
+            "selector": "find:",
+            "args": [
+              {
+                "name": "id",
+                "type": "string"
+              }
+            ],
+            "returnType": "BookingRef",
+            "returnKind": "ref"
+          }
+        ]
+      }
+    }
+  ]
+}

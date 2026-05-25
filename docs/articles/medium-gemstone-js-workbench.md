@@ -642,7 +642,7 @@ This is the same bias as the rest of the project: preserve GemStone identity and
 
 With `mappedObject()` in place, the next mapping step should borrow the useful part of the Pharo bridge connector model without copying its transparent synchronization semantics. The shape is straightforward:
 
-- mapping manifest schema for class name, TypeScript type, selectors, setters, repository selectors, and snapshot fields
+- the committed `schemas/object-mapping-manifest.schema.json` contract and `examples/object-mapping.manifest.json` example for class name, TypeScript type, selectors, setters, repository methods, and snapshot fields
 - generated `BookingRef`-style classes wrapping `TypedOop<T>` or delegating to `mappedObject()`
 - repository helpers returning typed refs
 - bounded `snapshot()` and dictionary helpers for UI/API payloads

@@ -63,6 +63,7 @@ for (const schemaExport of [
   "./schemas/benchmark-report.schema.json",
   "./schemas/benchmark-baseline-manifest.schema.json",
   "./schemas/comparison-report.schema.json",
+  "./schemas/object-mapping-manifest.schema.json",
 ]) {
   if (packageJson.exports?.[schemaExport] !== schemaExport) {
     throw new Error(`package.json must export ${schemaExport}.`);
@@ -241,6 +242,7 @@ const required = [
   "examples/maglev-branch-usage.ts",
   "examples/migrations.ts",
   "examples/object-mapping.ts",
+  "examples/object-mapping.manifest.json",
   "examples/object-log.ts",
   "examples/persistent-root.ts",
   "examples/quickstart.ts",
@@ -257,6 +259,7 @@ const required = [
   "schemas/benchmark-report.schema.json",
   "schemas/codegen-manifest.schema.json",
   "schemas/comparison-report.schema.json",
+  "schemas/object-mapping-manifest.schema.json",
   "scripts/api-contract.mjs",
   "scripts/benchmark-baselines.mjs",
   "scripts/benchmark-compare.mjs",

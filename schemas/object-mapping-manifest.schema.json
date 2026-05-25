@@ -1,0 +1,289 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://unicompute.github.io/gemstone-js/schemas/object-mapping-manifest.schema.json",
+  "title": "gemstone-js object mapping manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["classes"],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "banner": {
+      "oneOf": [
+        { "type": "string" },
+        { "const": false }
+      ]
+    },
+    "imports": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/importSpec" }
+    },
+    "classes": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/classSpec" }
+    }
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z_$][A-Za-z0-9_$]*$",
+      "not": {
+        "enum": [
+          "await",
+          "break",
+          "case",
+          "catch",
+          "class",
+          "const",
+          "continue",
+          "debugger",
+          "default",
+          "delete",
+          "do",
+          "else",
+          "enum",
+          "export",
+          "extends",
+          "false",
+          "finally",
+          "for",
+          "function",
+          "if",
+          "import",
+          "in",
+          "instanceof",
+          "let",
+          "new",
+          "null",
+          "return",
+          "super",
+          "switch",
+          "this",
+          "throw",
+          "true",
+          "try",
+          "typeof",
+          "var",
+          "void",
+          "while",
+          "with",
+          "yield"
+        ]
+      }
+    },
+    "typeExpression": {
+      "type": "string",
+      "minLength": 1,
+      "not": {
+        "pattern": "[\\r\\n;`]"
+      }
+    },
+    "selector": {
+      "type": "string",
+      "minLength": 1,
+      "not": {
+        "pattern": "[\\r\\n]"
+      }
+    },
+    "importSpec": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from"],
+      "anyOf": [
+        { "required": ["defaultName"] },
+        { "required": ["namespaceName"] },
+        { "required": ["names"] },
+        { "required": ["typeDefaultName"] },
+        { "required": ["typeNamespaceName"] },
+        { "required": ["typeNames"] },
+        { "required": ["typeSpecifiers"] }
+      ],
+      "not": {
+        "required": ["namespaceName", "names"]
+      },
+      "properties": {
+        "from": {
+          "type": "string",
+          "minLength": 1
+        },
+        "defaultName": { "$ref": "#/$defs/identifier" },
+        "namespaceName": { "$ref": "#/$defs/identifier" },
+        "typeDefaultName": { "$ref": "#/$defs/identifier" },
+        "typeNamespaceName": { "$ref": "#/$defs/identifier" },
+        "names": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/identifier" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "typeNames": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/identifier" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "typeSpecifiers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/namedImportSpecifier" },
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      }
+    },
+    "namedImportSpecifier": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": { "$ref": "#/$defs/identifier" },
+        "alias": { "$ref": "#/$defs/identifier" }
+      }
+    },
+    "argumentSpec": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "type"],
+      "properties": {
+        "name": { "$ref": "#/$defs/identifier" },
+        "type": { "$ref": "#/$defs/typeExpression" },
+        "doc": {
+          "type": "string"
+        }
+      }
+    },
+    "returnKind": {
+      "enum": ["value", "oop", "object", "dict"]
+    },
+    "selectorSpec": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "selector"],
+      "properties": {
+        "name": { "$ref": "#/$defs/identifier" },
+        "selector": { "$ref": "#/$defs/selector" },
+        "returnType": { "$ref": "#/$defs/typeExpression" },
+        "returnKind": { "$ref": "#/$defs/returnKind" },
+        "doc": {
+          "type": "string"
+        }
+      }
+    },
+    "setterSpec": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "selector", "args"],
+      "properties": {
+        "name": { "$ref": "#/$defs/identifier" },
+        "selector": { "$ref": "#/$defs/selector" },
+        "args": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/argumentSpec" },
+          "minItems": 1
+        },
+        "returnType": { "$ref": "#/$defs/typeExpression" },
+        "doc": {
+          "type": "string"
+        }
+      }
+    },
+    "snapshotFieldSpec": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "selector"],
+      "properties": {
+        "name": { "$ref": "#/$defs/identifier" },
+        "selector": { "$ref": "#/$defs/selector" },
+        "type": { "$ref": "#/$defs/typeExpression" },
+        "kind": { "$ref": "#/$defs/returnKind" },
+        "maxEntries": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "maxDepth": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "maxItems": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "doc": {
+          "type": "string"
+        }
+      }
+    },
+    "repositoryMethodSpec": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "selector"],
+      "properties": {
+        "name": { "$ref": "#/$defs/identifier" },
+        "selector": { "$ref": "#/$defs/selector" },
+        "args": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/argumentSpec" }
+        },
+        "returnType": { "$ref": "#/$defs/typeExpression" },
+        "returnKind": {
+          "enum": ["ref", "value", "oop", "object", "dict"]
+        },
+        "doc": {
+          "type": "string"
+        }
+      }
+    },
+    "repositorySpec": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "methods"],
+      "properties": {
+        "name": { "$ref": "#/$defs/identifier" },
+        "gemStoneClass": {
+          "type": "string",
+          "minLength": 1
+        },
+        "methods": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/repositoryMethodSpec" },
+          "minItems": 1
+        },
+        "doc": {
+          "type": "string"
+        }
+      }
+    },
+    "classSpec": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "gemStoneClass", "typeName", "refName"],
+      "properties": {
+        "name": { "$ref": "#/$defs/identifier" },
+        "gemStoneClass": {
+          "type": "string",
+          "minLength": 1
+        },
+        "typeName": { "$ref": "#/$defs/typeExpression" },
+        "refName": { "$ref": "#/$defs/identifier" },
+        "snapshotTypeName": { "$ref": "#/$defs/identifier" },
+        "selectors": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/selectorSpec" }
+        },
+        "setters": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/setterSpec" }
+        },
+        "snapshot": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/snapshotFieldSpec" }
+        },
+        "repository": { "$ref": "#/$defs/repositorySpec" },
+        "doc": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

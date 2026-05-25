@@ -76,6 +76,12 @@ export const exampleCatalog = [
     command: "npm run codegen:check",
   },
   {
+    name: "object-mapping-manifest",
+    path: "examples/object-mapping.manifest.json",
+    kind: "codegen",
+    description: "Connector-inspired object mapping manifest for generated typed refs, repositories, and snapshots.",
+  },
+  {
     name: "codegen-generated",
     path: "examples/codegen.generated.ts",
     kind: "codegen",
@@ -174,6 +180,7 @@ export const examplePlans = [
     examples: [
       "booking",
       "codegen-manifest",
+      "object-mapping-manifest",
       "codegen-generated",
       "booking-decorators",
       "booking-decorators-generated",

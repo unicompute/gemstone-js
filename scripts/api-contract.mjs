@@ -26,6 +26,7 @@ const REQUIRED_SCHEMA_EXPORTS = {
   "./schemas/benchmark-report.schema.json": "./schemas/benchmark-report.schema.json",
   "./schemas/codegen-manifest.schema.json": "./schemas/codegen-manifest.schema.json",
   "./schemas/comparison-report.schema.json": "./schemas/comparison-report.schema.json",
+  "./schemas/object-mapping-manifest.schema.json": "./schemas/object-mapping-manifest.schema.json",
 };
 
 try {

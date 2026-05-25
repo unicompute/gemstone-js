@@ -106,9 +106,10 @@ helper for async property-style methods, relationship handles, root/global
 entry points, retained-handle lifetime control, and bounded snapshots. Use
 `transparentObject()` when you want higher-transparency `await booking.status`
 reads, queued assignment writes, optional local caching, and request-scoped
-proxy identity. The larger connector-style mapping manifest, generated `*Ref`
-classes, repository helpers, and Explorer/VS Code mapping views remain outside
-the beta support boundary.
+proxy identity. The object-mapping manifest schema and
+`examples/object-mapping.manifest.json` are committed for reviewable mapping
+metadata; the generated `*Ref` classes, repository helper generator, and
+Explorer/VS Code mapping views remain outside the beta support boundary.
 
 ## Installed Package Proof
 

@@ -45,6 +45,7 @@
     },
     "./schemas/comparison-report.schema.json": "./schemas/comparison-report.schema.json",
     "./schemas/codegen-manifest.schema.json": "./schemas/codegen-manifest.schema.json",
+    "./schemas/object-mapping-manifest.schema.json": "./schemas/object-mapping-manifest.schema.json",
     "./schemas/benchmark-report.schema.json": "./schemas/benchmark-report.schema.json",
     "./schemas/benchmark-baseline-manifest.schema.json": "./schemas/benchmark-baseline-manifest.schema.json"
   },

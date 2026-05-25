@@ -866,28 +866,21 @@ selector sends or hand-written proxy options.
 
 1. **Mapping manifest schema**
 
-   Add a dedicated mapping manifest alongside the existing function-codegen
-   manifest. Each mapped class should declare the GemStone class name, the
-   TypeScript domain type, selectors, setters, repository selectors, and
+   `schemas/object-mapping-manifest.schema.json` defines the first version of
+   this contract, and `examples/object-mapping.manifest.json` is the committed
+   example. Each mapped class declares the GemStone class name, TypeScript
+   domain type, generated ref name, selectors, setters, repository methods, and
    snapshot fields.
 
    ```json
    {
-     "$schema": "./schemas/object-mapping-manifest.schema.json",
+     "$schema": "../schemas/object-mapping-manifest.schema.json",
      "classes": [
        {
          "name": "Booking",
          "gemStoneClass": "Booking",
          "typeName": "Booking",
          "refName": "BookingRef",
-         "repository": {
-           "className": "BookingRepository",
-           "find": {
-             "name": "find",
-             "selector": "find:",
-             "args": [{ "name": "id", "type": "string" }]
-           }
-         },
          "selectors": [
            { "name": "status", "selector": "status", "returnType": "string" }
          ],
@@ -901,7 +894,20 @@ selector sends or hand-written proxy options.
          "snapshot": [
            { "name": "id", "selector": "id", "type": "string" },
            { "name": "status", "selector": "status", "type": "string" }
-         ]
+         ],
+         "repository": {
+           "name": "BookingRepository",
+           "gemStoneClass": "Booking",
+           "methods": [
+             {
+               "name": "find",
+               "selector": "find:",
+               "args": [{ "name": "id", "type": "string" }],
+               "returnType": "BookingRef",
+               "returnKind": "ref"
+             }
+           ]
+         }
        }
      ]
    }

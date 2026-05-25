@@ -178,10 +178,10 @@ The first implementation slice follows `../plan.js.txt`:
   `TransparentObjectMapper`. `smalltalkBridge()` adds a more gemstone-py-like
   dynamic layer for tools and exploratory code: lazy global proxies,
   underscore-to-colon selector dispatch, exact `$send*()` controls, and
-  retained-object handoff into `transparentObject()`. The next layer is a
-  mapping manifest schema for
+  retained-object handoff into `transparentObject()`. The next layer builds on
+  the committed `schemas/object-mapping-manifest.schema.json` contract for
   GemStone class names, TypeScript types, selectors, setters, repository
-  selectors, lifetime rules, and snapshot fields; generated `*Ref` classes
+  methods, lifetime rules, and snapshot fields; generated `*Ref` classes
   that wrap `TypedOop<T>` or delegate to the runtime mapping helpers;
   repository helpers that return typed refs; and bounded snapshot/dictionary
   helpers for UI/API payloads. Explorer and VS Code mapping views should read

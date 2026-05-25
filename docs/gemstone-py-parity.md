@@ -195,9 +195,9 @@ reported by `gemstone-js-compare gemstone-rs --totals`.
    metadata, and native prebuild artifacts before publishing.
 
 The next non-beta product batch should be connector-inspired object mapping:
-mapping manifest schema, generated `*Ref` classes, repository helpers, bounded
-snapshot/dictionary helpers, and Explorer/VS Code mapping views over committed
-generated files.
+use the committed mapping manifest schema and example to generate `*Ref`
+classes, repository helpers, bounded snapshot/dictionary helpers, and
+Explorer/VS Code mapping views over committed generated files.
 
 The VS Code extension is still a later track. It is valuable, but the JavaScript
 package and native session-thread behavior should stabilize first so the

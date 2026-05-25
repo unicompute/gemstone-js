@@ -99,10 +99,11 @@ JS/Python product parity:
 6. Cross-project alignment
 
 The most useful post-beta API polish batch is generated object mapping
-maturity: publish a mapping manifest schema, generate `*Ref` classes wrapping
-`TypedOop<T>` or delegating to `transparentObject()`, add repository helpers
-returning typed refs, generate bounded snapshots for UI/API payloads, and
-surface the mapping catalog in Explorer or the VS Code workbench.
+maturity: build on the published mapping manifest schema and committed example,
+generate `*Ref` classes wrapping `TypedOop<T>` or delegating to
+`transparentObject()`, add repository helpers returning typed refs, generate
+bounded snapshots for UI/API payloads, and surface the mapping catalog in
+Explorer or the VS Code workbench.
 
 For a narrower conservative JavaScript beta, `--scope beta` now tracks one
 remaining validation batch, roughly **4-8 hours**: run the release candidate

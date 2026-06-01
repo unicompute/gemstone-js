@@ -627,6 +627,34 @@ GemStone `StringKeyValueDictionary` is the most direct bridge between
 JavaScript records and GemStone object storage. Use it when the shape is keyed,
 reviewable, and not worth modeling as a full GemStone class.
 
+For the smallest durable payload, store a plain object as a GemStone dictionary
+and read it back as a bounded JavaScript snapshot:
+
+```ts
+import { Session } from "gemstone-js";
+
+const key = "MyTestDict";
+
+await Session.withEnv(async (session) => {
+  await session.globalSetDict(key, {
+    name: "Tariq",
+    amount: 100,
+    currency: "GBP",
+  });
+  await session.commit();
+});
+
+const saved = await Session.withEnv((session) =>
+  session.globalRequireDictObject(key, { maxEntries: 50 })
+);
+
+console.log(saved);
+// { name: "Tariq", amount: 100n, currency: "GBP" }
+```
+
+Use the richer `GsDict` wrapper when the dictionary should remain a live
+GemStone object after lookup.
+
 ```ts
 import { Session, type TypedOop } from "gemstone-js";
 

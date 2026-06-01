@@ -117,6 +117,41 @@ console.log(value);
 
 `Session.configFromEnv()` reads the same `GS_*` variables used by the doctor, examples, Explorer, and VS Code workbench. The `await using` form logs out at the end of the block in runtimes that support explicit resource management; calling `await session.logout()` directly is also fine.
 
+## Simple Dictionary Save and Retrieve
+
+The smallest useful persistence example is a GemStone dictionary stored under a
+global name. `Session.withEnv()` owns login/logout, `globalSetDict()` converts a
+plain JavaScript object into a GemStone `StringKeyValueDictionary`, `commit()`
+makes the change durable, and `globalRequireDictObject()` reads it back as a
+bounded JavaScript snapshot.
+
+```ts
+import { Session } from "gemstone-js";
+
+const key = "MyTestDict";
+
+await Session.withEnv(async (session) => {
+  await session.globalSetDict(key, {
+    name: "Tariq",
+    amount: 100,
+    currency: "GBP",
+  });
+  await session.commit();
+});
+
+const saved = await Session.withEnv((session) =>
+  session.globalRequireDictObject(key, { maxEntries: 50 })
+);
+
+console.log(saved);
+// { name: "Tariq", amount: 100n, currency: "GBP" }
+```
+
+That is intentionally simpler than building a class mapping. It is the right
+shape for configuration, small payloads, metadata, and quick Explorer or VS
+Code workbench experiments. Move to `GsDict`, `PersistentRoot`, retained object
+handles, or generated wrappers when the object needs GemStone-side behavior.
+
 ## OOPs, Values, and Handles
 
 GemStone objects are identified by OOPs. `gemstone-js` keeps that visible instead of hiding it behind a generic ORM.

@@ -10,7 +10,8 @@ native package; the TypeScript package can be tested locally with a mock runtime
 
 ## Current Status
 
-- Async-first API: `Session.connect()`, `execute()`, `perform()`,
+- Async-first API: `Session.connect()`, `connectFromEnv()`, `with()`,
+  `withEnv()`, `execute()`, `perform()`,
   `performWith()`, `performValueWith()`, `performObjectWith()`,
   `bulkPerformOop()`/`bulkPerformValue()` and mixed-call
   `bulkPerformCallsOop()`/`bulkPerformCallsValue()` with
@@ -107,8 +108,9 @@ native package; the TypeScript package can be tested locally with a mock runtime
   `globalSetOop()`/`globalSetAllOop()` plus object-named
   `globalSetObject()`/`globalSetAllObject()` aliases, required global accessors including
   object alias `globalRequire()` and `globalRequireAll*()` bulk variants,
-  dictionary helpers `globalGetDict()`, `globalSetDict()`/`globalSetAllDict()`,
-  `globalRequireDict()`/`globalRequireAllDict()`, and
+  dictionary helpers `globalGetDict()`, `globalGetDictObject()`,
+  `globalSetDict()`/`globalSetAllDict()`,
+  `globalRequireDict()`/`globalRequireDictObject()`/`globalRequireAllDict()`, and
   `globalRemove()`/`globalDelete()` plus bulk
   `globalRemoveAll()`/`globalDeleteAll()`.
 - `GsDict` wraps GemStone `StringKeyValueDictionary` objects with
@@ -128,7 +130,8 @@ native package; the TypeScript package can be tested locally with a mock runtime
   `getDict()`/`setDict()`/`setAllDict()`/`requireDict()`/`requireAllDict()`,
   explicit send helpers, and inspection helpers.
 - `PersistentRoot` now has value helpers (`getValue()`, `setValue()`,
-  `setAllValue()`, `getDict()`, `setDict()`/`setAllDict()`), raw `setAll()`,
+  `setAllValue()`, `getDict()`, `getDictObject()`,
+  `setDict()`/`setAllDict()`), raw `setAll()`,
   explicit `setOop()`/`setAllOop()` and object-named
   `setObject()`/`setAllObject()` aliases, `getObject()`,
   `remove()`/`delete()`, `removeAll()`/`deleteAll()`, `has()`,
@@ -136,6 +139,7 @@ native package; the TypeScript package can be tested locally with a mock runtime
   object/dictionary `pickObject()`/`pickDict()`, `entries()`, raw
   `entriesOop()`, `values()`, raw `valuesOop()`, `items()`, raw `itemsOop()`,
   `size()`/`isEmpty()`, and required raw/value/object/dictionary access plus
+  `requireDictObject()` for plain bounded dictionary snapshots and
   `requireAll*()` bulk variants built on the session marshalling layer. Static
   constructors expose `UserGlobals`, `Globals`, `Published`, and
   `SessionMethods` roots using the same names as gemstone-py.
@@ -416,6 +420,31 @@ await using session = await Session.connect({
 
 const oop = await session.execute("1 + 1");
 console.log(oop);
+```
+
+The smallest durable dictionary example can use environment-based login/logout
+and read the dictionary back as a bounded JavaScript snapshot:
+
+```ts
+import { Session } from "gemstone-js";
+
+const key = "MyTestDict";
+
+await Session.withEnv(async (session) => {
+  await session.globalSetDict(key, {
+    name: "Tariq",
+    amount: 100,
+    currency: "GBP",
+  });
+  await session.commit();
+});
+
+const saved = await Session.withEnv((session) =>
+  session.globalRequireDictObject(key, { maxEntries: 50 })
+);
+
+console.log(saved);
+// { name: "Tariq", amount: 100n, currency: "GBP" }
 ```
 
 ## Runtime Notes

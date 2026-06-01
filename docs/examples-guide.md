@@ -126,6 +126,28 @@ converters, see `docs/object-mapping.md`.
 dictionary in `UserGlobals`, `commit()` makes it durable, and
 `globalRequireDictObject()` reads it back as a bounded JavaScript snapshot.
 
+```ts
+import { Session } from "gemstone-js";
+
+const key = "MyTestDict";
+
+await Session.withEnv(async (session) => {
+  await session.globalSetDict(key, {
+    name: "Tariq",
+    amount: 100,
+    currency: "GBP",
+  });
+  await session.commit();
+});
+
+const saved = await Session.withEnv((session) =>
+  session.globalRequireDictObject(key, { maxEntries: 50 })
+);
+
+console.log(saved);
+// { name: "Tariq", amount: 100n, currency: "GBP" }
+```
+
 `examples/object-mapping.ts` shows `mappedObject()` with async property-style
 methods, setter selectors, object selectors, and snapshots. The guide expands
 that example into a mapping decision table, explicit selector configuration,

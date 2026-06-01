@@ -77,6 +77,18 @@ test("withTransaction commits on success and aborts on failure", async () => {
   await session.logout();
 });
 
+test("Session.with logs out owned sessions", async () => {
+  const runtime = new MockGciRuntime();
+  const result = await Session.with((session) => session.sessionId, {
+    username: "u",
+    password: "p",
+    runtime,
+  });
+
+  assertEqual(result, 1);
+  assert(runtime.calls.some((call) => call.method === "logout"), "Session.with should log out the owned session");
+});
+
 test("SessionPool reuses clean sessions", async () => {
   const runtime = new MockGciRuntime();
   setGciRuntimeForTesting(runtime);
@@ -1792,6 +1804,31 @@ test("globalSet and globalGet round-trip through UserGlobals", async () => {
   assertEqual(await session.globalDelete("JsBridgeValue"), false);
   await assertRejects(() => session.globalRequireOop("JsBridgeValue"), Error);
   await assertRejects(() => session.globalRequireAllOop(["JsBridgeValue", "MissingGlobal"]), Error);
+
+  await session.logout();
+});
+
+test("global and root dictionary object helpers read plain snapshots", async () => {
+  let runtime: MockGciRuntime;
+  let dictOop = OOP_NIL;
+  runtime = new MockGciRuntime({
+    execute(source) {
+      assert(source.includes(`Object _objectForOop: ${dictOop.toString()}.`), "dictionary snapshot should enumerate the stored dictionary");
+      return runtime.newString("status\n");
+    },
+  });
+  const session = await Session.connect({ username: "u", password: "p", runtime });
+  const root = PersistentRoot.userGlobals(session);
+
+  const dict = await session.globalSetDict("SnapshotDict", { status: "ready" });
+  dictOop = dict.oop;
+
+  assertDeepEqual(await session.globalGetDictObject("SnapshotDict"), { status: "ready" });
+  assertDeepEqual(await session.globalRequireDictObject("SnapshotDict"), { status: "ready" });
+  assertDeepEqual(await root.getDictObject("SnapshotDict"), { status: "ready" });
+  assertDeepEqual(await root.requireDictObject("SnapshotDict"), { status: "ready" });
+  assertEqual(await session.globalGetDictObject("MissingSnapshotDict"), null);
+  assertEqual(await root.getDictObject("MissingSnapshotDict"), null);
 
   await session.logout();
 });

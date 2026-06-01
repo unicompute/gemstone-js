@@ -134,6 +134,31 @@ export class Session implements AsyncDisposable {
     return new Session(runtime, resolved, sessionId);
   }
 
+  static connectFromEnv(overrides: SessionConfig = {}): Promise<Session> {
+    return Session.connect(Session.configFromEnv(overrides));
+  }
+
+  static async with<T>(work: (session: Session) => MaybePromise<T>, config: SessionConfig = {}): Promise<T> {
+    const session = await Session.connect(config);
+    let workError: unknown;
+    try {
+      return await work(session);
+    } catch (error) {
+      workError = error;
+      throw error;
+    } finally {
+      try {
+        await session.logout();
+      } catch (logoutError) {
+        if (workError === undefined) throw logoutError;
+      }
+    }
+  }
+
+  static withEnv<T>(work: (session: Session) => MaybePromise<T>, overrides: SessionConfig = {}): Promise<T> {
+    return Session.with(work, Session.configFromEnv(overrides));
+  }
+
   static configFromEnv(overrides: SessionConfig = {}): SessionConfig {
     const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env ?? {};
     return sessionConfigFromEnv(env, overrides);
@@ -1137,6 +1162,11 @@ export class Session implements AsyncDisposable {
     return value === null ? null : new GsDict(this, value);
   }
 
+  async globalGetDictObject(name: string, options: KeyedReadbackOptions = {}): Promise<MarshalledDictionary | null> {
+    const dict = await this.globalGetDict(name);
+    return dict === null ? null : dict.toObject(options);
+  }
+
   async globalPick(names: readonly string[]): Promise<Record<string, MarshalledValue>> {
     const result: Record<string, MarshalledValue> = {};
     for (const name of names) {
@@ -1303,6 +1333,10 @@ export class Session implements AsyncDisposable {
 
   async globalRequireDict(name: string): Promise<GsDict> {
     return new GsDict(this, await this.globalRequireOop(name));
+  }
+
+  async globalRequireDictObject(name: string, options: KeyedReadbackOptions = {}): Promise<MarshalledDictionary> {
+    return (await this.globalRequireDict(name)).toObject(options);
   }
 
   async globalRequireAllDict(names: readonly string[]): Promise<Record<string, GsDict>> {

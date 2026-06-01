@@ -187,6 +187,11 @@ export class PersistentRoot {
     return oop === null ? null : new GsDict(this.session, oop);
   }
 
+  async getDictObject(name: string, options: KeyedReadbackOptions = {}): Promise<Record<string, MarshalledValue> | null> {
+    const dict = await this.getDict(name);
+    return dict === null ? null : dict.toObject(options);
+  }
+
   async setDict(name: string, value: GemStoneDictionaryArgument): Promise<GsDict> {
     const dict = await this.session.dictionary(value);
     await this.set(name, dict.oop);
@@ -254,6 +259,10 @@ export class PersistentRoot {
 
   async requireDict(name: string): Promise<GsDict> {
     return new GsDict(this.session, await this.requireOop(name));
+  }
+
+  async requireDictObject(name: string, options: KeyedReadbackOptions = {}): Promise<Record<string, MarshalledValue>> {
+    return (await this.requireDict(name)).toObject(options);
   }
 
   async requireAllDict(names: readonly string[]): Promise<Record<string, GsDict>> {

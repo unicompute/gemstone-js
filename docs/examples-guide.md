@@ -49,8 +49,8 @@ Current plans:
 
 - `first-session`: connect, run the MagLev branch compatibility session
   example, evaluate, and write/read ObjectLog entries.
-- `data-persistence`: roots, dictionaries, query helpers, bulk selector sends,
-  transparent object mapping, GStore, and migrations.
+- `data-persistence`: roots, simple dictionaries, query helpers, bulk selector
+  sends, transparent object mapping, GStore, and migrations.
 - `typed-codegen`: manifests, decorated source, and generated wrappers.
 - `web-service`: Fetch, local explorer, route-handler, Express, Fastify, and
   Hono shapes.
@@ -120,6 +120,11 @@ decorator scanner and emits `examples/booking.decorators.generated.ts`.
 For the broader object-mapping model, including `TypedOop<T>` handles,
 generated selector wrappers, dictionary payload conversion, and value
 converters, see `docs/object-mapping.md`.
+
+`examples/simple-dictionary.ts` is the smallest persistent dictionary example:
+`Session.withEnv()` owns login/logout, `globalSetDict()` stores a GemStone
+dictionary in `UserGlobals`, `commit()` makes it durable, and
+`globalRequireDictObject()` reads it back as a bounded JavaScript snapshot.
 
 `examples/object-mapping.ts` shows `mappedObject()` with async property-style
 methods, setter selectors, object selectors, and snapshots. The guide expands

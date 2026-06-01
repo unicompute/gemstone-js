@@ -7,6 +7,7 @@ import {
   sessionConfigFromEnv,
   sessionEnvAliasConflicts,
 } from "../src/index.ts";
+import { MockGciRuntime } from "../src/testing/mock-runtime.ts";
 
 const SESSION_ENV_KEYS = [
   "GS_STONE",
@@ -61,6 +62,27 @@ test("Session.configFromEnv accepts native session worker switch", () => {
   }, () => Session.configFromEnv());
 
   assert.equal(disabled.nativeSessionWorker, false);
+});
+
+test("Session.connectFromEnv and withEnv use environment config with overrides", async () => {
+  const runtime = new MockGciRuntime();
+  const session = await withSessionEnv({
+    GS_USER: "DataCurator",
+    GS_PASS: "swordfish",
+  }, () => Session.connectFromEnv({ runtime }));
+  try {
+    assert.equal(session.config.username, "DataCurator");
+    assert.equal(session.config.password, "swordfish");
+  } finally {
+    await session.logout();
+  }
+
+  const result = await withSessionEnv({
+    GS_USER: "DataCurator",
+    GS_PASS: "swordfish",
+  }, () => Session.withEnv((session) => session.config.username, { runtime: new MockGciRuntime() }));
+
+  assert.equal(result, "DataCurator");
 });
 
 test("sessionConfigFromEnv resolves explicit env objects without touching process env", () => {

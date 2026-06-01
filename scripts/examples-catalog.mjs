@@ -28,6 +28,13 @@ export const exampleCatalog = [
     command: "node --experimental-strip-types examples/persistent-root.ts",
   },
   {
+    name: "simple-dictionary",
+    path: "examples/simple-dictionary.ts",
+    kind: "data",
+    description: "Minimal UserGlobals dictionary save, commit, retrieve, and plain-object readback.",
+    command: "node --experimental-strip-types examples/simple-dictionary.ts",
+  },
+  {
     name: "object-mapping",
     path: "examples/object-mapping.ts",
     kind: "data",
@@ -171,7 +178,7 @@ export const examplePlans = [
     name: "data-persistence",
     title: "Data Persistence",
     description: "Work through roots, dictionaries, query helpers, GStore, and migrations.",
-    examples: ["persistent-root", "object-mapping", "transparent-object-mapping", "smalltalk-bridge", "query", "bulk-perform", "gstore", "migrations"],
+    examples: ["persistent-root", "simple-dictionary", "object-mapping", "transparent-object-mapping", "smalltalk-bridge", "query", "bulk-perform", "gstore", "migrations"],
   },
   {
     name: "typed-codegen",

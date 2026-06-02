@@ -147,6 +147,77 @@ console.log(saved);
 // { name: "Tariq", amount: 100n, currency: "GBP" }
 ```
 
+The data does not have to originate in GemStone. You can assemble and mutate a
+normal JavaScript structure first, convert it at the session boundary, commit
+it, then read the committed copy back in a later session:
+
+```ts
+import { Session, objectToDictionaryArgument, type GemStoneArgument } from "gemstone-js";
+
+class CheckoutDraft {
+  readonly lines: Array<{ sku: string; quantity: number; unitPrice: number }> = [];
+  discount = 0;
+
+  constructor(
+    readonly id: string,
+    readonly customerName: string,
+    readonly currency: string,
+  ) {}
+
+  addLine(sku: string, quantity: number, unitPrice: number): void {
+    this.lines.push({ sku, quantity, unitPrice });
+  }
+
+  get total(): number {
+    return this.lines.reduce((sum, line) => sum + line.quantity * line.unitPrice, 0) - this.discount;
+  }
+}
+
+const checkout = new CheckoutDraft("CHK-1001", "Tariq", "GBP");
+checkout.addLine("GS-JS-SUPPORT", 2, 45);
+checkout.addLine("GS-EXPLORER", 1, 25);
+checkout.discount = 15;
+
+const metadata: Record<string, GemStoneArgument> = {
+  source: "node",
+  status: "ready",
+};
+metadata.reviewed = true;
+metadata.note = "Built and manipulated in JavaScript before login.";
+
+const payload = objectToDictionaryArgument({
+  id: checkout.id,
+  customerName: checkout.customerName,
+  currency: checkout.currency,
+  lineCount: checkout.lines.length,
+  skus: checkout.lines.map((line) => line.sku),
+  total: checkout.total,
+  metadata,
+});
+
+await Session.withEnv(async (session) => {
+  await session.globalSetDict("ExternalCheckoutExample", payload);
+  await session.commit();
+});
+
+const committed = await Session.withEnv(async (session) => {
+  const stored = await session.globalRequireDict("ExternalCheckoutExample");
+  const values = await stored.pick(["id", "customerName", "currency", "lineCount", "skus", "total"]);
+  const nested = await stored.pickDict(["metadata"]);
+  return {
+    ...values,
+    metadata: nested.metadata ? await nested.metadata.toObject({ maxEntries: 20 }) : null,
+  };
+});
+
+console.log(committed);
+```
+
+The full runnable version is
+`examples/external-structure-dictionary.ts`. The important boundary is the
+call to `objectToDictionaryArgument()`: everything before that is normal
+JavaScript state, and everything after `globalSetDict()` is GemStone state.
+
 That is intentionally simpler than building a class mapping. It is the right
 shape for configuration, small payloads, metadata, and quick Explorer or VS
 Code workbench experiments. Move to `GsDict`, `PersistentRoot`, retained object
@@ -215,7 +286,154 @@ await runTransactionWithRetry(async (session) => {
 });
 ```
 
+The runnable `examples/deconstructed-transactions.ts` takes that further and
+shows the transaction shapes separately:
+
+```ts
+import {
+  CommitConflictError,
+  GStore,
+  GStoreAbortTransaction,
+  PersistentRoot,
+  Session,
+  commitWithConflictDetails,
+  nestedTransaction,
+  runTransactionWithRetry,
+} from "gemstone-js";
+
+await using session = await Session.connect(Session.configFromEnv());
+const root = PersistentRoot.userGlobals(session);
+
+await root.setDict("TxnManualCommitExample", { status: "draft" });
+console.log(await session.needsCommit().catch((error) => `unavailable: ${error.message}`));
+await session.commit();
+
+try {
+  await root.setValue("TxnManualAbortExample", "discard me");
+  throw new Error("application validation failed");
+} catch {
+  await session.abort();
+}
+
+await session.withTransaction(async (transactionSession) => {
+  await PersistentRoot.userGlobals(transactionSession).setDict("TxnScopedExample", {
+    status: "committed-by-withTransaction",
+  });
+});
+
+try {
+  await session.withTransaction(async (transactionSession) => {
+    await PersistentRoot.userGlobals(transactionSession).setValue("TxnScopedRollbackExample", "discarded");
+    throw new Error("rollback scoped transaction");
+  });
+} catch {
+  console.log(await root.has("TxnScopedRollbackExample"));
+}
+
+let commitAttempts = 0;
+await runTransactionWithRetry(
+  async (transactionSession) => {
+    await PersistentRoot.userGlobals(transactionSession).setDict("TxnRetryExample", {
+      status: "committed-after-retry",
+    });
+  },
+  {
+    session,
+    attempts: 2,
+    commit: async (transactionSession) => {
+      commitAttempts += 1;
+      if (commitAttempts === 1) throw new CommitConflictError("simulated conflict");
+      await commitWithConflictDetails(transactionSession);
+    },
+  },
+);
+
+try {
+  await nestedTransaction(session, async (nestedSession) => {
+    await PersistentRoot.userGlobals(nestedSession).setValue("TxnNestedInnerExample", "discarded");
+    throw new Error("abort only the nested level");
+  });
+} catch {
+  await root.setValue("TxnNestedOuterExample", "outer transaction kept going");
+  await session.commit();
+}
+
+await root.setDict("TxnVisibilityExample", { status: "uncommitted" });
+console.log(await root.has("TxnVisibilityExample"));
+console.log(await Session.withEnv((other) =>
+  PersistentRoot.userGlobals(other).has("TxnVisibilityExample")
+));
+await session.commit();
+console.log(await Session.withEnv((other) =>
+  PersistentRoot.userGlobals(other).getDictObject("TxnVisibilityExample")
+));
+
+const store = await GStore.open(session, "TxnGStoreAbortExample");
+await store.transaction((transaction) => {
+  transaction.set("keep", { status: "committed" });
+});
+await store.transaction((transaction) => {
+  transaction.set("keep", { status: "discarded" });
+  transaction.set("temporary", true);
+  throw new GStoreAbortTransaction();
+});
+console.log(await store.transaction((transaction) => transaction.toObject(), { readOnly: true }));
+```
+
+That example also includes `GStore.transaction()` cases, where the callback
+works against an in-memory snapshot first, commits only the dirty keys and
+deletes when the callback succeeds, and can throw `GStoreAbortTransaction` to
+discard buffered changes deliberately.
+
 For web services, request scopes and adapters make the session lifetime explicit. Express, Fastify, Hono, and Fetch adapters can commit, abort, or leave transaction control manual according to the route's policy. That keeps the GemStone transaction boundary aligned with the JavaScript request boundary.
+
+## Live Library Books Example
+
+The same pieces can support a small live application. `examples/library-books.ts`
+is a dependency-free Node HTTP server with a browser UI for a library catalog.
+The catalog is stored in GemStone through `GStore`, and browser clients connect
+to `/events` with Server-Sent Events. When one client borrows or returns a book,
+the server commits the updated catalog and pushes the new snapshot to every
+connected screen.
+
+```sh
+node --experimental-strip-types examples/library-books.ts
+open http://127.0.0.1:3027/
+```
+
+![GemStone Library Books seed catalog](assets/gemstone-js-library-books-catalog.png)
+
+Use `--check` only for validation. `node --experimental-strip-types --check
+examples/library-books.ts` syntax-checks the file and exits; omit `--check` to
+run the server.
+
+The page renders two client screens, `Front Desk` and `Reading Room`. They use
+the same event stream, so both screens show whether each book is currently
+`available` or `borrowed`:
+
+![GemStone Library Books borrowed update](assets/gemstone-js-library-books-borrowed.png)
+
+```ts
+await store.transaction((transaction) => {
+  const document = fromJsonValue(transaction.get("library"));
+  const next = {
+    version: document.version + 1,
+    books: document.books.map((book) =>
+      book.id === id
+        ? { ...book, status: "borrowed", borrower, updatedAt: new Date().toISOString() }
+        : book
+    ),
+  };
+  transaction.set("library", next);
+  return next;
+});
+
+broadcast(next);
+```
+
+That example is deliberately simple: the durable state is GemStone, the browser
+screens are disposable clients, and automatic update is just an event stream
+after a successful transaction commit.
 
 ## The Goal
 
@@ -274,8 +492,6 @@ The debugger is deliberately thin. Session semantics remain owned by the Explore
 ## The VS Code Wrapper
 
 The VS Code extension started as a wrapper around the JavaScript Explorer rather than a completely separate UI. That was the right tradeoff.
-
-![VS Code workbench](assets/gemstone-js-vscode-workbench.png)
 
 The extension now provides:
 

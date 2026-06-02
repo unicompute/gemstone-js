@@ -1533,10 +1533,14 @@ export class Session implements AsyncDisposable {
         stream nextPutAll: '--gemstone-js-inspect--'; lf.
         stream nextPutAll: 'classOop='; nextPutAll: (obj class asOop asString); lf.
         stream nextPutAll: 'size='.
-        [stream nextPutAll: (obj basicSize asString)] on: Exception do: [:ex | stream nextPutAll: ''].
+        [
+          (obj class isIndexable)
+            ifTrue: [stream nextPutAll: (obj basicSize asString)]
+            ifFalse: [stream nextPutAll: '0']
+        ] on: Error do: [:ex | stream nextPutAll: ''].
         stream lf.
         stream nextPutAll: 'byteSize='.
-        [stream nextPutAll: (obj size asString)] on: Exception do: [:ex | stream nextPutAll: ''].
+        [stream nextPutAll: (obj size asString)] on: Error do: [:ex | stream nextPutAll: ''].
         stream lf.
         stream nextPutAll: 'classHierarchy='.
         [
@@ -1546,7 +1550,7 @@ export class Session implements AsyncDisposable {
             first ifFalse: [stream nextPut: $,].
             stream nextPutAll: each name asString.
             first := false]
-        ] on: Exception do: [:ex | stream nextPutAll: obj class name asString].
+        ] on: Error do: [:ex | stream nextPutAll: obj class name asString].
         stream lf.
         [
           | names |
@@ -1558,20 +1562,21 @@ export class Session implements AsyncDisposable {
               stream nextPutAll: value asOop asString; nextPutAll: '	';
                 nextPutAll: value class name asString; nextPutAll: '	';
                 nextPutAll: value printString
-            ] on: Exception do: [:ex | stream nextPutAll: '		<error>'].
+            ] on: Error do: [:ex | stream nextPutAll: '		<error>'].
             stream lf]
-        ] on: Exception do: [:ex | ].
+        ] on: Error do: [:ex | ].
         [
-          1 to: obj basicSize do: [:index | | value |
-            stream nextPutAll: 'indexed='; nextPutAll: index asString; nextPutAll: '	'.
-            [
-              value := obj basicAt: index.
-              stream nextPutAll: value asOop asString; nextPutAll: '	';
-                nextPutAll: value class name asString; nextPutAll: '	';
-                nextPutAll: value printString
-            ] on: Exception do: [:ex | stream nextPutAll: '		<error>'].
-            stream lf]
-        ] on: Exception do: [:ex | ]]
+          (obj class isIndexable) ifTrue: [
+            1 to: obj basicSize do: [:index | | value |
+              stream nextPutAll: 'indexed='; nextPutAll: index asString; nextPutAll: '	'.
+              [
+                value := obj basicAt: index.
+                stream nextPutAll: value asOop asString; nextPutAll: '	';
+                  nextPutAll: value class name asString; nextPutAll: '	';
+                  nextPutAll: value printString
+              ] on: Error do: [:ex | stream nextPutAll: '		<error>'].
+              stream lf]]
+        ] on: Error do: [:ex | ]]
     `;
     return this.#observe("inspect", { oop: value.toString() }, async () => {
       const result = await this.runtime.executeStr(source, OOP_NIL);

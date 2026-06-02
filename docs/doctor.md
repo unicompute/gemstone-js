@@ -44,6 +44,8 @@ JavaScript names, but also accept the Pharo bridge live-test aliases:
 If a canonical variable and its alias are both set to different non-empty
 values, doctor reports a warning and keeps the canonical value. The warning
 names the variables but does not print credential values.
+For password rotations, this means `GS_PASSWORD` must be changed or unset before
+`GS_PASS` can take effect.
 
 Applications and setup tools can reuse the same policy with
 `sessionConfigFromEnv()` and `sessionEnvAliasConflicts()` from the public

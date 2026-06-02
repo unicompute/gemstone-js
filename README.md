@@ -207,7 +207,10 @@ native package; the TypeScript package can be tested locally with a mock runtime
   Runnable adapter examples live in `examples/web-express.ts`,
   `examples/web-fastify.ts`, `examples/web-fetch.ts`, and
   `examples/web-hono.ts`, with route-handler exports in
-  `examples/web-route-handler.ts`; the dependency-free
+  `examples/web-route-handler.ts`. `examples/library-books.ts` is a
+  dependency-free live UI that stores a library catalog in GemStone with
+  `GStore` and uses Server-Sent Events so multiple client screens update
+  automatically when books are borrowed or returned. The dependency-free
   `examples/explorer.ts` browser example adds status, OOP inspection,
   roots/globals, workspace eval, class browsing, and codegen preview. See
   `docs/framework-adapters.md` and `docs/examples-guide.md`.
@@ -215,8 +218,8 @@ native package; the TypeScript package can be tested locally with a mock runtime
   JSON, guided plans, and runnable command lists for tooling, and can show an
   example file directly from the installed npm package. The packaged catalog
   includes quickstart, data helpers, query helpers, bulk selector sends,
-  migrations, ObjectLog, codegen, web adapter examples, and the local explorer;
-  see
+  migrations, ObjectLog, codegen, web adapter examples, the Library Books live
+  UI, and the local explorer; see
   `docs/examples-guide.md`.
 - `gemstone-js-compare` prints the local JS/Python, Rust/Python, and combined
   ecosystem comparison, including scorecards, gap rows, next batches, batch
@@ -395,7 +398,9 @@ npm run benchmark:register -- candidate.json --manifest .github/benchmarks/index
 `GS_USERNAME`, `GS_PASSWORD`, `GS_HOST`, `GS_NETLDI`, and `GS_GEM_SERVICE`.
 It also accepts the Pharo bridge live-test aliases `GS_USER`, `GS_PASS`,
 `GS_NETLDI_HOST`, `GS_NETLDI_NAME_OR_PORT`, and `GS_SERVICE`, so the same shell
-can drive both projects. Tooling can call `sessionConfigFromEnv()` and
+can drive both projects. Canonical names win if both forms are set; for example,
+`GS_PASSWORD` overrides `GS_PASS` after a password change. Tooling can call
+`sessionConfigFromEnv()` and
 `sessionEnvAliasConflicts()` to apply the same policy outside `Session`.
 
 Node uses the raw `@gemstone-js/native` `Gci` binding by default. To run each

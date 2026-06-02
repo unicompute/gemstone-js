@@ -96,7 +96,9 @@ The first implementation slice follows `../plan.js.txt`:
   an in-memory snapshot plus dirty/delete buffers, `GStore.list()`, `read()`,
   existence checks, and transaction snapshot loading accept
   `KeyedReadbackOptions` bounds, and the caller's session owns transaction
-  visibility.
+  visibility. `examples/library-books.ts` shows this shape in a browser app:
+  book availability is committed through `GStore`, then pushed to all connected
+  client screens with Server-Sent Events.
 - Migration helpers are intentionally library-first. Version metadata and
   advisory locks are JSON strings in `UserGlobals`, so the runner can use the
   existing root marshalling path and stay reviewable. The public API validates

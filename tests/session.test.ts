@@ -2059,6 +2059,9 @@ test("inspect returns typed class and printString metadata", async () => {
   runtime = new MockGciRuntime({
     async execute(source) {
       assert(source.includes("Object _objectForOop:"), "inspect should use the GemStone object lookup helper");
+      assert(source.includes("obj class isIndexable"), "inspect should guard indexed reads for non-indexable objects");
+      assert(source.includes("on: Error do:"), "inspect should catch GemStone Error conditions");
+      assert(!source.includes("on: Exception do:"), "inspect should not use narrow Exception handlers");
       return runtime.newString([
         smallintToOop(7).toString(),
         "SmallInteger",

@@ -1,6 +1,6 @@
 {
   "name": "gemstone-js",
-  "version": "0.1.0-alpha.0",
+  "version": "0.1.0-alpha.1",
   "description": "Async TypeScript client for GemStone/S via GCI.",
   "type": "module",
   "license": "MIT",

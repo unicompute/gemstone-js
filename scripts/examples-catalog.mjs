@@ -35,6 +35,20 @@ export const exampleCatalog = [
     command: "node --experimental-strip-types examples/simple-dictionary.ts",
   },
   {
+    name: "external-structure-dictionary",
+    path: "examples/external-structure-dictionary.ts",
+    kind: "data",
+    description: "Build and mutate JavaScript-side data plus a dictionary before saving and retrieving committed GemStone data.",
+    command: "node --experimental-strip-types examples/external-structure-dictionary.ts",
+  },
+  {
+    name: "deconstructed-transactions",
+    path: "examples/deconstructed-transactions.ts",
+    kind: "data",
+    description: "Step-by-step commit, abort, scoped rollback, retry, nested, visibility, and GStore transaction examples.",
+    command: "node --experimental-strip-types examples/deconstructed-transactions.ts",
+  },
+  {
     name: "object-mapping",
     path: "examples/object-mapping.ts",
     kind: "data",
@@ -145,6 +159,13 @@ export const exampleCatalog = [
     command: "node --experimental-strip-types examples/web-fetch.ts",
   },
   {
+    name: "library-books",
+    path: "examples/library-books.ts",
+    kind: "web",
+    description: "Dependency-free live library catalog UI with GemStone-backed borrow/return state and automatic SSE client updates.",
+    command: "node --experimental-strip-types examples/library-books.ts",
+  },
+  {
     name: "explorer",
     path: "examples/explorer.ts",
     kind: "web",
@@ -178,7 +199,7 @@ export const examplePlans = [
     name: "data-persistence",
     title: "Data Persistence",
     description: "Work through roots, dictionaries, query helpers, GStore, and migrations.",
-    examples: ["persistent-root", "simple-dictionary", "object-mapping", "transparent-object-mapping", "smalltalk-bridge", "query", "bulk-perform", "gstore", "migrations"],
+    examples: ["persistent-root", "simple-dictionary", "external-structure-dictionary", "deconstructed-transactions", "object-mapping", "transparent-object-mapping", "smalltalk-bridge", "query", "bulk-perform", "gstore", "migrations"],
   },
   {
     name: "typed-codegen",
@@ -197,7 +218,7 @@ export const examplePlans = [
     name: "web-service",
     title: "Web Service",
     description: "Start with Fetch and the local explorer, then compare Express, Fastify, Hono, and route-handler shapes.",
-    examples: ["web-fetch", "explorer", "web-route-handler", "web-express", "web-fastify", "web-hono"],
+    examples: ["web-fetch", "library-books", "explorer", "web-route-handler", "web-express", "web-fastify", "web-hono"],
   },
   {
     name: "ops-release",

@@ -27,7 +27,8 @@ import {
 const runLive = process.env.GS_RUN_LIVE === "1";
 
 test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIVE=1 to run live GemStone checks" }, async () => {
-  await using session = await Session.connect(Session.configFromEnv());
+  const session = await Session.connect(Session.configFromEnv());
+  try {
 
   assert.equal(await session.eval("1 + 1"), 2n);
 
@@ -538,7 +539,7 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
   }
 
   const poolEvents: string[] = [];
-  await using pool = new SessionPool({
+  const pool = new SessionPool({
     ...Session.configFromEnv(),
     name: "gemstone-js-live-pool",
     maxSize: 1,
@@ -546,6 +547,7 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
     validationQuery: "1 + 1",
     eventListener: (event) => poolEvents.push(event.name),
   });
+  try {
   assert.equal(await pool.warm(1), 1);
   assert.equal(pool.stats().idle, 1);
   assert.equal(await pool.withSession((pooled) => pooled.eval("3 + 4")), 7n);
@@ -664,8 +666,14 @@ test("live GemStone regression smoke", { skip: runLive ? false : "set GS_RUN_LIV
   });
   assert.equal(await pool.withSession((pooled) => pooled.globalHas(scopeCommitKey)), false);
   assert.equal(await pool.withSession((pooled) => pooled.globalHas(fetchCommitKey)), false);
+  } finally {
+    await pool.close().catch(() => undefined);
+  }
 
   await session.abort();
+  } finally {
+    await session.logout().catch(() => undefined);
+  }
 });
 
 test("live GemStone worker backend stress", { skip: runLive ? false : "set GS_RUN_LIVE=1 to run live GemStone checks" }, async () => {

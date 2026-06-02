@@ -83,17 +83,18 @@ test("benchmarks CLI runs offline gci without opening a session", async () => {
 });
 
 test("benchmarks CLI writes output files and reports usage errors", async () => {
-  await using fixture = await tempFixture();
-  const output = join(fixture.path, "report.json");
-  const io = fakeIo();
+  await withTempFixture(async (fixture) => {
+    const output = join(fixture.path, "report.json");
+    const io = fakeIo();
 
-  assert.equal(await runBenchmarksCli(["--suite", "gci", "--entries", "5", "--json", "--output", output], io), 0);
-  assert.equal(io.stdoutText(), "");
-  assert.equal(JSON.parse(await readFile(output, "utf8")).entries, 5);
+    assert.equal(await runBenchmarksCli(["--suite", "gci", "--entries", "5", "--json", "--output", output], io), 0);
+    assert.equal(io.stdoutText(), "");
+    assert.equal(JSON.parse(await readFile(output, "utf8")).entries, 5);
 
-  const usageIo = fakeIo();
-  assert.equal(await runBenchmarksCli(["--entries", "0"], usageIo), 2);
-  assert.match(usageIo.stderrText(), /entries must be a positive integer/);
+    const usageIo = fakeIo();
+    assert.equal(await runBenchmarksCli(["--entries", "0"], usageIo), 2);
+    assert.match(usageIo.stderrText(), /entries must be a positive integer/);
+  });
 });
 
 test("benchmarks CLI opens a live session only for live suites", async () => {
@@ -125,6 +126,15 @@ async function tempFixture(): Promise<AsyncDisposable & { path: string }> {
       await rm(path, { recursive: true, force: true });
     },
   };
+}
+
+async function withTempFixture<T>(work: (fixture: AsyncDisposable & { path: string }) => Promise<T>): Promise<T> {
+  const fixture = await tempFixture();
+  try {
+    return await work(fixture);
+  } finally {
+    await fixture[Symbol.asyncDispose]();
+  }
 }
 
 function fakeIo(connect?: BenchmarksCliIo["connect"]): BenchmarksCliIo & {

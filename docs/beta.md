@@ -43,7 +43,8 @@ gemstone-js-doctor --live
 
 Existing GemStone bridge shells can keep using `GS_USER`, `GS_PASS`,
 `GS_NETLDI_HOST`, `GS_NETLDI_NAME_OR_PORT`, and `GS_SERVICE`; the canonical
-JavaScript names above win if both are set.
+JavaScript names above win if both are set. If login still fails after changing
+the password, update or unset `GS_PASSWORD` before relying on `GS_PASS`.
 
 ## Native Backends
 

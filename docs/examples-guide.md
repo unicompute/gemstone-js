@@ -71,6 +71,9 @@ export GS_PASSWORD=swordfish
 The canonical JavaScript names above take precedence. Existing Pharo bridge
 shells can use `GS_USER`, `GS_PASS`, `GS_NETLDI_HOST`,
 `GS_NETLDI_NAME_OR_PORT`, and `GS_SERVICE` as compatibility aliases.
+If login still reports an invalid user/password after a password change, update
+or unset the canonical value first: `GS_PASSWORD` wins over `GS_PASS`, and
+`GS_USERNAME` wins over `GS_USER`.
 Set `GS_NATIVE_SESSION_WORKER=1` when you want examples that call
 `Session.connect()` to use the optional Node `GciSessionWorker` backend instead
 of the raw `Gci` backend.
@@ -148,6 +151,163 @@ console.log(saved);
 // { name: "Tariq", amount: 100n, currency: "GBP" }
 ```
 
+`examples/external-structure-dictionary.ts` shows the next step: build and
+manipulate application data before opening a GemStone session, then commit it
+and read it back from a later session.
+
+```ts
+import { Session, objectToDictionaryArgument, type GemStoneArgument } from "gemstone-js";
+
+class CheckoutDraft {
+  readonly lines: Array<{ sku: string; quantity: number; unitPrice: number }> = [];
+  discount = 0;
+
+  constructor(
+    readonly id: string,
+    readonly customerName: string,
+    readonly currency: string,
+  ) {}
+
+  addLine(sku: string, quantity: number, unitPrice: number): void {
+    this.lines.push({ sku, quantity, unitPrice });
+  }
+
+  get total(): number {
+    return this.lines.reduce((sum, line) => sum + line.quantity * line.unitPrice, 0) - this.discount;
+  }
+}
+
+const checkout = new CheckoutDraft("CHK-1001", "Tariq", "GBP");
+checkout.addLine("GS-JS-SUPPORT", 2, 45);
+checkout.addLine("GS-EXPLORER", 1, 25);
+checkout.discount = 15;
+
+const metadata: Record<string, GemStoneArgument> = { source: "node" };
+metadata.reviewed = true;
+
+const payload = objectToDictionaryArgument({
+  id: checkout.id,
+  customerName: checkout.customerName,
+  currency: checkout.currency,
+  lineCount: checkout.lines.length,
+  skus: checkout.lines.map((line) => line.sku),
+  total: checkout.total,
+  metadata,
+});
+
+await Session.withEnv(async (session) => {
+  await session.globalSetDict("ExternalCheckoutExample", payload);
+  await session.commit();
+});
+
+const committed = await Session.withEnv(async (session) => {
+  const stored = await session.globalRequireDict("ExternalCheckoutExample");
+  const values = await stored.pick(["id", "customerName", "currency", "lineCount", "skus", "total"]);
+  const nested = await stored.pickDict(["metadata"]);
+  return {
+    ...values,
+    metadata: nested.metadata ? await nested.metadata.toObject({ maxEntries: 20 }) : null,
+  };
+});
+
+console.log(committed);
+```
+
+`examples/deconstructed-transactions.ts` breaks transaction work into smaller
+database phases. It is useful when you want to see exactly where GemStone state
+is dirty, committed, aborted, retried, or nested:
+
+```ts
+import {
+  CommitConflictError,
+  GStore,
+  GStoreAbortTransaction,
+  PersistentRoot,
+  Session,
+  commitWithConflictDetails,
+  nestedTransaction,
+  runTransactionWithRetry,
+} from "gemstone-js";
+
+await using session = await Session.connect(Session.configFromEnv());
+const root = PersistentRoot.userGlobals(session);
+
+await root.setDict("TxnManualCommitExample", { status: "draft" });
+console.log(await session.needsCommit().catch((error) => `unavailable: ${error.message}`));
+await session.commit();
+
+try {
+  await root.setValue("TxnManualAbortExample", "discard me");
+  throw new Error("application validation failed");
+} catch {
+  await session.abort();
+}
+
+await session.withTransaction(async (transactionSession) => {
+  await PersistentRoot.userGlobals(transactionSession).setDict("TxnScopedExample", {
+    status: "committed-by-withTransaction",
+  });
+});
+
+try {
+  await session.withTransaction(async (transactionSession) => {
+    await PersistentRoot.userGlobals(transactionSession).setValue("TxnScopedRollbackExample", "discarded");
+    throw new Error("rollback scoped transaction");
+  });
+} catch {
+  console.log(await root.has("TxnScopedRollbackExample"));
+}
+
+let commitAttempts = 0;
+await runTransactionWithRetry(
+  async (transactionSession) => {
+    await PersistentRoot.userGlobals(transactionSession).setDict("TxnRetryExample", {
+      status: "committed-after-retry",
+    });
+  },
+  {
+    session,
+    attempts: 2,
+    commit: async (transactionSession) => {
+      commitAttempts += 1;
+      if (commitAttempts === 1) throw new CommitConflictError("simulated conflict");
+      await commitWithConflictDetails(transactionSession);
+    },
+  },
+);
+
+try {
+  await nestedTransaction(session, async (nestedSession) => {
+    await PersistentRoot.userGlobals(nestedSession).setValue("TxnNestedInnerExample", "discarded");
+    throw new Error("abort only the nested level");
+  });
+} catch {
+  await root.setValue("TxnNestedOuterExample", "outer transaction kept going");
+  await session.commit();
+}
+
+await root.setDict("TxnVisibilityExample", { status: "uncommitted" });
+console.log(await root.has("TxnVisibilityExample"));
+console.log(await Session.withEnv((other) =>
+  PersistentRoot.userGlobals(other).has("TxnVisibilityExample")
+));
+await session.commit();
+console.log(await Session.withEnv((other) =>
+  PersistentRoot.userGlobals(other).getDictObject("TxnVisibilityExample")
+));
+
+const store = await GStore.open(session, "TxnGStoreAbortExample");
+await store.transaction((transaction) => {
+  transaction.set("keep", { status: "committed" });
+});
+await store.transaction((transaction) => {
+  transaction.set("keep", { status: "discarded" });
+  transaction.set("temporary", true);
+  throw new GStoreAbortTransaction();
+});
+console.log(await store.transaction((transaction) => transaction.toObject(), { readOnly: true }));
+```
+
 `examples/object-mapping.ts` shows `mappedObject()` with async property-style
 methods, setter selectors, object selectors, and snapshots. The guide expands
 that example into a mapping decision table, explicit selector configuration,
@@ -184,6 +344,28 @@ The dependency-free Fetch example is the smallest web service shape:
 ```sh
 node --experimental-strip-types examples/web-fetch.ts
 ```
+
+`examples/library-books.ts` is a dependency-free browser app that demonstrates
+GemStone-backed shared state with automatic client updates. It stores a small
+library catalog in `GStore`, renders two client screens, and uses Server-Sent
+Events so both screens update immediately when either client borrows or returns
+a book:
+
+```sh
+node --experimental-strip-types examples/library-books.ts
+open http://127.0.0.1:3027/
+```
+
+![GemStone Library Books seed catalog](articles/assets/gemstone-js-library-books-catalog.png)
+
+Open the same URL in two browser windows to see the same behavior across real
+clients. The current catalog lives under `UserGlobals.GStoreRoot` as
+`ExampleLibraryBooks`; use the page's reset button to restore the seed books.
+`node --experimental-strip-types --check examples/library-books.ts` only
+syntax-checks the example and exits immediately; omit `--check` when you want
+to start the server.
+
+![GemStone Library Books borrowed update](articles/assets/gemstone-js-library-books-borrowed.png)
 
 The dependency-free browser explorer is a small local workbench for status,
 doctor output, OOP inspection, roots/globals, workspace eval, class browsing,

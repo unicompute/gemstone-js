@@ -150,7 +150,7 @@
     "verify": "npm run typecheck && npm run codegen:check && npm run codegen:scan:check && npm run examples:check && npm run compare:check && npm run public-surface:check && npm run build && npm run api-contract && npm test && npm run live:check && npm run checksum:check && npm run provenance:check && npm run pack:check && npm run release:check && npm run api-contract:installed"
   },
   "optionalDependencies": {
-    "@gemstone-js/native": "0.1.0-alpha.0"
+    "@gemstone-js/native": "0.1.0-alpha.1"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

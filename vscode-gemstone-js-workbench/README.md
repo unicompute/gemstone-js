@@ -2,6 +2,12 @@
 
 VS Code wrapper for the gemstone-js Explorer. The extension starts the local Explorer server, embeds it in a webview, exposes connection/object trees, and provides basic GemStone code evaluation and debugging commands.
 
+This `0.1.1` refresh is aligned with the `gemstone-js@0.1.0-alpha.1` and
+`@gemstone-js/native@0.1.0-alpha.1` npm alpha releases. The workbench does not
+bundle those npm packages; it starts the Explorer from `gemstoneJs.repoPath`, so
+point that setting at a checkout or workspace that contains the Explorer version
+you want to run.
+
 ## Commands
 
 - `GemStone: Open Explorer` starts the JS Explorer server and opens it in a VS Code webview.
@@ -79,6 +85,14 @@ Configure `gemstoneJs.*` in VS Code settings:
 - `gemstoneJs.defaultReturnKind`
 
 The extension maps these settings to the Explorer environment, including `GS_USER`, `GS_PASS`, `GS_STONE`, `GS_NETLDI_HOST`, `GS_NETLDI_NAME_OR_PORT`, and `GS_NATIVE_SESSION_WORKER`. Prefer `GemStone: Set Password` over the legacy `gemstoneJs.password` setting so the password is stored in VS Code SecretStorage instead of plain settings JSON.
+
+For the published alpha packages, update the checkout used by `gemstoneJs.repoPath`
+or install the alpha packages with:
+
+```sh
+npm install gemstone-js@alpha
+npm install @gemstone-js/native@alpha
+```
 
 ## Debugger
 

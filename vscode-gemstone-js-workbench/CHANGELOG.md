@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1 - 2026-06-02
+
+- Refreshed VSIX metadata for the `gemstone-js@0.1.0-alpha.1` and `@gemstone-js/native@0.1.0-alpha.1` npm alpha release.
+- Documented that the workbench launches the configured local gemstone-js Explorer and can track the published alpha by pointing `gemstoneJs.repoPath` at an updated checkout.
+- Kept VSIX packaging, checksum, Marketplace publish, and offline smoke verification as the release gate for this refresh.
+
 ## 0.1.0 - 2026-05-19
 
 - Added the initial VS Code wrapper around the gemstone-js Explorer.
